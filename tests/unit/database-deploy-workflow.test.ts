@@ -8,6 +8,8 @@ const workflowPath = resolve(
   ".github/workflows/deploy-database.yml",
 );
 const workflow = readFileSync(workflowPath, "utf8");
+const vercelIgnorePath = resolve(process.cwd(), ".vercelignore");
+const vercelIgnore = readFileSync(vercelIgnorePath, "utf8");
 
 describe("production database deployment workflow", () => {
   it("is manual, protected by production confirmation, and uses encrypted credentials", () => {
@@ -28,5 +30,14 @@ describe("production database deployment workflow", () => {
     expect(previewIndex).toBeGreaterThan(-1);
     expect(applyIndex).toBeGreaterThan(previewIndex);
     expect(workflow).not.toContain("--include-seed");
+  });
+});
+
+describe("Vercel deployment files", () => {
+  it("excludes only the root Supabase directory", () => {
+    const patterns = vercelIgnore.split(/\r?\n/);
+
+    expect(patterns).toContain("/supabase");
+    expect(patterns).not.toContain("supabase");
   });
 });

@@ -7,7 +7,7 @@ coverage
 playwright-report
 test-results
 tests
-supabase
+/supabase
 AGENTS.md
 SPEC.md
 TASKS.md
