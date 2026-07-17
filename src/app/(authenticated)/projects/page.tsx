@@ -1,13 +1,14 @@
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { FolderPlus } from "lucide-react";
+import Link from "next/link";
 
-export default function ProjectsPage() {
+import { Button } from "@/components/ui/button";
+import { ProjectList } from "@/features/projects/project-list";
+import { ProjectService } from "@/lib/services/project-service";
+import { createClient } from "@/lib/supabase/server";
+
+export default async function ProjectsPage() {
+  const projects = await new ProjectService(await createClient()).list();
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -16,27 +17,17 @@ export default function ProjectsPage() {
             プロジェクト
           </h1>
           <p className="text-sm text-muted-foreground">
-            年表プロジェクトを管理します。
+            年表プロジェクトを作成し、表示設定を管理します。
           </p>
         </div>
-        <Badge className="border-primary/30 bg-brand-primary-soft text-brand-primary-active">
-          認証済み
-        </Badge>
+        <Button asChild>
+          <Link href="/projects/new">
+            <FolderPlus aria-hidden="true" className="size-4" />
+            新規プロジェクト
+          </Link>
+        </Button>
       </div>
-
-      <Card className="max-w-2xl border-dashed shadow-none">
-        <CardHeader>
-          <CardTitle className="text-lg">基盤の準備ができました</CardTitle>
-          <CardDescription>
-            プロジェクトの作成・編集・削除はPhase 2で実装します。
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm leading-6 text-muted-foreground">
-            現在は認証、保護レイアウト、基本ナビゲーションが利用できます。
-          </p>
-        </CardContent>
-      </Card>
+      <ProjectList initialProjects={projects} />
     </div>
   );
 }

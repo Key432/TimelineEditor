@@ -59,6 +59,8 @@ SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID=
 SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET=
 ```
 
+クラウドSupabaseへ接続してlocalhostからGoogle OAuthを開始した場合、開発環境ではアクセス元のlocalhostを戻り先に使用します。`NEXT_PUBLIC_APP_URL` が本番URLでも、認証後は `http://localhost:3000/auth/callback` または `http://127.0.0.1:3000/auth/callback` へ戻ります。Google CloudとSupabaseのRedirect URL許可リストには、使用するlocalhost URLを登録してください。
+
 ## Supabase CloudのGoogle OAuth設定
 
 1. Google Auth PlatformでAudience、Branding、Data Accessを設定します。
@@ -95,6 +97,40 @@ E2E_TEST_AUTH=false
 
 `SUPABASE_SERVICE_ROLE_KEY` と `E2E_TEST_AUTH_SECRET` は通常のVercel環境へ登録しません。
 
+## 本番DBマイグレーション
+
+本番Supabaseへローカル端末から直接変更を適用しません。`supabase/migrations/` の変更をコミットし、GitHub Actionsの `Deploy Supabase Migrations` を手動実行します。
+
+GitHubの `production` Environmentへ次を設定します。
+
+```text
+Secret:   SUPABASE_ACCESS_TOKEN
+Secret:   SUPABASE_DB_PASSWORD
+Variable: SUPABASE_PROJECT_ID
+```
+
+`SUPABASE_DB_PASSWORD` はCLIのパスワードレス接続が利用できない場合に使用されます。ワークフローは確認文字列 `deploy-production` を要求し、`db push --dry-run` の成功後に未適用マイグレーションだけを適用します。本番へシードデータは投入しません。
+
+## プロジェクト管理
+
+認証後の `/projects` で、非公開プロジェクトの作成、一覧、設定変更、完全削除を行えます。作成時は名前だけで開始でき、表示範囲、曖昧期間の既定値、初期ズーム、表示密度、最小時間単位を詳細設定できます。
+
+- `projects.owner_id` はサーバーセッションの `auth.uid()` から設定し、クライアント入力は使用しません。
+- `projects` と `project_settings` はRLSにより所有者だけが参照・更新・削除できます。
+- 新規プロジェクトの公開状態は必ず `private` です。
+- プロジェクト削除時は名前の再入力が必要で、設定を含む配下データは `ON DELETE CASCADE` で完全削除されます。
+- テンプレート選択は作成APIで検証します。テンプレート別の対象種別投入はPhase 3で同じ作成フローへ接続します。
+
+Phase 2で提供するAPI：
+
+```text
+GET    /api/projects
+POST   /api/projects
+GET    /api/projects/[projectId]
+PATCH  /api/projects/[projectId]
+DELETE /api/projects/[projectId]
+```
+
 ## 検証
 
 ```bash
@@ -112,7 +148,7 @@ pnpm verify:commit
 - マイグレーションリセット
 - Next.js本番ビルド
 
-統合・E2E・マイグレーション検証はDocker上のローカルSupabaseを自動起動します。
+統合・E2E・マイグレーション検証はDocker上のローカルSupabaseを自動起動します。E2Eは開発サーバーと同時実行できるよう、専用のポート `3100` とビルド領域を使用します。
 
 ## セキュリティ
 

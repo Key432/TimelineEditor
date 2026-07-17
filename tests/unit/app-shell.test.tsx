@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "@/components/app-shell";
+import { QueryProvider } from "@/components/query-provider";
 
 describe("AppShell", () => {
   it("renders the authenticated shell and keyboard logout action", async () => {
@@ -10,13 +11,15 @@ describe("AppShell", () => {
     const logoutAction = vi.fn(async () => undefined);
 
     render(
-      <AppShell email="reader@example.com" logoutAction={logoutAction}>
-        <h1>プロジェクト</h1>
-      </AppShell>,
+      <QueryProvider>
+        <AppShell email="reader@example.com" logoutAction={logoutAction}>
+          <h1>プロジェクト</h1>
+        </AppShell>
+      </QueryProvider>,
     );
 
     expect(
-      screen.getAllByRole("link", { name: "プロジェクト" }).length,
+      screen.getAllByRole("link", { name: "すべてのプロジェクト" }).length,
     ).toBeGreaterThan(0);
     expect(screen.getByText("reader@example.com")).toBeInTheDocument();
 

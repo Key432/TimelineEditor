@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FolderKanban, LogOut, Menu, PanelLeftClose } from "lucide-react";
+import { LogOut, Menu, PanelLeftClose } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,31 +11,21 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { signOut } from "@/features/auth/actions";
+import { ProjectNavigation } from "@/features/projects/project-navigation";
+import type { ProjectSummary } from "@/features/projects/types";
 
 type AppShellProps = {
   children: React.ReactNode;
   email?: string;
   logoutAction?: () => Promise<void>;
+  projects?: ProjectSummary[];
 };
-
-function Navigation() {
-  return (
-    <nav aria-label="メインナビゲーション" className="space-y-1">
-      <Link
-        className="flex items-center gap-3 rounded-md bg-sidebar-accent px-3 py-2 text-sm font-medium text-sidebar-accent-foreground"
-        href="/projects"
-      >
-        <FolderKanban aria-hidden="true" className="size-4" />
-        プロジェクト
-      </Link>
-    </nav>
-  );
-}
 
 export function AppShell({
   children,
   email,
   logoutAction = signOut,
+  projects = [],
 }: AppShellProps) {
   return (
     <div className="min-h-svh bg-background">
@@ -57,7 +47,7 @@ export function AppShell({
               <SheetDescription>プロジェクトのナビゲーション</SheetDescription>
             </SheetHeader>
             <div className="px-4">
-              <Navigation />
+              <ProjectNavigation initialProjects={projects} />
             </div>
           </SheetContent>
         </Sheet>
@@ -90,7 +80,7 @@ export function AppShell({
             ナビゲーション
             <PanelLeftClose aria-hidden="true" className="size-4" />
           </div>
-          <Navigation />
+          <ProjectNavigation initialProjects={projects} />
         </aside>
         <main className="min-w-0 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>

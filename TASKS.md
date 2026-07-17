@@ -51,12 +51,15 @@ Next.js、Supabase、Google OAuth、テスト、デザイン基盤を構築す�
 ## 完了条件
 
 - ローカルSupabaseで認証済み状態を再現可能
+- localhostのGoogle OAuthがlocalhostへ戻る
 - 本番用Google OAuth設定手順をREADMEへ記載
 - 全検証成功
 
 ---
 
 # Phase 2: プロジェクト管理
+
+進捗：実装完了（Phase 3の開始待ち）
 
 ## 目的
 
