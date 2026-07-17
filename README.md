@@ -59,6 +59,8 @@ SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID=
 SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET=
 ```
 
+クラウドSupabaseへ接続してlocalhostからGoogle OAuthを開始した場合、開発環境ではアクセス元のlocalhostを戻り先に使用します。`NEXT_PUBLIC_APP_URL` が本番URLでも、認証後は `http://localhost:3000/auth/callback` または `http://127.0.0.1:3000/auth/callback` へ戻ります。Google CloudとSupabaseのRedirect URL許可リストには、使用するlocalhost URLを登録してください。
+
 ## Supabase CloudのGoogle OAuth設定
 
 1. Google Auth PlatformでAudience、Branding、Data Accessを設定します。
