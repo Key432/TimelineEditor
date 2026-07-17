@@ -1,0 +1,2 @@
+-- Phase 1 has no application tables or sample data.
+-- Feature sample data is introduced in the phase that creates its schema.
