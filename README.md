@@ -97,6 +97,20 @@ E2E_TEST_AUTH=false
 
 `SUPABASE_SERVICE_ROLE_KEY` と `E2E_TEST_AUTH_SECRET` は通常のVercel環境へ登録しません。
 
+## 本番DBマイグレーション
+
+本番Supabaseへローカル端末から直接変更を適用しません。`supabase/migrations/` の変更をコミットし、GitHub Actionsの `Deploy Supabase Migrations` を手動実行します。
+
+GitHubの `production` Environmentへ次を設定します。
+
+```text
+Secret:   SUPABASE_ACCESS_TOKEN
+Secret:   SUPABASE_DB_PASSWORD
+Variable: SUPABASE_PROJECT_ID
+```
+
+`SUPABASE_DB_PASSWORD` はCLIのパスワードレス接続が利用できない場合に使用されます。ワークフローは確認文字列 `deploy-production` を要求し、`db push --dry-run` の成功後に未適用マイグレーションだけを適用します。本番へシードデータは投入しません。
+
 ## プロジェクト管理
 
 認証後の `/projects` で、非公開プロジェクトの作成、一覧、設定変更、完全削除を行えます。作成時は名前だけで開始でき、表示範囲、曖昧期間の既定値、初期ズーム、表示密度、最小時間単位を詳細設定できます。
