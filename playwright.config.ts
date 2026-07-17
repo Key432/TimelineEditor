@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const e2eBaseUrl = "http://127.0.0.1:3100";
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -8,13 +10,12 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: e2eBaseUrl,
     trace: "on-first-retry",
   },
   webServer: {
-    command:
-      "node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3000",
-    url: "http://127.0.0.1:3000",
+    command: "node tests/scripts/start-next-e2e.mjs",
+    url: e2eBaseUrl,
     reuseExistingServer: false,
     timeout: 120_000,
   },
