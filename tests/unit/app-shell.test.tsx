@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -27,5 +27,38 @@ describe("AppShell", () => {
     logout.focus();
     await user.keyboard("{Enter}");
     expect(logoutAction).toHaveBeenCalledOnce();
+  });
+
+  it("toggles the sidebar collapsed state when clicking the collapse button", async () => {
+    const user = userEvent.setup();
+    const logoutAction = vi.fn(async () => undefined);
+
+    render(
+      <QueryProvider>
+        <AppShell email="reader@example.com" logoutAction={logoutAction}>
+          <h1>プロジェクト</h1>
+        </AppShell>
+      </QueryProvider>,
+    );
+
+    const navs = screen.getAllByRole("navigation", {
+      name: "メインナビゲーション",
+    });
+    const nav = navs.find((n) => n.closest("aside")) ?? navs[0];
+    const allProjectsLink = within(nav).getByRole("link", {
+      name: "すべてのプロジェクト",
+    });
+    expect(allProjectsLink).toBeVisible();
+
+    const aside = nav.closest("aside");
+    const toggle = within(aside as HTMLElement).getByRole("button", {
+      name: "サイドパネルを折りたたむ",
+    });
+    await user.click(toggle);
+
+    expect(aside).toHaveAttribute("aria-hidden", "true");
+
+    await user.click(toggle);
+    expect(aside).toHaveAttribute("aria-hidden", "false");
   });
 });

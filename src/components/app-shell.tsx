@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { LogOut, Menu, PanelLeftClose } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +30,7 @@ export function AppShell({
   logoutAction = signOut,
   projects = [],
 }: AppShellProps) {
+  const [collapsed, setCollapsed] = useState(false);
   return (
     <div className="min-h-svh bg-background">
       <header className="sticky top-0 z-30 flex h-14 items-center border-b bg-card px-4 lg:px-6">
@@ -74,13 +78,35 @@ export function AppShell({
         </div>
       </header>
 
-      <div className="mx-auto grid min-h-[calc(100svh-3.5rem)] w-full max-w-[1600px] lg:grid-cols-[240px_1fr]">
-        <aside className="hidden border-r bg-sidebar p-4 lg:block">
+      <div
+        className={`mx-auto grid min-h-[calc(100svh-3.5rem)] w-full max-w-[1600px] ${
+          collapsed ? "lg:grid-cols-[64px_1fr]" : "lg:grid-cols-[240px_1fr]"
+        }`}
+      >
+        <aside
+          className={`hidden border-r bg-sidebar lg:block ${collapsed ? "p-2" : "p-4"}`}
+          aria-hidden={collapsed}
+        >
           <div className="mb-5 flex items-center justify-between px-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            ナビゲーション
-            <PanelLeftClose aria-hidden="true" className="size-4" />
+            {!collapsed ? (
+              <span>ナビゲーション</span>
+            ) : (
+              <span className="sr-only">ナビゲーション</span>
+            )}
+            <Button
+              aria-label={
+                collapsed ? "サイドパネルを開く" : "サイドパネルを折りたたむ"
+              }
+              size="icon"
+              variant="ghost"
+              onClick={() => setCollapsed((v) => !v)}
+            >
+              <PanelLeftClose aria-hidden="true" className="size-4" />
+            </Button>
           </div>
-          <ProjectNavigation initialProjects={projects} />
+          <div className={collapsed ? "hidden" : ""}>
+            <ProjectNavigation initialProjects={projects} />
+          </div>
         </aside>
         <main className="min-w-0 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>

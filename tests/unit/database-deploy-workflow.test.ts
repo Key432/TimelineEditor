@@ -25,7 +25,10 @@ describe("production database deployment workflow", () => {
     const previewIndex = workflow.indexOf(
       "supabase db push --linked --dry-run",
     );
-    const applyIndex = workflow.indexOf("supabase db push --linked\n");
+    const applyIndex = workflow.indexOf(
+      "supabase db push --linked",
+      previewIndex + 1,
+    );
 
     expect(previewIndex).toBeGreaterThan(-1);
     expect(applyIndex).toBeGreaterThan(previewIndex);
