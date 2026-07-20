@@ -33,6 +33,7 @@
 - 初期版からSupabaseへ永続化する。
 - 公開プロジェクトは閲覧専用URLを共有できる。
 - 初期版では検索エンジンへ掲載させない。
+- 将来のレベルアップ機能として、タイムライン項目とイベント項目の多対多な関連付けを前提にし、初期実装でも関連データ構造と表示レイヤーに拡張余地を持たせる。
 
 ---
 
@@ -385,7 +386,7 @@ DB制約：
 
 ### 8.6 timeline_events
 
-期間型タイムライン項目に属する子イベント。
+初期版では「子イベント」として扱うが、将来の拡張を見据え、イベント項目はタイムライン項目と多対多で関連付け可能な構造を想定する。名称は将来の実装で再検討してよいが、初期実装では既存のUI・API・データモデルを壊さない範囲で、イベントを「関連対象」として扱えるようにしておく。
 
 ```text
 id uuid primary key
@@ -404,11 +405,36 @@ created_at timestamptz not null
 updated_at timestamptz not null
 ```
 
+- 初期版では、イベントは1つの期間型タイムライン項目に紐づく形で保存する。
+- 将来は複数のタイムライン項目へ紐づけ可能にし、共著出版物や複数人物への影響関係などを表現できるようにする。
+- 将来の関連付けは、イベント項目とタイムライン項目の多対多テーブルを介して管理する設計を前提とする。
 - 親が `temporal_type = point` の場合は作成不可
 - 親期間外のイベント登録は許可するが警告を表示する
 - 期間外の登録理由として、没後刊行・回顧展等を想定する
 
-### 8.7 search_documents
+### 8.7 entity_relationships
+
+将来のレベルアップ機能として、タイムライン項目とイベント項目の間に関連線を張れるようにするため、共通の関連テーブルを初期実装から導入する。
+
+```text
+id uuid primary key
+project_id uuid not null references projects on delete cascade
+source_type text not null -- timeline_item | timeline_event
+source_id uuid not null
+target_type text not null -- timeline_item | timeline_event
+target_id uuid not null
+relation_type text not null -- influence | reference | collaboration | other
+note text
+created_at timestamptz not null
+updated_at timestamptz not null
+unique(project_id, source_type, source_id, target_type, target_id, relation_type)
+```
+
+- 代表的なユースケースとして、「ある本が他の著者の本に影響を与えた」「ある人物が別の人物を教えた」「ある人物がある他の人物の出来事に影響を与えた」「ある出来事がある人物に影響を与えた」を表現できるようにする。
+- 関連は表示時に線として描画し、対象間の関係性を視覚化する。
+- 初期版では関連の登録UI・描画は実装しないが、DB設計とAPIの拡張ポリシーに余地を残す。
+
+### 8.8 search_documents
 
 アプリ全体のフリーワード検索用。
 
@@ -555,7 +581,9 @@ type EndDateStatus = "specified" | "ongoing" | "unknown";
 
 ---
 
-## 11. 子イベント
+## 11. 子イベント・関連付け
+
+初期版では「子イベント」を中心に実装するが、将来のレベルアップを見据えて、イベント項目は単一親ではなく複数のタイムライン項目に紐づけられる構造を前提にする。呼称は初期実装のUI・APIに合わせるが、内部的にはイベントと関連対象を分離して扱えるようにしておく。
 
 ### 11.1 登録項目
 
@@ -581,7 +609,14 @@ type EndDateStatus = "specified" | "ongoing" | "unknown";
 - 横棒外の期間でも登録可能。ただし警告する
 - 既存マーカーのダブルクリックは新規作成ではなく編集
 
-### 11.3 日付スナップ
+### 11.3 将来の関連付け方針
+
+- 初期実装ではイベントを1つの期間型タイムライン項目に紐づける。
+- 将来はイベントを複数のタイムライン項目へ紐づけられるようにし、共著出版物や複数人物への関係性を表現できるようにする。
+- タイムライン項目同士、イベント項目同士、タイムライン項目とイベント項目の間に関連線を張れるようにし、線は対象から対象への方向性を持たせる。
+- 関連の種類は `influence`、`reference`、`collaboration`、`other` を初期候補とする。
+
+### 11.4 日付スナップ
 
 ズーム段階に応じて初期入力精度を変える。
 
