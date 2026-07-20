@@ -73,6 +73,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      timeline_item_types: {
+        Row: {
+          id: string;
+          project_id: string;
+          name: string;
+          normalized_name: string;
+          default_color: string;
+          icon: string | null;
+          sort_order: number;
+          is_visible: boolean;
+          is_system_seed: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          name: string;
+          normalized_name?: string;
+          default_color: string;
+          icon?: string | null;
+          sort_order: number;
+          is_visible?: boolean;
+          is_system_seed?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          name?: string;
+          normalized_name?: string;
+          default_color?: string;
+          icon?: string | null;
+          sort_order?: number;
+          is_visible?: boolean;
+          is_system_seed?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -80,6 +122,7 @@ export type Database = {
         Args: {
           p_name: string;
           p_description: string | null;
+          p_template: string;
           p_default_uncertainty_years: number;
           p_initial_start_year: number;
           p_initial_end_year: number;
@@ -88,6 +131,14 @@ export type Database = {
           p_minimum_time_unit: string;
         };
         Returns: string;
+      };
+      move_timeline_item_type: {
+        Args: {
+          p_project_id: string;
+          p_type_id: string;
+          p_new_position: number;
+        };
+        Returns: undefined;
       };
       update_project_with_settings: {
         Args: {

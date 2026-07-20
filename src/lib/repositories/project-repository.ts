@@ -97,7 +97,10 @@ export class ProjectRepository {
   async create(input: CreateProject): Promise<Project> {
     const { data: projectId, error } = await this.client.rpc(
       "create_project_with_settings",
-      rpcArgs(input),
+      {
+        ...rpcArgs(input),
+        p_template: input.template,
+      },
     );
     if (error) throw error;
 

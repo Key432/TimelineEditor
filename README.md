@@ -133,7 +133,7 @@ Variable: SUPABASE_PROJECT_ID
 - `projects` と `project_settings` はRLSにより所有者だけが参照・更新・削除できます。
 - 新規プロジェクトの公開状態は必ず `private` です。
 - プロジェクト削除時は名前の再入力が必要で、設定を含む配下データは `ON DELETE CASCADE` で完全削除されます。
-- テンプレート選択は作成APIで検証します。テンプレート別の対象種別投入はPhase 3で同じ作成フローへ接続します。
+- テンプレート選択は作成APIで検証し、プロジェクトと設定、対象種別を同じトランザクションで作成します。
 
 Phase 2で提供するAPI：
 
@@ -143,6 +143,25 @@ POST   /api/projects
 GET    /api/projects/[projectId]
 PATCH  /api/projects/[projectId]
 DELETE /api/projects/[projectId]
+```
+
+## 対象種別管理
+
+プロジェクト設定から `/projects/[projectId]/item-types` を開き、対象種別の検索、追加、名称・既定色・アイコン変更、上下移動、表示切替、削除を行えます。検索語と同名の種別がない場合は、Enterキーまたは新規作成ボタンでその場で追加できます。
+
+- 名前は前後空白と連続空白、英字の大文字小文字を正規化してプロジェクト内の重複を防止します。
+- 既定色は `#RRGGBB` 形式で検証します。
+- 対象種別は所有者だけが参照・変更でき、プロジェクト削除時は `ON DELETE CASCADE` で削除されます。
+- 未使用の対象種別だけを削除できます。Phase 4で追加する `timeline_items.type_id` は削除連鎖を設定せず、使用中の削除を外部キーで拒否します。
+- 文学史、美術史、思想史、汎用テンプレートは用途別の初期種別を投入し、空のプロジェクトは0件で開始します。
+
+Phase 3で提供するAPI：
+
+```text
+GET    /api/projects/[projectId]/item-types
+POST   /api/projects/[projectId]/item-types
+PATCH  /api/projects/[projectId]/item-types/[typeId]
+DELETE /api/projects/[projectId]/item-types/[typeId]
 ```
 
 ## 検証

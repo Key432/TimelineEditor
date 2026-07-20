@@ -4,7 +4,7 @@ import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useId } from "react";
+import { useId, useSyncExternalStore } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,8 @@ import {
 
 const selectClassName =
   "h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+const subscribeToClient = () => () => undefined;
 
 type ProjectFormProps =
   | { mode: "create"; currentYear: number; project?: never }
@@ -63,6 +65,11 @@ export function ProjectForm(props: ProjectFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const formId = useId();
+  const isHydrated = useSyncExternalStore(
+    subscribeToClient,
+    () => true,
+    () => false,
+  );
   const {
     register,
     handleSubmit,
@@ -140,7 +147,7 @@ export function ProjectForm(props: ProjectFormProps) {
             ))}
           </select>
           <p className="text-xs leading-5 text-muted-foreground">
-            対象種別の初期投入はPhase 3でこの選択へ接続されます。
+            用途に合う対象種別を初期登録します。作成後に自由に変更できます。
           </p>
         </div>
       ) : null}
@@ -246,7 +253,7 @@ export function ProjectForm(props: ProjectFormProps) {
       ) : null}
 
       <div className="flex justify-end">
-        <Button disabled={mutation.isPending} type="submit">
+        <Button disabled={!isHydrated || mutation.isPending} type="submit">
           <Save aria-hidden="true" className="size-4" />
           {mutation.isPending
             ? "保存中…"

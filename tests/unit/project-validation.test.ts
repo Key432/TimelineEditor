@@ -37,6 +37,15 @@ describe("project validation", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts the normalized null value when the description is empty", () => {
+    const result = createProjectSchema.parse({
+      ...validInput,
+      description: null,
+    });
+
+    expect(result.description).toBeNull();
+  });
+
   it("rejects a display range whose end precedes its start", () => {
     const result = createProjectSchema.safeParse({
       ...validInput,

@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { waitUntilAccessTokenIsCurrent } from "./auth-helpers";
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -44,6 +46,8 @@ describe("local Supabase authentication", () => {
 
     expect(error).toBeNull();
     expect(data.user?.email).toBe(email);
+    if (!data.session) throw new Error("Authenticated session is required.");
+    await waitUntilAccessTokenIsCurrent(data.session.access_token);
 
     const { data: userData, error: userError } = await browser.auth.getUser();
     expect(userError).toBeNull();

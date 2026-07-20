@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Tags } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -58,6 +58,23 @@ export default async function ProjectSettingsPage({
             mode="edit"
             project={project}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">対象種別</CardTitle>
+          <CardDescription>
+            分類名、既定色、表示順、表示状態をプロジェクトごとに管理します。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href={`/projects/${project.id}/item-types`}>
+              <Tags aria-hidden="true" className="size-4" />
+              対象種別を管理
+            </Link>
+          </Button>
         </CardContent>
       </Card>
 

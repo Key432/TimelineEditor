@@ -6,7 +6,8 @@ const optionalDescriptionSchema = z
   .string()
   .trim()
   .max(2000, "説明は2000文字以内で入力してください。")
-  .transform((value) => value || null);
+  .transform((value) => value || null)
+  .nullable();
 
 export const projectSettingsSchema = z
   .object({

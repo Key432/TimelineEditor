@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { waitUntilAccessTokenIsCurrent } from "./auth-helpers";
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -32,6 +34,7 @@ async function createOwnedProject(name = "文学史") {
   const { data, error } = await owner.rpc("create_project_with_settings", {
     p_name: name,
     p_description: "日本文学の流れ",
+    p_template: "literature",
     p_default_uncertainty_years: 5,
     p_initial_start_year: 1800,
     p_initial_end_year: 2026,
@@ -68,6 +71,13 @@ describe("project ownership RLS", () => {
     ]);
     if (ownerSignIn.error) throw ownerSignIn.error;
     if (otherSignIn.error) throw otherSignIn.error;
+    if (!ownerSignIn.data.session || !otherSignIn.data.session) {
+      throw new Error("Authenticated sessions are required.");
+    }
+    await Promise.all([
+      waitUntilAccessTokenIsCurrent(ownerSignIn.data.session.access_token),
+      waitUntilAccessTokenIsCurrent(otherSignIn.data.session.access_token),
+    ]);
   });
 
   afterAll(async () => {
