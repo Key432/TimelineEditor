@@ -1,0 +1,67 @@
+import type { TimelineItemType } from "@/features/item-types/types";
+
+export const TEMPORAL_TYPES = ["range", "point"] as const;
+export type TemporalType = (typeof TEMPORAL_TYPES)[number];
+
+export const END_DATE_STATUSES = ["specified", "ongoing", "unknown"] as const;
+export type EndDateStatus = (typeof END_DATE_STATUSES)[number];
+
+export const TIMELINE_SORT_MODES = [
+  "manual",
+  "startDate",
+  "endDate",
+  "title",
+  "itemType",
+  "createdAt",
+  "updatedAt",
+] as const;
+export type TimelineSortMode = (typeof TIMELINE_SORT_MODES)[number];
+
+export type HistoricalDate = {
+  year: number;
+  month: number | null;
+  day: number | null;
+};
+
+export type TimelineItem = {
+  id: string;
+  projectId: string;
+  typeId: string;
+  itemType: TimelineItemType;
+  title: string;
+  summary: string | null;
+  description: string | null;
+  sourceText: string | null;
+  externalUrl: string | null;
+  temporalType: TemporalType;
+  colorOverride: string | null;
+  manualOrder: number;
+  isVisible: boolean;
+  start: HistoricalDate | null;
+  isStartApproximate: boolean;
+  startUncertaintyYears: number | null;
+  endDateStatus: EndDateStatus | null;
+  end: HistoricalDate | null;
+  isEndApproximate: boolean;
+  endUncertaintyYears: number | null;
+  lastConfirmed: HistoricalDate | null;
+  point: HistoricalDate | null;
+  isPointApproximate: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TimelineItemSummary = Omit<
+  TimelineItem,
+  "description" | "sourceText" | "externalUrl"
+>;
+
+export const TIMELINE_SORT_LABELS: Record<TimelineSortMode, string> = {
+  manual: "手動順",
+  startDate: "開始・時点日",
+  endDate: "終了日",
+  title: "名称",
+  itemType: "対象種別",
+  createdAt: "作成日時",
+  updatedAt: "更新日時",
+};

@@ -1,0 +1,202 @@
+import { z } from "zod";
+
+import {
+  historicalDateOrdinal,
+  isValidHistoricalDate,
+} from "@/features/timeline-items/historical-date";
+
+const nullableText = (max: number, message: string) =>
+  z
+    .string()
+    .trim()
+    .max(max, message)
+    .transform((value) => value || null)
+    .nullable();
+
+const optionalDatePart = z
+  .union([z.number(), z.string(), z.null(), z.undefined()])
+  .transform((value) => {
+    if (value === "" || value === null || value === undefined) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : Number.NaN;
+  });
+
+const historicalDateSchema = z
+  .object({
+    year: optionalDatePart,
+    month: optionalDatePart,
+    day: optionalDatePart,
+  })
+  .superRefine((date, context) => {
+    if (date.year === null) {
+      context.addIssue({
+        code: "custom",
+        path: ["year"],
+        message: "年を入力してください。",
+      });
+      return;
+    }
+    if (
+      !isValidHistoricalDate(
+        date as { year: number; month: number | null; day: number | null },
+      )
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "実在する西暦1年以降の日付を入力してください。",
+      });
+    }
+  })
+  .transform((date) => ({
+    year: date.year as number,
+    month: date.month,
+    day: date.day,
+  }));
+
+const nullableHistoricalDateSchema = z
+  .union([historicalDateSchema, z.null(), z.undefined()])
+  .transform((value) => value ?? null);
+
+const baseTimelineItemSchema = z.object({
+  typeId: z.uuid("対象種別を選択してください。"),
+  title: z
+    .string()
+    .trim()
+    .min(1, "名称を入力してください。")
+    .max(200, "名称は200文字以内で入力してください。"),
+  summary: nullableText(2000, "概要は2000文字以内で入力してください。"),
+  description: nullableText(20000, "本文は20000文字以内で入力してください。"),
+  sourceText: nullableText(10000, "出典は10000文字以内で入力してください。"),
+  externalUrl: z
+    .string()
+    .trim()
+    .max(2048, "URLは2048文字以内で入力してください。")
+    .refine(
+      (value) =>
+        !value ||
+        (() => {
+          try {
+            const url = new URL(value);
+            return url.protocol === "https:" || url.protocol === "http:";
+          } catch {
+            return false;
+          }
+        })(),
+      "httpまたはhttpsのURLを入力してください。",
+    )
+    .transform((value) => value || null)
+    .nullable(),
+  temporalType: z.enum(["range", "point"]),
+  colorOverride: z
+    .string()
+    .trim()
+    .regex(/^#[0-9a-fA-F]{6}$/, "色は #RRGGBB 形式で入力してください。")
+    .transform((value) => value.toUpperCase())
+    .nullable(),
+  isVisible: z.boolean(),
+  start: nullableHistoricalDateSchema,
+  isStartApproximate: z.boolean(),
+  endDateStatus: z.enum(["specified", "ongoing", "unknown"]).nullable(),
+  end: nullableHistoricalDateSchema,
+  isEndApproximate: z.boolean(),
+  lastConfirmed: nullableHistoricalDateSchema,
+  point: nullableHistoricalDateSchema,
+  isPointApproximate: z.boolean(),
+});
+
+export const timelineItemSchema = baseTimelineItemSchema.superRefine(
+  (item, context) => {
+    if (item.temporalType === "point") {
+      if (!item.point) {
+        context.addIssue({
+          code: "custom",
+          path: ["point"],
+          message: "時点日を入力してください。",
+        });
+      }
+      return;
+    }
+
+    if (!item.start) {
+      context.addIssue({
+        code: "custom",
+        path: ["start"],
+        message: "開始日を入力してください。",
+      });
+    }
+    if (!item.endDateStatus) {
+      context.addIssue({
+        code: "custom",
+        path: ["endDateStatus"],
+        message: "終了状態を選択してください。",
+      });
+    }
+    if (item.endDateStatus === "specified" && !item.end) {
+      context.addIssue({
+        code: "custom",
+        path: ["end"],
+        message: "終了日を入力してください。",
+      });
+    }
+    if (
+      item.start &&
+      item.endDateStatus === "specified" &&
+      item.end &&
+      historicalDateOrdinal(item.end, "end") <
+        historicalDateOrdinal(item.start, "start")
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["end"],
+        message: "終了日は開始日以降にしてください。",
+      });
+    }
+    if (
+      item.start &&
+      item.endDateStatus === "unknown" &&
+      item.lastConfirmed &&
+      historicalDateOrdinal(item.lastConfirmed, "end") <
+        historicalDateOrdinal(item.start, "start")
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["lastConfirmed"],
+        message: "最終確認日は開始日以降にしてください。",
+      });
+    }
+  },
+);
+
+export const createTimelineItemSchema = timelineItemSchema;
+export const updateTimelineItemSchema = timelineItemSchema;
+
+export const moveTimelineItemSchema = z.object({
+  manualOrder: z.number().int().min(0),
+  typeId: z.uuid().optional(),
+});
+
+export type TimelineItemInput = z.input<typeof timelineItemSchema>;
+export type TimelineItemValues = z.output<typeof timelineItemSchema>;
+export type MoveTimelineItemInput = z.input<typeof moveTimelineItemSchema>;
+
+export function emptyTimelineItemValues(typeId = ""): TimelineItemInput {
+  return {
+    typeId,
+    title: "",
+    summary: "",
+    description: "",
+    sourceText: "",
+    externalUrl: "",
+    temporalType: "range",
+    colorOverride: null,
+    isVisible: true,
+    start: { year: "", month: "", day: "" },
+    isStartApproximate: false,
+    endDateStatus: "specified",
+    end: { year: "", month: "", day: "" },
+    isEndApproximate: false,
+    lastConfirmed: null,
+    point: null,
+    isPointApproximate: false,
+  };
+}

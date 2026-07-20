@@ -1,0 +1,139 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
+
+import {
+  moveTimelineItemSchema,
+  timelineItemSchema,
+} from "@/features/timeline-items/validation";
+import { ItemTypeRepository } from "@/lib/repositories/item-type-repository";
+import { TimelineItemRepository } from "@/lib/repositories/timeline-item-repository";
+import { ServiceError } from "@/lib/services/errors";
+import { ProjectService } from "@/lib/services/project-service";
+import type { Database } from "@/lib/supabase/database.types";
+
+function validationError(error: z.ZodError) {
+  return new ServiceError(
+    "入力内容を確認してください。",
+    400,
+    "VALIDATION_ERROR",
+    z.flattenError(error),
+  );
+}
+
+export class TimelineItemService {
+  private readonly repository: TimelineItemRepository;
+  private readonly itemTypes: ItemTypeRepository;
+  private readonly projects: ProjectService;
+
+  constructor(client: SupabaseClient<Database>) {
+    this.repository = new TimelineItemRepository(client);
+    this.itemTypes = new ItemTypeRepository(client);
+    this.projects = new ProjectService(client);
+  }
+
+  private parseItemId(itemId: string) {
+    if (!z.uuid().safeParse(itemId).success) {
+      throw new ServiceError(
+        "タイムライン項目が見つかりません。",
+        404,
+        "TIMELINE_ITEM_NOT_FOUND",
+      );
+    }
+    return itemId;
+  }
+
+  private async requireItemType(projectId: string, typeId: string) {
+    const itemType = await this.itemTypes.findById(projectId, typeId);
+    if (!itemType) {
+      throw new ServiceError(
+        "対象種別が見つかりません。",
+        400,
+        "ITEM_TYPE_NOT_FOUND",
+      );
+    }
+  }
+
+  async list(projectId: string) {
+    const project = await this.projects.get(projectId);
+    const [items, itemTypes] = await Promise.all([
+      this.repository.list(project.id),
+      this.itemTypes.list(project.id),
+    ]);
+    return { project, items, itemTypes };
+  }
+
+  async get(projectId: string, itemId: string) {
+    const project = await this.projects.get(projectId);
+    const item = await this.repository.findById(
+      project.id,
+      this.parseItemId(itemId),
+    );
+    if (!item) {
+      throw new ServiceError(
+        "タイムライン項目が見つかりません。",
+        404,
+        "TIMELINE_ITEM_NOT_FOUND",
+      );
+    }
+    return { project, item };
+  }
+
+  async create(projectId: string, input: unknown) {
+    const project = await this.projects.get(projectId);
+    const result = timelineItemSchema.safeParse(input);
+    if (!result.success) throw validationError(result.error);
+    await this.requireItemType(project.id, result.data.typeId);
+    return this.repository.create(project.id, result.data);
+  }
+
+  async update(projectId: string, itemId: string, input: unknown) {
+    const { project } = await this.get(projectId, itemId);
+    const result = timelineItemSchema.safeParse(input);
+    if (!result.success) throw validationError(result.error);
+    await this.requireItemType(project.id, result.data.typeId);
+    const item = await this.repository.update(
+      project.id,
+      this.parseItemId(itemId),
+      result.data,
+    );
+    if (!item) {
+      throw new ServiceError(
+        "タイムライン項目が見つかりません。",
+        404,
+        "TIMELINE_ITEM_NOT_FOUND",
+      );
+    }
+    return item;
+  }
+
+  async move(projectId: string, itemId: string, input: unknown) {
+    const { project } = await this.get(projectId, itemId);
+    const result = moveTimelineItemSchema.safeParse(input);
+    if (!result.success) throw validationError(result.error);
+    if (result.data.typeId) {
+      await this.requireItemType(project.id, result.data.typeId);
+    }
+    await this.repository.move(
+      project.id,
+      this.parseItemId(itemId),
+      result.data.manualOrder,
+      result.data.typeId,
+    );
+    return this.repository.list(project.id);
+  }
+
+  async delete(projectId: string, itemId: string) {
+    const { project } = await this.get(projectId, itemId);
+    const deleted = await this.repository.delete(
+      project.id,
+      this.parseItemId(itemId),
+    );
+    if (!deleted) {
+      throw new ServiceError(
+        "タイムライン項目が見つかりません。",
+        404,
+        "TIMELINE_ITEM_NOT_FOUND",
+      );
+    }
+  }
+}

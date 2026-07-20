@@ -164,6 +164,33 @@ PATCH  /api/projects/[projectId]/item-types/[typeId]
 DELETE /api/projects/[projectId]/item-types/[typeId]
 ```
 
+## タイムライン項目
+
+`/projects/[projectId]/timeline` で、期間型・時点型の項目をサイドパネルから作成・編集し、基本時間軸上へ表示できます。詳細編集ページでは本文、出典、外部URLも管理できます。
+
+- 歴史日付は年・月・日を分離して保存し、JavaScript `Date` やタイムゾーン変換を使用しません。
+- 西暦1年以降、実在日、月なしの日入力禁止、終了日・最終確認日の前後関係をZodとDB制約の両方で検証します。
+- 期間型は終了日あり、継続中、終了時期不明を扱い、開始・終了の曖昧表示を個別に設定できます。
+- 時点型は期間型と異なる菱形マーカーで表示します。
+- 色は対象種別から継承し、項目単位で `#RRGGBB` の上書きを設定できます。
+- 手動順は永続化され、ドラッグ操作とキーボード対応の上下移動を利用できます。自動並べ替えは表示上だけに適用されます。
+- 対象種別グループの折りたたみと、完全削除に対応します。
+- タイムライン一覧APIは長文の本文・出典・外部URLを取得せず、詳細APIでのみ取得します。
+
+Phase 4で提供するAPI：
+
+```text
+GET    /api/projects/[projectId]/timeline
+GET    /api/projects/[projectId]/items/[itemId]
+POST   /api/projects/[projectId]/items
+PATCH  /api/projects/[projectId]/items/[itemId]
+DELETE /api/projects/[projectId]/items/[itemId]
+```
+
+手動順・グループ移動も同じ `PATCH` APIへ `manualOrder` と任意の `typeId` を送信します。
+
+Phase 4の基本描画はプロジェクト設定の初期表示年を固定レンジとして使用します。パン、ズーム、自動目盛り、厳密な日付とX座標の相互変換、行仮想化はPhase 5で実装します。
+
 ## 検証
 
 ```bash

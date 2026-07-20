@@ -1,0 +1,305 @@
+import { createClient } from "@supabase/supabase-js";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { waitUntilAccessTokenIsCurrent } from "./auth-helpers";
+
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!url || !publishableKey || !serviceRoleKey) {
+  throw new Error("Local Supabase environment is required.");
+}
+
+const admin = createClient(url, serviceRoleKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+const owner = createClient(url, publishableKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+const otherUser = createClient(url, publishableKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+const anonymous = createClient(url, publishableKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+
+const ownerEmail = `timeline-owner-${crypto.randomUUID()}@example.com`;
+const otherEmail = `timeline-other-${crypto.randomUUID()}@example.com`;
+const password = `Timeline-${crypto.randomUUID()}`;
+let ownerId = "";
+let otherUserId = "";
+
+async function createProject(name: string) {
+  const { data, error } = await owner.rpc("create_project_with_settings", {
+    p_name: name,
+    p_description: null,
+    p_template: "general",
+    p_default_uncertainty_years: 5,
+    p_initial_start_year: 1800,
+    p_initial_end_year: 2026,
+    p_initial_zoom_preset: "fit-range",
+    p_timeline_density: "comfortable",
+    p_minimum_time_unit: "day",
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+async function firstType(projectId: string) {
+  const { data, error } = await owner
+    .from("timeline_item_types")
+    .select("id")
+    .eq("project_id", projectId)
+    .order("sort_order")
+    .limit(1)
+    .single();
+  if (error) throw error;
+  return data.id;
+}
+
+function rangeRow(projectId: string, typeId: string, title: string, order = 0) {
+  return {
+    project_id: projectId,
+    type_id: typeId,
+    title,
+    temporal_type: "range",
+    manual_order: order,
+    start_year: 1867,
+    start_month: 2,
+    start_day: 9,
+    is_start_approximate: true,
+    end_date_status: "specified",
+    end_year: 1916,
+    end_month: 12,
+    end_day: 9,
+    is_end_approximate: false,
+    is_point_approximate: false,
+  };
+}
+
+describe("timeline item persistence and RLS", () => {
+  beforeAll(async () => {
+    const [ownerResult, otherResult] = await Promise.all([
+      admin.auth.admin.createUser({
+        email: ownerEmail,
+        password,
+        email_confirm: true,
+      }),
+      admin.auth.admin.createUser({
+        email: otherEmail,
+        password,
+        email_confirm: true,
+      }),
+    ]);
+    if (ownerResult.error) throw ownerResult.error;
+    if (otherResult.error) throw otherResult.error;
+    ownerId = ownerResult.data.user.id;
+    otherUserId = otherResult.data.user.id;
+
+    const [ownerSignIn, otherSignIn] = await Promise.all([
+      owner.auth.signInWithPassword({ email: ownerEmail, password }),
+      otherUser.auth.signInWithPassword({ email: otherEmail, password }),
+    ]);
+    if (ownerSignIn.error) throw ownerSignIn.error;
+    if (otherSignIn.error) throw otherSignIn.error;
+    if (!ownerSignIn.data.session || !otherSignIn.data.session) {
+      throw new Error("Authenticated sessions are required.");
+    }
+    await Promise.all([
+      waitUntilAccessTokenIsCurrent(ownerSignIn.data.session.access_token),
+      waitUntilAccessTokenIsCurrent(otherSignIn.data.session.access_token),
+    ]);
+  });
+
+  afterAll(async () => {
+    await Promise.all([
+      admin.auth.admin.deleteUser(ownerId),
+      admin.auth.admin.deleteUser(otherUserId),
+    ]);
+  });
+
+  it("stores range, ongoing, unknown, and point shapes", async () => {
+    const projectId = await createProject("date shapes");
+    const typeId = await firstType(projectId);
+    const { error } = await owner.from("timeline_items").insert([
+      rangeRow(projectId, typeId, "specified", 0),
+      {
+        ...rangeRow(projectId, typeId, "ongoing", 1),
+        end_date_status: "ongoing",
+        end_year: null,
+        end_month: null,
+        end_day: null,
+      },
+      {
+        ...rangeRow(projectId, typeId, "unknown", 2),
+        end_date_status: "unknown",
+        end_year: null,
+        end_month: null,
+        end_day: null,
+        last_confirmed_year: 1910,
+      },
+      {
+        project_id: projectId,
+        type_id: typeId,
+        title: "point",
+        temporal_type: "point",
+        manual_order: 3,
+        point_year: 1905,
+        point_month: 1,
+        point_day: 1,
+        is_point_approximate: true,
+        is_start_approximate: false,
+        is_end_approximate: false,
+      },
+    ]);
+    expect(error).toBeNull();
+
+    const { data, error: readError } = await owner
+      .from("timeline_items")
+      .select("title, temporal_type, end_date_status, last_confirmed_year")
+      .eq("project_id", projectId)
+      .order("manual_order");
+    expect(readError).toBeNull();
+    expect(data?.map((item) => item.title)).toEqual([
+      "specified",
+      "ongoing",
+      "unknown",
+      "point",
+    ]);
+  });
+
+  it("enforces date, temporal shape, ordering, and same-project type constraints", async () => {
+    const firstProject = await createProject("constraints one");
+    const secondProject = await createProject("constraints two");
+    const firstTypeId = await firstType(firstProject);
+    const secondTypeId = await firstType(secondProject);
+
+    const impossible = await owner.from("timeline_items").insert({
+      ...rangeRow(firstProject, firstTypeId, "impossible"),
+      start_year: 1900,
+      start_month: 2,
+      start_day: 29,
+    });
+    expect(impossible.error?.code).toBe("23514");
+
+    const reversed = await owner.from("timeline_items").insert({
+      ...rangeRow(firstProject, firstTypeId, "reversed"),
+      start_year: 2000,
+    });
+    expect(reversed.error?.code).toBe("23514");
+
+    const invalidOngoing = await owner.from("timeline_items").insert({
+      ...rangeRow(firstProject, firstTypeId, "invalid ongoing"),
+      end_date_status: "ongoing",
+    });
+    expect(invalidOngoing.error?.code).toBe("23514");
+
+    const crossProjectType = await owner
+      .from("timeline_items")
+      .insert(rangeRow(firstProject, secondTypeId, "cross-project type"));
+    expect(crossProjectType.error?.code).toBe("23503");
+  });
+
+  it("allows only the owner to read and write timeline items", async () => {
+    const projectId = await createProject("private items");
+    const typeId = await firstType(projectId);
+    const { data: created, error } = await owner
+      .from("timeline_items")
+      .insert(rangeRow(projectId, typeId, "private"))
+      .select("id")
+      .single();
+    if (error) throw error;
+
+    const [otherRead, anonymousRead, otherUpdate, otherDelete] =
+      await Promise.all([
+        otherUser.from("timeline_items").select("id").eq("id", created.id),
+        anonymous.from("timeline_items").select("id").eq("id", created.id),
+        otherUser
+          .from("timeline_items")
+          .update({ title: "stolen" })
+          .eq("id", created.id)
+          .select("id"),
+        otherUser
+          .from("timeline_items")
+          .delete()
+          .eq("id", created.id)
+          .select("id"),
+      ]);
+
+    expect(otherRead.error).toBeNull();
+    expect(otherRead.data).toEqual([]);
+    expect(anonymousRead.error).not.toBeNull();
+    expect(otherUpdate.data).toEqual([]);
+    expect(otherDelete.data).toEqual([]);
+  });
+
+  it("persists manual movement and type changes while protecting used types", async () => {
+    const projectId = await createProject("manual order");
+    const { data: types, error: typesError } = await owner
+      .from("timeline_item_types")
+      .select("id")
+      .eq("project_id", projectId)
+      .order("sort_order")
+      .limit(2);
+    if (typesError) throw typesError;
+    const firstTypeId = types?.[0]?.id;
+    const secondTypeId = types?.[1]?.id;
+    if (!firstTypeId || !secondTypeId) throw new Error("Types are required.");
+
+    const { data: items, error } = await owner
+      .from("timeline_items")
+      .insert([
+        rangeRow(projectId, firstTypeId, "first", 0),
+        rangeRow(projectId, firstTypeId, "second", 1),
+        rangeRow(projectId, firstTypeId, "third", 2),
+      ])
+      .select("id, manual_order")
+      .order("manual_order");
+    if (error) throw error;
+    const thirdId = items?.[2]?.id;
+    if (!thirdId) throw new Error("Third item is required.");
+
+    const { error: moveError } = await owner.rpc("move_timeline_item", {
+      p_project_id: projectId,
+      p_item_id: thirdId,
+      p_new_position: 0,
+      p_new_type_id: secondTypeId,
+    });
+    expect(moveError).toBeNull();
+
+    const { data: moved } = await owner
+      .from("timeline_items")
+      .select("id, type_id, manual_order")
+      .eq("project_id", projectId)
+      .order("manual_order");
+    expect(moved?.[0]).toMatchObject({
+      id: thirdId,
+      type_id: secondTypeId,
+      manual_order: 0,
+    });
+    expect(moved?.map((item) => item.manual_order)).toEqual([0, 1, 2]);
+
+    const usedTypeDelete = await owner
+      .from("timeline_item_types")
+      .delete()
+      .eq("id", secondTypeId);
+    expect(usedTypeDelete.error?.code).toBe("23503");
+  });
+
+  it("cascades timeline items when deleting their project", async () => {
+    const projectId = await createProject("cascade items");
+    const typeId = await firstType(projectId);
+    const { error } = await owner
+      .from("timeline_items")
+      .insert(rangeRow(projectId, typeId, "cascade"));
+    if (error) throw error;
+
+    await owner.from("projects").delete().eq("id", projectId);
+    const { data } = await admin
+      .from("timeline_items")
+      .select("id")
+      .eq("project_id", projectId);
+    expect(data).toEqual([]);
+  });
+});
