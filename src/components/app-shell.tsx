@@ -79,7 +79,7 @@ export function AppShell({
       </header>
 
       <div
-        className={`mx-auto grid min-h-[calc(100svh-3.5rem)] w-full max-w-[1600px] ${
+        className={`grid min-h-[calc(100svh-3.5rem)] w-full ${
           collapsed ? "lg:grid-cols-[64px_1fr]" : "lg:grid-cols-[240px_1fr]"
         }`}
       >
@@ -108,7 +108,9 @@ export function AppShell({
             <ProjectNavigation initialProjects={projects} />
           </div>
         </aside>
-        <main className="min-w-0 p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="min-w-0 p-4 sm:p-6 lg:p-8">
+          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+        </main>
       </div>
     </div>
   );
