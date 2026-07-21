@@ -33,6 +33,15 @@ test.afterAll(async () => {
 test("creates, draws, edits, groups, reorders, and deletes timeline items", async ({
   page,
 }) => {
+  const hydrationWarnings: string[] = [];
+  page.on("console", (message) => {
+    if (
+      message.type() === "error" &&
+      message.text().includes("A tree hydrated but some attributes")
+    ) {
+      hydrationWarnings.push(message.text());
+    }
+  });
   const authResponse = await page.request.post("/api/test-auth", {
     data: { email, password },
     headers: { "x-test-auth-secret": authSecret },
@@ -121,13 +130,33 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     .click();
 
   await expect(page.getByText("夏目漱石", { exact: true })).toBeVisible();
-  await expect(page.getByLabel(/期間型バー/)).toBeVisible();
+  const rangeGlyph = page.getByLabel(/夏目漱石.*期間型バー/);
+  await expect(rangeGlyph).toBeVisible();
+  await rangeGlyph.hover();
+  const itemTooltip = page
+    .getByRole("tooltip")
+    .filter({ hasText: "夏目漱石" })
+    .last();
+  await expect(itemTooltip).toContainText("約 1867 — 1916");
+  await expect(itemTooltip).not.toContainText("登録日付");
   await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
   const itemDetail = page.getByRole("dialog");
   await expect(itemDetail.locator("h1")).toHaveText("夏目漱石");
   await expect(itemDetail).toContainText("明治・大正期の小説家");
   await expect(itemDetail.getByText("本文", { exact: true })).toHaveCount(0);
+  await itemDetail.getByRole("link", { name: "編集" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/projects/${projectId}/items/[0-9a-f-]+/edit$`),
+  );
+  await expect(
+    page.getByRole("dialog").getByRole("form", {
+      name: "タイムラインアイテム編集",
+    }),
+  ).toBeVisible();
   await page.goBack();
+  await expect(page.getByRole("dialog").locator("h1")).toHaveText("夏目漱石");
+  await page.goBack();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 
   await page.getByRole("button", { name: "アイテムを追加" }).click();
   await expect(
@@ -149,7 +178,7 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   ).toBeVisible();
   await expect(page.getByLabel(/時点型マーカー/)).toBeVisible();
   await page
-    .getByRole("button", { name: /吾輩は猫である.*詳細を表示/ })
+    .getByRole("button", { name: "『吾輩は猫である』刊行", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toContainText(
     "『吾輩は猫である』刊行",
@@ -270,4 +299,5 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await page.reload();
   await expect(page.getByLabel(/時点型マーカー/)).toBeVisible();
   await expect(page.getByText("目盛り year")).toBeVisible();
+  expect(hydrationWarnings).toEqual([]);
 });

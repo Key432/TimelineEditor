@@ -31,12 +31,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { eventX, snapTimelineDate } from "@/features/timeline-events/snap";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import {
@@ -44,6 +39,7 @@ import {
   historicalDateFromOrdinal,
   historicalDateOrdinal,
 } from "@/features/timeline-items/historical-date";
+import { TimelineEntityTooltip } from "@/features/timeline-items/timeline-entity-tooltip";
 import {
   expandDegenerateFitRange,
   fitPixelsPerDay,
@@ -156,17 +152,19 @@ function TimelineGlyph({
       return null;
     }
     return (
-      <button
-        aria-label={`${item.title}の詳細を表示 時点型マーカー ${formatHistoricalDate(item.point)}`}
-        className="absolute top-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-white shadow-sm transition-[box-shadow,transform] hover:shadow-[0_0_0_3px_rgba(0,176,176,0.35)] focus-visible:shadow-[0_0_0_3px_rgba(0,176,176,0.45)] focus-visible:outline-none"
-        data-timeline-item-glyph="true"
-        style={{ left: registeredStart, backgroundColor: color }}
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onOpen();
-        }}
-      />
+      <TimelineEntityTooltip date={itemDateLabel(item)} title={item.title}>
+        <button
+          aria-label={`${item.title}の詳細を表示 時点型マーカー ${formatHistoricalDate(item.point)}`}
+          className="absolute top-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-white shadow-sm transition-[box-shadow,transform] hover:scale-125 hover:shadow-[0_0_0_3px_rgba(255,51,153,0.25)] focus-visible:scale-125 focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:outline-none"
+          data-timeline-item-glyph="true"
+          style={{ left: registeredStart, backgroundColor: color }}
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen();
+          }}
+        />
+      </TimelineEntityTooltip>
     );
   }
 
@@ -204,23 +202,25 @@ function TimelineGlyph({
       : color;
 
   return (
-    <button
-      aria-label={`${item.title}の詳細を表示 期間型バー ${itemDateLabel(item)}`}
-      className={cn(
-        "absolute top-1/2 h-3 min-w-1 -translate-y-1/2 rounded-sm border border-transparent transition-[box-shadow,border-color] hover:border-foreground/70 hover:shadow-[0_0_0_2px_rgba(255,255,255,0.9)] focus-visible:border-foreground focus-visible:shadow-[0_0_0_3px_rgba(0,176,176,0.35)] focus-visible:outline-none",
-        item.endDateStatus === "ongoing" &&
-          "after:absolute after:top-0 after:-right-1 after:h-3 after:w-1 after:bg-current",
-      )}
-      data-testid={`timeline-glyph-${item.id}`}
-      data-timeline-item-glyph="true"
-      style={{ left, width, background, color }}
-      type="button"
-      onClick={(event) => {
-        event.stopPropagation();
-        onOpen();
-      }}
-      onDoubleClick={() => onCancelOpen()}
-    />
+    <TimelineEntityTooltip date={itemDateLabel(item)} title={item.title}>
+      <button
+        aria-label={`${item.title}の詳細を表示 期間型バー ${itemDateLabel(item)}`}
+        className={cn(
+          "absolute top-1/2 h-3 min-w-1 -translate-y-1/2 rounded-sm border border-transparent transition-[box-shadow,border-color,transform] hover:scale-y-125 hover:border-secondary hover:shadow-[0_0_0_3px_rgba(255,51,153,0.25)] focus-visible:scale-y-125 focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:outline-none",
+          item.endDateStatus === "ongoing" &&
+            "after:absolute after:top-0 after:-right-1 after:h-3 after:w-1 after:bg-current",
+        )}
+        data-testid={`timeline-glyph-${item.id}`}
+        data-timeline-item-glyph="true"
+        style={{ left, width, background, color }}
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen();
+        }}
+        onDoubleClick={() => onCancelOpen()}
+      />
+    </TimelineEntityTooltip>
   );
 }
 
@@ -246,6 +246,7 @@ function TimelineItemRow({
   onCreateEvent,
   onOpenEvent,
   isPanning,
+  showItemType,
 }: {
   item: TimelineItemSummary;
   canvasWidth: number;
@@ -268,6 +269,7 @@ function TimelineItemRow({
   onCreateEvent: (date: HistoricalDate) => void;
   onOpenEvent: (eventId: string, editing: boolean) => void;
   isPanning: boolean;
+  showItemType: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -352,7 +354,8 @@ function TimelineItemRow({
         </div>
         {rowHeight >= 56 ? (
           <p className="mt-1 truncate text-xs text-muted-foreground">
-            {item.itemType.name} · {itemDateLabel(item)}
+            {showItemType ? `${item.itemType.name} · ` : ""}
+            {itemDateLabel(item)}
           </p>
         ) : null}
       </div>
@@ -402,39 +405,32 @@ function TimelineItemRow({
           if (!overlapsViewport(left, left, visibleStart, visibleEnd))
             return null;
           return (
-            <Tooltip key={timelineEvent.id}>
-              <TooltipTrigger asChild>
-                <button
-                  aria-label={`イベントアイテム ${timelineEvent.title} ${formatHistoricalDate(timelineEvent.date)}`}
-                  className="focus-visible:ring-focus absolute top-1/2 z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-secondary shadow-sm transition-[box-shadow,transform] hover:scale-125 hover:shadow-[0_0_0_3px_rgba(255,51,153,0.25)] focus-visible:scale-125 focus-visible:ring-2 focus-visible:outline-none"
-                  data-timeline-event-marker="true"
-                  style={{ left }}
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    cancelEventOpen();
-                    eventOpenTimerRef.current = window.setTimeout(
-                      () => onOpenEvent(timelineEvent.id, false),
-                      250,
-                    );
-                  }}
-                  onDoubleClick={(event) => {
-                    event.stopPropagation();
-                    cancelEventOpen();
-                    onOpenEvent(timelineEvent.id, true);
-                  }}
-                />
-              </TooltipTrigger>
-              <TooltipContent>
-                <div className="space-y-1">
-                  <p className="font-medium">{timelineEvent.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    登録日付: {timelineEvent.isApproximate ? "約 " : ""}
-                    {formatHistoricalDate(timelineEvent.date)}
-                  </p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
+            <TimelineEntityTooltip
+              key={timelineEvent.id}
+              date={`${timelineEvent.isApproximate ? "約 " : ""}${formatHistoricalDate(timelineEvent.date)}`}
+              title={timelineEvent.title}
+            >
+              <button
+                aria-label={`イベントアイテム ${timelineEvent.title} ${formatHistoricalDate(timelineEvent.date)}`}
+                className="focus-visible:ring-focus absolute top-1/2 z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-secondary shadow-sm transition-[box-shadow,transform] hover:scale-125 hover:shadow-[0_0_0_3px_rgba(255,51,153,0.25)] focus-visible:scale-125 focus-visible:ring-2 focus-visible:outline-none"
+                data-timeline-event-marker="true"
+                style={{ left }}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  cancelEventOpen();
+                  eventOpenTimerRef.current = window.setTimeout(
+                    () => onOpenEvent(timelineEvent.id, false),
+                    250,
+                  );
+                }}
+                onDoubleClick={(event) => {
+                  event.stopPropagation();
+                  cancelEventOpen();
+                  onOpenEvent(timelineEvent.id, true);
+                }}
+              />
+            </TimelineEntityTooltip>
           );
         })}
         {draftEvent ? (
@@ -498,6 +494,7 @@ export function TimelineViewport({
   onCreateEvent,
   onOpenEvent,
   onOpenItem,
+  showItemType,
 }: {
   project: Project;
   entries: TimelineDisplayEntry[];
@@ -512,6 +509,7 @@ export function TimelineViewport({
   onCreateEvent: (parentId: string, date: HistoricalDate) => void;
   onOpenEvent: (eventId: string, editing: boolean) => void;
   onOpenItem: (itemId: string) => void;
+  showItemType: boolean;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const pointerRef = useRef<{ x: number; scrollLeft: number } | null>(null);
@@ -1054,6 +1052,7 @@ export function TimelineViewport({
                         disabled={sortDisabled}
                         domainStart={bounds.domainStart}
                         isPanning={isPanning}
+                        showItemType={showItemType}
                         item={entry.item}
                         events={eventsByParent.get(entry.item.id) ?? []}
                         draftEvent={

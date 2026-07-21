@@ -172,8 +172,63 @@ describe("TimelineWorkspace", () => {
     const heading = screen.getByRole("button", { name: /人物/ });
     expect(screen.getByText(/表示中 1 \/ 1 行/)).toBeInTheDocument();
     expect(screen.getByText("夏目漱石")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("timeline-row-33333333-3333-4333-8333-333333333333"),
+    ).not.toHaveTextContent("人物 ·");
     await user.click(heading);
     expect(screen.queryByText("夏目漱石")).not.toBeInTheDocument();
+  });
+
+  it("sorts dates within the same year by month and day", async () => {
+    const user = userEvent.setup();
+    const datedItem = (
+      id: string,
+      title: string,
+      month: number,
+      day: number,
+      manualOrder: number,
+    ) => ({
+      ...item(id, title, "range", manualOrder),
+      start: { year: 1936, month, day },
+    });
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 21 }}
+          initialItems={[
+            datedItem(
+              "33333333-3333-4333-8333-333333333333",
+              "ケン・ローチ",
+              6,
+              17,
+              0,
+            ),
+            datedItem(
+              "44444444-4444-4444-8444-444444444444",
+              "アラン・コルバン",
+              1,
+              12,
+              1,
+            ),
+            datedItem(
+              "55555555-5555-4555-8555-555555555555",
+              "ジョルジュ・ペレック",
+              3,
+              7,
+              2,
+            ),
+          ]}
+          itemTypes={[type]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    await user.selectOptions(screen.getByLabelText("並び順"), "startDate");
+    const rows = screen.getAllByTestId(/^timeline-row-/);
+    expect(rows[0]).toHaveTextContent("アラン・コルバン");
+    expect(rows[1]).toHaveTextContent("ジョルジュ・ペレック");
+    expect(rows[2]).toHaveTextContent("ケン・ローチ");
   });
 
   it("places hidden items in a collapsed group at the bottom", async () => {

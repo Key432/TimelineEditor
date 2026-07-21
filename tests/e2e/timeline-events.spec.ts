@@ -132,7 +132,10 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await marker.hover();
   await expect(
     page.getByRole("tooltip").filter({ hasText: "代表作刊行" }).last(),
-  ).toContainText("登録日付: 1905/01/15");
+  ).toContainText("1905/01/15");
+  await expect(
+    page.getByRole("tooltip").filter({ hasText: "代表作刊行" }).last(),
+  ).not.toContainText("登録日付");
   await marker.click();
   await expect(page).toHaveURL(
     new RegExp(`/projects/${project.id}/events/[0-9a-f-]+$`),
@@ -142,6 +145,21 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await expect(detailDialog.getByText("親人物", { exact: true })).toBeVisible();
   const eventId = page.url().split("/").at(-1)!;
 
+  await detailDialog.getByRole("link", { name: "編集" }).click();
+  const overlayEditForm = page
+    .getByRole("dialog")
+    .getByRole("form", { name: "イベントアイテム編集" });
+  await expect(overlayEditForm).toBeVisible();
+  const [dialogBox, formBox] = await Promise.all([
+    page.getByRole("dialog").boundingBox(),
+    overlayEditForm.boundingBox(),
+  ]);
+  expect(dialogBox).not.toBeNull();
+  expect(formBox).not.toBeNull();
+  expect(formBox!.x - dialogBox!.x).toBeGreaterThanOrEqual(24);
+
+  await page.goBack();
+  await expect(page.getByRole("dialog")).toContainText("代表作刊行");
   await page.goBack();
   await expect(page).toHaveURL(`/projects/${project.id}/timeline`);
   await expect(page.getByRole("dialog")).toHaveCount(0);

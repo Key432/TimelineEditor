@@ -30,16 +30,18 @@ export default async function TimelineEventEditModalPage({
   const today = new Date();
   return (
     <TimelineEventOverlay showTitle title="イベントアイテムを編集">
-      <TimelineEventForm
-        currentDate={{
-          year: today.getUTCFullYear(),
-          month: today.getUTCMonth() + 1,
-          day: today.getUTCDate(),
-        }}
-        event={event}
-        projectId={projectId}
-        rangeItems={items}
-      />
+      <div className="px-6 pb-8 sm:px-10 sm:pb-10">
+        <TimelineEventForm
+          currentDate={{
+            year: today.getUTCFullYear(),
+            month: today.getUTCMonth() + 1,
+            day: today.getUTCDate(),
+          }}
+          event={event}
+          projectId={projectId}
+          rangeItems={items}
+        />
+      </div>
     </TimelineEventOverlay>
   );
 }

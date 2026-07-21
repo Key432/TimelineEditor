@@ -51,7 +51,7 @@ import {
   timelineItemKeys,
 } from "@/features/timeline-items/api";
 import { DeleteTimelineItemDialog } from "@/features/timeline-items/delete-timeline-item-dialog";
-import { effectiveItemYear } from "@/features/timeline-items/historical-date";
+import { historicalDateOrdinal } from "@/features/timeline-items/historical-date";
 import { TimelineItemForm } from "@/features/timeline-items/timeline-item-form";
 import { TimelineStoreProvider } from "@/features/timeline-items/timeline-store";
 import {
@@ -71,17 +71,27 @@ const selectClassName =
   "h-8 rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const HIDDEN_ITEMS_GROUP_ID = "hidden-items";
 
-function endYear(item: TimelineItemSummary, currentYear: number) {
-  if (item.temporalType === "point") return item.point?.year ?? 1;
-  if (item.endDateStatus === "specified") return item.end?.year ?? 1;
-  if (item.endDateStatus === "ongoing") return currentYear;
-  return item.lastConfirmed?.year ?? item.start?.year ?? 1;
+function startOrdinal(item: TimelineItemSummary) {
+  const date = item.temporalType === "point" ? item.point : item.start;
+  return date ? historicalDateOrdinal(date) : 0;
+}
+
+function endOrdinal(item: TimelineItemSummary, currentDate: HistoricalDate) {
+  const date =
+    item.temporalType === "point"
+      ? item.point
+      : item.endDateStatus === "specified"
+        ? item.end
+        : item.endDateStatus === "ongoing"
+          ? currentDate
+          : (item.lastConfirmed ?? item.start);
+  return date ? historicalDateOrdinal(date, "end") : 0;
 }
 
 function compareItems(
   mode: TimelineSortMode,
   direction: "asc" | "desc",
-  currentYear: number,
+  currentDate: HistoricalDate,
 ) {
   const factor = direction === "asc" ? 1 : -1;
   return (a: TimelineItemSummary, b: TimelineItemSummary) => {
@@ -91,10 +101,10 @@ function compareItems(
         result = a.manualOrder - b.manualOrder;
         break;
       case "startDate":
-        result = effectiveItemYear(a) - effectiveItemYear(b);
+        result = startOrdinal(a) - startOrdinal(b);
         break;
       case "endDate":
-        result = endYear(a, currentYear) - endYear(b, currentYear);
+        result = endOrdinal(a, currentDate) - endOrdinal(b, currentDate);
         break;
       case "title":
         result = a.title.localeCompare(b.title, "ja");
@@ -242,8 +252,8 @@ function TimelineWorkspaceContent({
   });
 
   const sorted = useMemo(
-    () => [...items].sort(compareItems(sortMode, direction, currentDate.year)),
-    [currentDate.year, direction, items, sortMode],
+    () => [...items].sort(compareItems(sortMode, direction, currentDate)),
+    [currentDate, direction, items, sortMode],
   );
   const groups = useMemo(() => {
     const visibleItems = sorted.filter((item) => item.isVisible);
@@ -446,6 +456,7 @@ function TimelineWorkspaceContent({
         </div>
       ) : (
         <DndContext
+          id={`timeline-items-${project.id}`}
           collisionDetection={closestCenter}
           sensors={sensors}
           onDragEnd={handleDragEnd}
@@ -460,6 +471,7 @@ function TimelineWorkspaceContent({
               entries={entries}
               events={events}
               project={project}
+              showItemType={!groupByType}
               sortDisabled={sortMode !== "manual"}
               onEdit={setEditor}
               draftEvent={
