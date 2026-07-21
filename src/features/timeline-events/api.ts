@@ -66,7 +66,7 @@ export async function deleteTimelineEvent(projectId: string, eventId: string) {
   const response = await fetch(`/api/projects/${projectId}/events/${eventId}`, {
     method: "DELETE",
   });
-  if (!response.ok) throw new Error("子イベントを削除できませんでした。");
+  if (!response.ok) throw new Error("イベントアイテムを削除できませんでした。");
 }
 
 export const timelineEventKeys = {

@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   deleteTimelineEvent,
   timelineEventKeys,
@@ -69,24 +71,31 @@ export function TimelineEventDetail({
     },
   });
   return (
-    <article className="space-y-5">
-      <header>
-        <h1 className="text-xl font-semibold">{event.title}</h1>
-        <p className="text-sm text-muted-foreground">
-          {event.isApproximate ? "約 " : ""}
-          {formatHistoricalDate(event.date)} · 親項目: {event.parent.title}
-        </p>
+    <article className="space-y-8 px-6 py-8 sm:px-10 sm:py-10">
+      <header className="space-y-5 pr-8">
+        <Badge variant="outline">イベントアイテム</Badge>
+        <h1 className="text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">
+          {event.title}
+        </h1>
+        <dl className="grid gap-3 text-sm sm:grid-cols-[8rem_1fr]">
+          <dt className="text-muted-foreground">登録日付</dt>
+          <dd>
+            {event.isApproximate ? "約 " : ""}
+            {formatHistoricalDate(event.date)}
+          </dd>
+          <dt className="text-muted-foreground">タイムライン</dt>
+          <dd>{event.parent.title}</dd>
+        </dl>
       </header>
-      <section>
-        <h2 className="mb-1 font-medium">概要</h2>
-        <DetailText value={event.summary} />
-      </section>
-      <section>
-        <h2 className="mb-1 font-medium">本文</h2>
+      <Separator />
+      <section className="min-h-28 text-base leading-7">
         <DetailText value={event.description} />
       </section>
+      <Separator />
       <section>
-        <h2 className="mb-1 font-medium">出典・参考文献</h2>
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground">
+          出典・参考文献
+        </h2>
         <SourceText value={event.sourceText} />
       </section>
       {event.externalUrl ? (
@@ -101,7 +110,7 @@ export function TimelineEventDetail({
           </a>
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 border-t pt-6">
         <Button asChild>
           <Link href={`/projects/${projectId}/events/${event.id}/edit`}>
             <Pencil className="size-4" aria-hidden="true" />

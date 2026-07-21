@@ -15,7 +15,7 @@ type ItemTypeRow = Database["public"]["Tables"]["timeline_item_types"]["Row"];
 type JoinedRow = ItemRow & { timeline_item_types: ItemTypeRow };
 
 const LIST_COLUMNS = `
-  id, project_id, type_id, title, summary, temporal_type, color_override,
+  id, project_id, type_id, title, temporal_type, color_override,
   manual_order, is_visible, start_year, start_month, start_day,
   is_start_approximate, start_uncertainty_years, end_date_status, end_year,
   end_month, end_day, is_end_approximate, end_uncertainty_years,
@@ -54,7 +54,6 @@ function mapItem(row: JoinedRow): TimelineItem {
     typeId: row.type_id,
     itemType: mapItemType(row.timeline_item_types),
     title: row.title,
-    summary: row.summary,
     description: row.description,
     sourceText: row.source_text,
     externalUrl: row.external_url,
@@ -99,7 +98,6 @@ function persistenceValues(
   return {
     type_id: input.typeId,
     title: input.title,
-    summary: input.summary,
     description: input.description,
     source_text: input.sourceText,
     external_url: input.externalUrl,

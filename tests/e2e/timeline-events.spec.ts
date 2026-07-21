@@ -40,7 +40,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   ).toBe(204);
   const projectResponse = await page.request.post("/api/projects", {
     data: {
-      name: "子イベント検証",
+      name: "イベントアイテム検証",
       description: null,
       template: "general",
       settings: {
@@ -68,7 +68,6 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
       data: {
         typeId: itemTypes[0]!.id,
         title: "親人物",
-        summary: "",
         description: "",
         sourceText: "",
         externalUrl: "",
@@ -89,19 +88,17 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   const { item } = (await itemResponse.json()) as { item: { id: string } };
 
   await page.goto(`/projects/${project.id}/timeline`);
-  await page.getByRole("button", { name: "親人物を編集" }).click();
-  await page.getByRole("button", { name: "子イベントを追加" }).click();
-  const sideForm = page.getByRole("form", { name: "子イベント作成" });
+  await page.getByRole("button", { name: "アイテムを追加" }).click();
+  await page.getByRole("menuitem", { name: "イベントを追加" }).click();
+  const sideForm = page.getByRole("form", { name: "イベントアイテム作成" });
+  await sideForm.getByLabel("親タイムラインアイテム").selectOption(item.id);
   await sideForm.getByLabel("タイトル").fill("初期作品");
   await sideForm.getByLabel("イベント年").fill("1903");
-  await sideForm.getByRole("button", { name: "子イベントを作成" }).click();
-  await expect(page.getByText("初期作品", { exact: true })).toBeVisible();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "閉じる" })
+  await sideForm
+    .getByRole("button", { name: "イベントアイテムを作成" })
     .click();
   await expect(
-    page.getByRole("button", { name: /子イベント 初期作品/ }),
+    page.getByRole("button", { name: /イベントアイテム 初期作品/ }),
   ).toBeVisible();
 
   const surface = page
@@ -112,9 +109,11 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await surface.dblclick({
     position: { x: Math.floor(box.width / 2), y: Math.floor(box.height / 2) },
   });
-  const createForm = page.getByRole("form", { name: "子イベント作成" });
+  const createForm = page.getByRole("form", {
+    name: "イベントアイテム作成",
+  });
   await expect(createForm).toBeVisible();
-  await expect(createForm.getByLabel("親タイムライン項目")).toHaveValue(
+  await expect(createForm.getByLabel("親タイムラインアイテム")).toHaveValue(
     item.id,
   );
   await createForm.getByLabel("タイトル").fill("代表作刊行");
@@ -122,16 +121,25 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await createForm.getByLabel("イベント月").fill("1");
   await createForm.getByLabel("イベント日").fill("15");
   await expect(page.getByLabel(/仮マーカー/)).toBeVisible();
-  await createForm.getByRole("button", { name: "子イベントを作成" }).click();
+  await createForm
+    .getByRole("button", { name: "イベントアイテムを作成" })
+    .click();
 
-  const marker = page.getByRole("button", { name: /子イベント 代表作刊行/ });
+  const marker = page.getByRole("button", {
+    name: /イベントアイテム 代表作刊行/,
+  });
   await expect(marker).toBeVisible();
+  await marker.hover();
+  await expect(
+    page.getByRole("tooltip").filter({ hasText: "代表作刊行" }).last(),
+  ).toContainText("登録日付: 1905/01/15");
   await marker.click();
   await expect(page).toHaveURL(
     new RegExp(`/projects/${project.id}/events/[0-9a-f-]+$`),
   );
-  await expect(page.getByRole("dialog")).toContainText("代表作刊行");
-  await expect(page.getByText("親人物", { exact: true })).toBeVisible();
+  const detailDialog = page.getByRole("dialog");
+  await expect(detailDialog).toContainText("代表作刊行");
+  await expect(detailDialog.getByText("親人物", { exact: true })).toBeVisible();
   const eventId = page.url().split("/").at(-1)!;
 
   await page.goBack();
@@ -142,7 +150,9 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
     `/projects/${project.id}/events/${eventId}/edit`,
   );
   await expect(
-    page.getByRole("dialog").getByRole("form", { name: "子イベント編集" }),
+    page
+      .getByRole("dialog")
+      .getByRole("form", { name: "イベントアイテム編集" }),
   ).toBeVisible();
 
   await page.goto(`/projects/${project.id}/events/${eventId}`);

@@ -59,7 +59,6 @@ function item(
     typeId: itemType.id,
     itemType,
     title,
-    summary: null,
     temporalType,
     colorOverride: null,
     manualOrder,
@@ -81,6 +80,36 @@ function item(
 }
 
 describe("TimelineWorkspace", () => {
+  it("separates a glyph click from range double-click event creation", () => {
+    vi.useFakeTimers();
+    const onOpenItem = vi.fn();
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 21 }}
+          initialItems={[
+            item("33333333-3333-4333-8333-333333333333", "夏目漱石", "range"),
+          ]}
+          itemTypes={[type]}
+          project={project}
+          onOpenItem={onOpenItem}
+        />
+      </QueryProvider>,
+    );
+
+    const glyph = screen.getByRole("button", {
+      name: /夏目漱石の詳細を表示 期間型バー/,
+    });
+    fireEvent.click(glyph);
+    fireEvent.doubleClick(glyph);
+    expect(
+      screen.getByRole("form", { name: "イベントアイテム作成" }),
+    ).toBeInTheDocument();
+    vi.advanceTimersByTime(300);
+    expect(onOpenItem).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
   it("renders distinct range and point glyphs and disables D&D for auto sort", async () => {
     const user = userEvent.setup();
     render(
@@ -208,7 +237,7 @@ describe("TimelineWorkspace", () => {
     const renderedRows = screen.getAllByTestId(/^timeline-row-/);
     expect(renderedRows.length).toBeGreaterThan(0);
     expect(renderedRows.length).toBeLessThan(1000);
-    expect(screen.getByText("1000項目")).toBeInTheDocument();
+    expect(screen.getByText("1000アイテム")).toBeInTheDocument();
   });
 
   it("remeasures virtual rows in both density directions and zooms only with Alt", async () => {
@@ -347,7 +376,7 @@ describe("TimelineWorkspace", () => {
     );
 
     expect(screen.getByLabelText(/時点型マーカー/)).toBeInTheDocument();
-    expect(screen.getByText("目盛り: year")).toBeInTheDocument();
+    expect(screen.getByText("目盛り year")).toBeInTheDocument();
   });
 
   it("sorts item types by sortOrder instead of their names", async () => {

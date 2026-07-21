@@ -8,6 +8,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createTimelineEvent,
@@ -53,7 +54,6 @@ export function TimelineEventForm({
         title: event.title,
         date: event.date,
         isApproximate: event.isApproximate,
-        summary: event.summary ?? "",
         description: event.description ?? "",
         sourceText: event.sourceText ?? "",
         externalUrl: event.externalUrl ?? "",
@@ -106,12 +106,12 @@ export function TimelineEventForm({
 
   return (
     <form
-      aria-label={event ? "子イベント編集" : "子イベント作成"}
+      aria-label={event ? "イベントアイテム編集" : "イベントアイテム作成"}
       className="space-y-4"
       onSubmit={handleSubmit((values) => mutation.mutate(values))}
     >
       <div className="space-y-2">
-        <Label htmlFor="event-parent">親タイムライン項目</Label>
+        <Label htmlFor="event-parent">親タイムラインアイテム</Label>
         <select
           id="event-parent"
           className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -179,33 +179,41 @@ export function TimelineEventForm({
           親項目の期間外です。没後刊行・回顧展などの場合はこのまま保存できます。
         </p>
       ) : null}
-      <div className="space-y-2">
-        <Label htmlFor="event-summary">概要（任意）</Label>
-        <Textarea id="event-summary" {...register("summary")} />
-      </div>
-      <details className="rounded-md border p-3">
-        <summary className="cursor-pointer font-medium">
-          詳細情報（本文・出典・外部URL）
-        </summary>
-        <div className="mt-4 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="event-description">本文（任意）</Label>
-            <Textarea
-              id="event-description"
-              rows={6}
-              {...register("description")}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="event-source">出典・参考文献（任意）</Label>
-            <Textarea id="event-source" rows={4} {...register("sourceText")} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="event-url">外部URL（任意）</Label>
-            <Input id="event-url" type="url" {...register("externalUrl")} />
-          </div>
+      <Separator className="my-7" />
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <Label htmlFor="event-description">本文</Label>
+          <Textarea
+            id="event-description"
+            className="min-h-44 resize-y border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            placeholder="本文を入力…"
+            rows={7}
+            {...register("description")}
+          />
         </div>
-      </details>
+        <Separator />
+        <div className="space-y-2">
+          <Label htmlFor="event-source">出典・参考文献</Label>
+          <Textarea
+            id="event-source"
+            className="min-h-28 resize-y border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            placeholder="出典や参考文献を入力…"
+            rows={4}
+            {...register("sourceText")}
+          />
+        </div>
+        <Separator />
+        <div className="space-y-2">
+          <Label htmlFor="event-url">外部URL</Label>
+          <Input
+            id="event-url"
+            className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            placeholder="https://example.com"
+            type="url"
+            {...register("externalUrl")}
+          />
+        </div>
+      </div>
       {mutation.error ? (
         <p role="alert" className="text-sm text-destructive">
           {mutation.error.message}
@@ -216,7 +224,7 @@ export function TimelineEventForm({
           ? "保存中…"
           : event
             ? "変更を保存"
-            : "子イベントを作成"}
+            : "イベントアイテムを作成"}
       </Button>
     </form>
   );

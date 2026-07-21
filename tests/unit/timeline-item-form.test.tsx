@@ -20,7 +20,7 @@ const itemType: TimelineItemType = {
 };
 
 describe("TimelineItemForm", () => {
-  it("opens item type management and expands detailed fields in place", async () => {
+  it("opens item type management and keeps content fields visually separate", async () => {
     const user = userEvent.setup();
     const onEditItemTypes = vi.fn();
 
@@ -34,19 +34,14 @@ describe("TimelineItemForm", () => {
       </QueryProvider>,
     );
 
-    const details = screen
-      .getByText("詳細情報（本文・出典・外部URL）")
-      .closest("details");
-    expect(details).not.toHaveAttribute("open");
     expect(screen.queryByText("詳細編集を開く")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "対象種別を編集" }));
     expect(onEditItemTypes).toHaveBeenCalledOnce();
 
-    await user.click(screen.getByText("詳細情報（本文・出典・外部URL）"));
-    expect(details).toHaveAttribute("open");
-    expect(screen.getByLabelText("本文（任意）")).toBeVisible();
-    expect(screen.getByLabelText("出典・参考文献（任意）")).toBeVisible();
-    expect(screen.getByLabelText("外部URL（任意）")).toBeVisible();
+    expect(screen.getByLabelText("本文")).toBeVisible();
+    expect(screen.getByLabelText("出典・参考文献")).toBeVisible();
+    expect(screen.getByLabelText("外部URL")).toBeVisible();
+    expect(screen.queryByLabelText(/概要/)).not.toBeInTheDocument();
   });
 });

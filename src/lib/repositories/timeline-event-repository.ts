@@ -62,7 +62,6 @@ function mapEvent(row: JoinedRow): TimelineEvent {
     title: row.title,
     date: { year: row.event_year, month: row.event_month, day: row.event_day },
     isApproximate: row.is_approximate,
-    summary: row.summary,
     description: row.description,
     sourceText: row.source_text,
     externalUrl: row.external_url,
@@ -80,7 +79,6 @@ function persistenceValues(input: TimelineEventValues) {
     event_month: input.date.month,
     event_day: input.date.day,
     is_approximate: input.isApproximate,
-    summary: input.summary,
     description: input.description,
     source_text: input.sourceText,
     external_url: input.externalUrl,
@@ -102,7 +100,7 @@ export class TimelineEventRepository {
     const { data, error } = await this.client
       .from("timeline_events")
       .select(
-        "id, project_id, timeline_item_id, title, event_year, event_month, event_day, is_approximate, summary, created_at, updated_at",
+        "id, project_id, timeline_item_id, title, event_year, event_month, event_day, is_approximate, created_at, updated_at",
       )
       .eq("project_id", projectId)
       .order("event_year")
@@ -121,7 +119,6 @@ export class TimelineEventRepository {
         day: row.event_day,
       },
       isApproximate: row.is_approximate,
-      summary: row.summary,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));

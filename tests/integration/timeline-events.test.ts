@@ -82,6 +82,15 @@ describe("timeline event persistence and RLS", () => {
     ]);
   });
 
+  it("removes the retired summary columns from both item tables", async () => {
+    const [timelineItems, timelineEvents] = await Promise.all([
+      admin.from("timeline_items").select("summary").limit(1),
+      admin.from("timeline_events").select("summary").limit(1),
+    ]);
+    expect(timelineItems.error?.code).toBe("42703");
+    expect(timelineEvents.error?.code).toBe("42703");
+  });
+
   it("allows owner CRUD, accepts outside-range dates, and cascades with the parent", async () => {
     const projectId = await createProject();
     const { data: type } = await owner

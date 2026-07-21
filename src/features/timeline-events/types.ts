@@ -16,7 +16,6 @@ export type TimelineEvent = {
   title: string;
   date: HistoricalDate;
   isApproximate: boolean;
-  summary: string | null;
   description: string | null;
   sourceText: string | null;
   externalUrl: string | null;

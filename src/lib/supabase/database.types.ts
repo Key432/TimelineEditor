@@ -125,7 +125,6 @@ export type Database = {
           event_month: number | null;
           event_day: number | null;
           is_approximate: boolean;
-          summary: string | null;
           description: string | null;
           source_text: string | null;
           external_url: string | null;
@@ -141,7 +140,6 @@ export type Database = {
           event_month?: number | null;
           event_day?: number | null;
           is_approximate?: boolean;
-          summary?: string | null;
           description?: string | null;
           source_text?: string | null;
           external_url?: string | null;
@@ -157,7 +155,6 @@ export type Database = {
           event_month?: number | null;
           event_day?: number | null;
           is_approximate?: boolean;
-          summary?: string | null;
           description?: string | null;
           source_text?: string | null;
           external_url?: string | null;
@@ -172,7 +169,6 @@ export type Database = {
           project_id: string;
           type_id: string;
           title: string;
-          summary: string | null;
           description: string | null;
           source_text: string | null;
           external_url: string | null;
@@ -206,7 +202,6 @@ export type Database = {
           project_id: string;
           type_id: string;
           title: string;
-          summary?: string | null;
           description?: string | null;
           source_text?: string | null;
           external_url?: string | null;
@@ -240,7 +235,6 @@ export type Database = {
           project_id?: string;
           type_id?: string;
           title?: string;
-          summary?: string | null;
           description?: string | null;
           source_text?: string | null;
           external_url?: string | null;

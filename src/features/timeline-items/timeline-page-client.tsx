@@ -106,6 +106,9 @@ export function TimelinePageClient({
             `/projects/${project.id}/events/${eventId}${editing ? "/edit" : ""}`,
           )
         }
+        onOpenItem={(itemId) =>
+          router.push(`/projects/${project.id}/items/${itemId}`)
+        }
         onEditItemTypes={() => setPanel("item-types")}
       />
 

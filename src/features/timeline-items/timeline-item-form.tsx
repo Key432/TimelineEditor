@@ -3,12 +3,13 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save, Tags } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import type { TimelineItemType } from "@/features/item-types/types";
 import {
@@ -31,7 +32,6 @@ type TimelineItemFormProps = {
   projectId: string;
   itemTypes: TimelineItemType[];
   item?: TimelineItem;
-  showDetails?: boolean;
   onSaved?: (item: TimelineItem) => void;
   onDirtyChange?: (dirty: boolean) => void;
   onEditItemTypes?: () => void;
@@ -51,7 +51,6 @@ function defaults(
   return {
     typeId: item.typeId,
     title: item.title,
-    summary: item.summary ?? "",
     description: item.description ?? "",
     sourceText: item.sourceText ?? "",
     externalUrl: item.externalUrl ?? "",
@@ -122,14 +121,12 @@ export function TimelineItemForm({
   projectId,
   itemTypes,
   item,
-  showDetails = false,
   onSaved,
   onDirtyChange,
   onEditItemTypes,
 }: TimelineItemFormProps) {
   const formId = useId();
   const queryClient = useQueryClient();
-  const [detailsOpen, setDetailsOpen] = useState(showDetails);
   const {
     register,
     control,
@@ -189,7 +186,9 @@ export function TimelineItemForm({
 
   return (
     <form
-      aria-label={item ? "タイムライン項目編集" : "タイムライン項目作成"}
+      aria-label={
+        item ? "タイムラインアイテム編集" : "タイムラインアイテム作成"
+      }
       className="space-y-5"
       onSubmit={handleSubmit((values) => mutation.mutate(values))}
     >
@@ -369,11 +368,6 @@ export function TimelineItemForm({
       )}
 
       <div className="space-y-2">
-        <Label htmlFor={`${formId}-summary`}>概要（任意）</Label>
-        <Textarea id={`${formId}-summary`} rows={3} {...register("summary")} />
-      </div>
-
-      <div className="space-y-2">
         <Label className="font-normal">
           <input
             checked={colorOverride !== null}
@@ -398,47 +392,47 @@ export function TimelineItemForm({
         タイムラインに表示
       </Label>
 
-      <details
-        className="rounded-lg border bg-muted/30 p-4"
-        open={detailsOpen}
-        onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
-      >
-        <summary className="cursor-pointer font-medium">
-          詳細情報（本文・出典・外部URL）
-        </summary>
-        <div className="mt-5 space-y-5">
-          <div className="space-y-2">
-            <Label htmlFor={`${formId}-description`}>本文（任意）</Label>
-            <Textarea
-              id={`${formId}-description`}
-              rows={8}
-              {...register("description")}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={`${formId}-source`}>出典・参考文献（任意）</Label>
-            <Textarea
-              id={`${formId}-source`}
-              rows={5}
-              {...register("sourceText")}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={`${formId}-url`}>外部URL（任意）</Label>
-            <Input
-              id={`${formId}-url`}
-              inputMode="url"
-              type="url"
-              {...register("externalUrl")}
-            />
-            {errors.externalUrl ? (
-              <p className="text-sm text-destructive">
-                {errors.externalUrl.message}
-              </p>
-            ) : null}
-          </div>
+      <Separator className="my-7" />
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <Label htmlFor={`${formId}-description`}>本文</Label>
+          <Textarea
+            id={`${formId}-description`}
+            className="min-h-44 resize-y border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            placeholder="本文を入力…"
+            rows={8}
+            {...register("description")}
+          />
         </div>
-      </details>
+        <Separator />
+        <div className="space-y-2">
+          <Label htmlFor={`${formId}-source`}>出典・参考文献</Label>
+          <Textarea
+            id={`${formId}-source`}
+            className="min-h-28 resize-y border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            placeholder="出典や参考文献を入力…"
+            rows={5}
+            {...register("sourceText")}
+          />
+        </div>
+        <Separator />
+        <div className="space-y-2">
+          <Label htmlFor={`${formId}-url`}>外部URL</Label>
+          <Input
+            id={`${formId}-url`}
+            className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            inputMode="url"
+            placeholder="https://example.com"
+            type="url"
+            {...register("externalUrl")}
+          />
+          {errors.externalUrl ? (
+            <p className="text-sm text-destructive">
+              {errors.externalUrl.message}
+            </p>
+          ) : null}
+        </div>
+      </div>
 
       {isDirty && !mutation.isPending ? (
         <p className="text-xs text-muted-foreground">
@@ -457,7 +451,11 @@ export function TimelineItemForm({
         type="submit"
       >
         <Save aria-hidden="true" className="size-4" />
-        {mutation.isPending ? "保存中…" : item ? "変更を保存" : "項目を作成"}
+        {mutation.isPending
+          ? "保存中…"
+          : item
+            ? "変更を保存"
+            : "タイムラインアイテムを作成"}
       </Button>
     </form>
   );

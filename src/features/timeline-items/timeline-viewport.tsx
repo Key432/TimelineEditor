@@ -31,6 +31,12 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { eventX, snapTimelineDate } from "@/features/timeline-events/snap";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import {
@@ -118,6 +124,8 @@ function TimelineGlyph({
   pixelsPerDay,
   visibleStart,
   visibleEnd,
+  onOpen,
+  onCancelOpen,
 }: {
   item: TimelineItemSummary;
   currentDate: HistoricalDate;
@@ -126,6 +134,8 @@ function TimelineGlyph({
   pixelsPerDay: number;
   visibleStart: number;
   visibleEnd: number;
+  onOpen: () => void;
+  onCancelOpen: () => void;
 }) {
   const date = item.temporalType === "point" ? item.point : item.start;
   if (!date) return null;
@@ -146,10 +156,16 @@ function TimelineGlyph({
       return null;
     }
     return (
-      <span
-        aria-label={`時点型マーカー ${formatHistoricalDate(item.point)}`}
-        className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-white shadow-sm"
+      <button
+        aria-label={`${item.title}の詳細を表示 時点型マーカー ${formatHistoricalDate(item.point)}`}
+        className="absolute top-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-white shadow-sm transition-[box-shadow,transform] hover:shadow-[0_0_0_3px_rgba(0,176,176,0.35)] focus-visible:shadow-[0_0_0_3px_rgba(0,176,176,0.45)] focus-visible:outline-none"
+        data-timeline-item-glyph="true"
         style={{ left: registeredStart, backgroundColor: color }}
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen();
+        }}
       />
     );
   }
@@ -188,15 +204,22 @@ function TimelineGlyph({
       : color;
 
   return (
-    <span
-      aria-label={`期間型バー ${itemDateLabel(item)}`}
+    <button
+      aria-label={`${item.title}の詳細を表示 期間型バー ${itemDateLabel(item)}`}
       className={cn(
-        "absolute top-1/2 h-3 min-w-1 -translate-y-1/2 rounded-sm",
+        "absolute top-1/2 h-3 min-w-1 -translate-y-1/2 rounded-sm border border-transparent transition-[box-shadow,border-color] hover:border-foreground/70 hover:shadow-[0_0_0_2px_rgba(255,255,255,0.9)] focus-visible:border-foreground focus-visible:shadow-[0_0_0_3px_rgba(0,176,176,0.35)] focus-visible:outline-none",
         item.endDateStatus === "ongoing" &&
           "after:absolute after:top-0 after:-right-1 after:h-3 after:w-1 after:bg-current",
       )}
       data-testid={`timeline-glyph-${item.id}`}
+      data-timeline-item-glyph="true"
       style={{ left, width, background, color }}
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen();
+      }}
+      onDoubleClick={() => onCancelOpen()}
     />
   );
 }
@@ -217,6 +240,7 @@ function TimelineItemRow({
   onMoveUp,
   onMoveDown,
   onEdit,
+  onOpenItem,
   events,
   draftEvent,
   onCreateEvent,
@@ -238,6 +262,7 @@ function TimelineItemRow({
   onMoveUp: () => void;
   onMoveDown: () => void;
   onEdit: () => void;
+  onOpenItem: () => void;
   events: TimelineEventSummary[];
   draftEvent: HistoricalDate | null;
   onCreateEvent: (date: HistoricalDate) => void;
@@ -249,6 +274,35 @@ function TimelineItemRow({
       id: item.id,
       disabled,
     });
+  const itemOpenTimerRef = useRef<number | null>(null);
+  const eventOpenTimerRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (itemOpenTimerRef.current !== null)
+        window.clearTimeout(itemOpenTimerRef.current);
+      if (eventOpenTimerRef.current !== null)
+        window.clearTimeout(eventOpenTimerRef.current);
+    },
+    [],
+  );
+
+  function cancelItemOpen() {
+    if (itemOpenTimerRef.current !== null)
+      window.clearTimeout(itemOpenTimerRef.current);
+    itemOpenTimerRef.current = null;
+  }
+
+  function scheduleItemOpen() {
+    cancelItemOpen();
+    itemOpenTimerRef.current = window.setTimeout(onOpenItem, 250);
+  }
+
+  function cancelEventOpen() {
+    if (eventOpenTimerRef.current !== null)
+      window.clearTimeout(eventOpenTimerRef.current);
+    eventOpenTimerRef.current = null;
+  }
 
   return (
     <div
@@ -286,10 +340,9 @@ function TimelineItemRow({
             }}
           />
           <button
-            className="truncate text-left text-sm font-medium hover:underline"
-            title={item.title}
+            className="truncate rounded-sm px-1 text-left text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             type="button"
-            onClick={onEdit}
+            onClick={onOpenItem}
           >
             {item.title}
           </button>
@@ -339,6 +392,8 @@ function TimelineItemRow({
           pixelsPerDay={pixelsPerDay}
           visibleEnd={visibleEnd}
           visibleStart={visibleStart}
+          onCancelOpen={cancelItemOpen}
+          onOpen={scheduleItemOpen}
         />
         {events.map((timelineEvent) => {
           const left =
@@ -347,23 +402,39 @@ function TimelineItemRow({
           if (!overlapsViewport(left, left, visibleStart, visibleEnd))
             return null;
           return (
-            <button
-              key={timelineEvent.id}
-              aria-label={`子イベント ${timelineEvent.title} ${formatHistoricalDate(timelineEvent.date)}`}
-              className="focus-visible:ring-focus absolute top-1/2 z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-secondary shadow-sm focus-visible:ring-2 focus-visible:outline-none"
-              data-timeline-event-marker="true"
-              style={{ left }}
-              title={`${timelineEvent.title}（${timelineEvent.isApproximate ? "約 " : ""}${formatHistoricalDate(timelineEvent.date)}）`}
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onOpenEvent(timelineEvent.id, false);
-              }}
-              onDoubleClick={(event) => {
-                event.stopPropagation();
-                onOpenEvent(timelineEvent.id, true);
-              }}
-            />
+            <Tooltip key={timelineEvent.id}>
+              <TooltipTrigger asChild>
+                <button
+                  aria-label={`イベントアイテム ${timelineEvent.title} ${formatHistoricalDate(timelineEvent.date)}`}
+                  className="focus-visible:ring-focus absolute top-1/2 z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-secondary shadow-sm transition-[box-shadow,transform] hover:scale-125 hover:shadow-[0_0_0_3px_rgba(255,51,153,0.25)] focus-visible:scale-125 focus-visible:ring-2 focus-visible:outline-none"
+                  data-timeline-event-marker="true"
+                  style={{ left }}
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    cancelEventOpen();
+                    eventOpenTimerRef.current = window.setTimeout(
+                      () => onOpenEvent(timelineEvent.id, false),
+                      250,
+                    );
+                  }}
+                  onDoubleClick={(event) => {
+                    event.stopPropagation();
+                    cancelEventOpen();
+                    onOpenEvent(timelineEvent.id, true);
+                  }}
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="space-y-1">
+                  <p className="font-medium">{timelineEvent.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    登録日付: {timelineEvent.isApproximate ? "約 " : ""}
+                    {formatHistoricalDate(timelineEvent.date)}
+                  </p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
           );
         })}
         {draftEvent ? (
@@ -426,6 +497,7 @@ export function TimelineViewport({
   draftEvent,
   onCreateEvent,
   onOpenEvent,
+  onOpenItem,
 }: {
   project: Project;
   entries: TimelineDisplayEntry[];
@@ -439,6 +511,7 @@ export function TimelineViewport({
   draftEvent: { parentId: string; date: HistoricalDate } | null;
   onCreateEvent: (parentId: string, date: HistoricalDate) => void;
   onOpenEvent: (eventId: string, editing: boolean) => void;
+  onOpenItem: (itemId: string) => void;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const pointerRef = useRef<{ x: number; scrollLeft: number } | null>(null);
@@ -598,6 +671,7 @@ export function TimelineViewport({
       if (
         !(target instanceof Element) ||
         target.closest("[data-timeline-event-marker='true']") ||
+        target.closest("[data-timeline-item-glyph='true']") ||
         !target.closest("[data-timeline-pan-surface='true']")
       ) {
         return;
@@ -792,214 +866,226 @@ export function TimelineViewport({
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2 rounded-md border bg-card p-2">
-        <Button
-          aria-label="縮小"
-          disabled={zoomLevel === 0}
-          size="icon-sm"
-          variant="outline"
-          onClick={() => changeZoom(zoomLevel - 1)}
-        >
-          <Minus aria-hidden="true" className="size-4" />
-        </Button>
-        <label className="flex items-center gap-2 text-sm">
-          ズーム
-          <input
-            aria-label="ズーム段階"
-            className="w-36 accent-primary"
-            max={ZOOM_LABELS.length - 1}
-            min={0}
-            step={1}
-            type="range"
-            value={zoomLevel}
-            onChange={(event) => changeZoom(Number(event.target.value))}
-          />
-        </label>
-        <Button
-          aria-label="拡大"
-          disabled={zoomLevel === ZOOM_LABELS.length - 1}
-          size="icon-sm"
-          variant="outline"
-          onClick={() => changeZoom(zoomLevel + 1)}
-        >
-          <Plus aria-hidden="true" className="size-4" />
-        </Button>
-        <Badge variant="outline">{ZOOM_LABELS[zoomLevel]}</Badge>
-        <Button size="sm" variant="outline" onClick={fitRange}>
-          <Maximize2 aria-hidden="true" className="size-4" />
-          全項目を表示
-        </Button>
-        <label className="flex items-center gap-2 text-sm">
-          表示密度
-          <select
-            aria-label="表示密度"
-            className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-            value={density}
-            onChange={(event) =>
-              setDensity(event.target.value as "compact" | "comfortable")
-            }
+    <TooltipProvider>
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-card p-2">
+          <Button
+            aria-label="縮小"
+            disabled={zoomLevel === 0}
+            size="icon-sm"
+            variant="outline"
+            onClick={() => changeZoom(zoomLevel - 1)}
           >
-            <option value="comfortable">標準</option>
-            <option value="compact">コンパクト</option>
-          </select>
-        </label>
-        <Badge variant="secondary">目盛り: {unit}</Badge>
-        <span className="text-xs text-muted-foreground">
-          Alt＋ホイールでカーソル中心にズーム
-        </span>
-      </div>
-
-      <div
-        ref={viewportRef}
-        aria-label="タイムライン表示領域"
-        className={cn(
-          "relative max-h-[36rem] overflow-auto rounded-lg border bg-card select-none",
-          isPanning && "cursor-grabbing",
-        )}
-        data-testid="timeline-viewport"
-        tabIndex={0}
-        onScroll={(event) => scheduleScrollSync(event.currentTarget.scrollLeft)}
-        onWheel={handleWheel}
-      >
-        <div
-          className="relative transition-[width] duration-150"
-          style={{
-            width: HANDLE_WIDTH + INFO_WIDTH + canvasWidth + ACTION_WIDTH,
-            height: AXIS_HEIGHT + virtualizer.getTotalSize(),
-          }}
-        >
-          <div className="sticky top-0 z-30 flex h-12 border-b bg-muted/95 text-xs font-medium text-muted-foreground backdrop-blur-sm">
-            <span
-              className="sticky left-0 z-40 shrink-0 border-r bg-muted"
-              style={{ width: HANDLE_WIDTH }}
+            <Minus aria-hidden="true" className="size-4" />
+          </Button>
+          <label className="flex items-center gap-2 text-sm">
+            ズーム
+            <input
+              aria-label="ズーム段階"
+              className="w-36 accent-primary"
+              max={ZOOM_LABELS.length - 1}
+              min={0}
+              step={1}
+              type="range"
+              value={zoomLevel}
+              onChange={(event) => changeZoom(Number(event.target.value))}
             />
-            <span
-              className="sticky z-40 shrink-0 border-r bg-muted px-3 py-4"
-              style={{ left: HANDLE_WIDTH, width: INFO_WIDTH }}
+          </label>
+          <Button
+            aria-label="拡大"
+            disabled={zoomLevel === ZOOM_LABELS.length - 1}
+            size="icon-sm"
+            variant="outline"
+            onClick={() => changeZoom(zoomLevel + 1)}
+          >
+            <Plus aria-hidden="true" className="size-4" />
+          </Button>
+          <Badge variant="outline">{ZOOM_LABELS[zoomLevel]}</Badge>
+          <Button size="sm" variant="outline" onClick={fitRange}>
+            <Maximize2 aria-hidden="true" className="size-4" />
+            全項目を表示
+          </Button>
+          <label className="flex items-center gap-2 text-sm">
+            表示密度
+            <select
+              aria-label="表示密度"
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+              value={density}
+              onChange={(event) =>
+                setDensity(event.target.value as "compact" | "comfortable")
+              }
             >
-              項目
-            </span>
+              <option value="comfortable">標準</option>
+              <option value="compact">コンパクト</option>
+            </select>
+          </label>
+          <span className="text-xs text-muted-foreground">目盛り {unit}</span>
+          <span className="text-xs text-muted-foreground">
+            Alt＋ホイールでカーソル中心にズーム
+          </span>
+        </div>
+
+        <div
+          ref={viewportRef}
+          aria-label="タイムライン表示領域"
+          className={cn(
+            "relative max-h-[36rem] overflow-auto rounded-lg border bg-card select-none",
+            isPanning && "cursor-grabbing",
+          )}
+          data-testid="timeline-viewport"
+          tabIndex={0}
+          onScroll={(event) =>
+            scheduleScrollSync(event.currentTarget.scrollLeft)
+          }
+          onWheel={handleWheel}
+        >
+          <div
+            className="relative transition-[width] duration-150"
+            style={{
+              width: HANDLE_WIDTH + INFO_WIDTH + canvasWidth + ACTION_WIDTH,
+              height: AXIS_HEIGHT + virtualizer.getTotalSize(),
+            }}
+          >
+            <div className="sticky top-0 z-30 flex h-12 border-b bg-muted/95 text-xs font-medium text-muted-foreground backdrop-blur-sm">
+              <span
+                className="sticky left-0 z-40 shrink-0 border-r bg-muted"
+                style={{ width: HANDLE_WIDTH }}
+              />
+              <span
+                className="sticky z-40 shrink-0 border-r bg-muted px-3 py-4"
+                style={{ left: HANDLE_WIDTH, width: INFO_WIDTH }}
+              >
+                タイムライン
+              </span>
+              <div
+                className="relative shrink-0 overflow-hidden"
+                style={{ width: canvasWidth }}
+                data-timeline-pan-surface="true"
+              >
+                {ticks.map((tick) => {
+                  const left =
+                    HORIZONTAL_PADDING +
+                    (tick.ordinal - bounds.domainStart) * pixelsPerDay;
+                  return (
+                    <span
+                      key={`${unit}-${tick.ordinal}`}
+                      className={cn(
+                        "absolute inset-y-0 border-l",
+                        tick.major ? "border-foreground/35" : "border-border",
+                      )}
+                      style={{ left }}
+                    >
+                      {tick.label ? (
+                        <span className="absolute top-1 left-1 whitespace-nowrap">
+                          {tick.label}
+                        </span>
+                      ) : null}
+                    </span>
+                  );
+                })}
+              </div>
+              <span
+                className="sticky right-0 z-40 shrink-0 border-l bg-muted"
+                style={{ width: ACTION_WIDTH }}
+              />
+            </div>
+
             <div
-              className="relative shrink-0 overflow-hidden"
-              style={{ width: canvasWidth }}
-              data-timeline-pan-surface="true"
+              className="absolute right-0 left-0"
+              style={{ top: AXIS_HEIGHT }}
             >
-              {ticks.map((tick) => {
-                const left =
-                  HORIZONTAL_PADDING +
-                  (tick.ordinal - bounds.domainStart) * pixelsPerDay;
+              {virtualItems.map((virtualRow) => {
+                const entry = entries[virtualRow.index];
+                if (!entry) return null;
                 return (
-                  <span
-                    key={`${unit}-${tick.ordinal}`}
-                    className={cn(
-                      "absolute inset-y-0 border-l",
-                      tick.major ? "border-foreground/35" : "border-border",
-                    )}
-                    style={{ left }}
+                  <div
+                    key={
+                      entry.kind === "group"
+                        ? `group-${entry.id}`
+                        : entry.item.id
+                    }
+                    className="absolute top-0 left-0"
+                    data-index={virtualRow.index}
+                    style={{ transform: `translateY(${virtualRow.start}px)` }}
                   >
-                    {tick.label ? (
-                      <span className="absolute top-1 left-1 whitespace-nowrap">
-                        {tick.label}
-                      </span>
-                    ) : null}
-                  </span>
+                    {entry.kind === "group" ? (
+                      <div
+                        className="h-10 border-b bg-muted"
+                        style={{
+                          width:
+                            HANDLE_WIDTH +
+                            INFO_WIDTH +
+                            canvasWidth +
+                            ACTION_WIDTH,
+                        }}
+                      >
+                        <button
+                          aria-expanded={!entry.collapsed}
+                          aria-label={`${entry.label} ${entry.itemCount}件`}
+                          className="sticky left-0 flex h-10 items-center gap-2 bg-muted px-3 text-left text-sm font-medium"
+                          style={{ width: HANDLE_WIDTH + INFO_WIDTH }}
+                          type="button"
+                          onClick={() => onToggleGroup(entry.id)}
+                        >
+                          {entry.collapsed ? (
+                            <ChevronRight className="size-4" />
+                          ) : (
+                            <ChevronDown className="size-4" />
+                          )}
+                          <span
+                            className="size-2.5 rounded-full"
+                            style={{ backgroundColor: entry.color }}
+                          />
+                          {entry.label}
+                          <Badge variant="outline">{entry.itemCount}</Badge>
+                        </button>
+                      </div>
+                    ) : (
+                      <TimelineItemRow
+                        canMoveDown={
+                          entry.item.manualOrder < allItems.length - 1
+                        }
+                        canMoveUp={entry.item.manualOrder > 0}
+                        canvasWidth={canvasWidth}
+                        currentDate={currentDate}
+                        defaultUncertaintyYears={
+                          project.settings.defaultUncertaintyYears
+                        }
+                        disabled={sortDisabled}
+                        domainStart={bounds.domainStart}
+                        isPanning={isPanning}
+                        item={entry.item}
+                        events={eventsByParent.get(entry.item.id) ?? []}
+                        draftEvent={
+                          draftEvent?.parentId === entry.item.id
+                            ? draftEvent.date
+                            : null
+                        }
+                        pixelsPerDay={pixelsPerDay}
+                        rowHeight={rowHeight}
+                        visibleEnd={visibleEnd}
+                        visibleStart={visibleStart}
+                        onEdit={() => onEdit(entry.item.id)}
+                        onOpenItem={() => onOpenItem(entry.item.id)}
+                        onCreateEvent={(date) =>
+                          onCreateEvent(entry.item.id, date)
+                        }
+                        onOpenEvent={onOpenEvent}
+                        onMoveDown={() => onMove(entry.item.id, 1)}
+                        onMoveUp={() => onMove(entry.item.id, -1)}
+                      />
+                    )}
+                  </div>
                 );
               })}
             </div>
-            <span
-              className="sticky right-0 z-40 shrink-0 border-l bg-muted"
-              style={{ width: ACTION_WIDTH }}
-            />
-          </div>
-
-          <div className="absolute right-0 left-0" style={{ top: AXIS_HEIGHT }}>
-            {virtualItems.map((virtualRow) => {
-              const entry = entries[virtualRow.index];
-              if (!entry) return null;
-              return (
-                <div
-                  key={
-                    entry.kind === "group" ? `group-${entry.id}` : entry.item.id
-                  }
-                  className="absolute top-0 left-0"
-                  data-index={virtualRow.index}
-                  style={{ transform: `translateY(${virtualRow.start}px)` }}
-                >
-                  {entry.kind === "group" ? (
-                    <div
-                      className="h-10 border-b bg-muted"
-                      style={{
-                        width:
-                          HANDLE_WIDTH +
-                          INFO_WIDTH +
-                          canvasWidth +
-                          ACTION_WIDTH,
-                      }}
-                    >
-                      <button
-                        aria-expanded={!entry.collapsed}
-                        aria-label={`${entry.label} ${entry.itemCount}件`}
-                        className="sticky left-0 flex h-10 items-center gap-2 bg-muted px-3 text-left text-sm font-medium"
-                        style={{ width: HANDLE_WIDTH + INFO_WIDTH }}
-                        type="button"
-                        onClick={() => onToggleGroup(entry.id)}
-                      >
-                        {entry.collapsed ? (
-                          <ChevronRight className="size-4" />
-                        ) : (
-                          <ChevronDown className="size-4" />
-                        )}
-                        <span
-                          className="size-2.5 rounded-full"
-                          style={{ backgroundColor: entry.color }}
-                        />
-                        {entry.label}
-                        <Badge variant="outline">{entry.itemCount}</Badge>
-                      </button>
-                    </div>
-                  ) : (
-                    <TimelineItemRow
-                      canMoveDown={entry.item.manualOrder < allItems.length - 1}
-                      canMoveUp={entry.item.manualOrder > 0}
-                      canvasWidth={canvasWidth}
-                      currentDate={currentDate}
-                      defaultUncertaintyYears={
-                        project.settings.defaultUncertaintyYears
-                      }
-                      disabled={sortDisabled}
-                      domainStart={bounds.domainStart}
-                      isPanning={isPanning}
-                      item={entry.item}
-                      events={eventsByParent.get(entry.item.id) ?? []}
-                      draftEvent={
-                        draftEvent?.parentId === entry.item.id
-                          ? draftEvent.date
-                          : null
-                      }
-                      pixelsPerDay={pixelsPerDay}
-                      rowHeight={rowHeight}
-                      visibleEnd={visibleEnd}
-                      visibleStart={visibleStart}
-                      onEdit={() => onEdit(entry.item.id)}
-                      onCreateEvent={(date) =>
-                        onCreateEvent(entry.item.id, date)
-                      }
-                      onOpenEvent={onOpenEvent}
-                      onMoveDown={() => onMove(entry.item.id, 1)}
-                      onMoveUp={() => onMove(entry.item.id, -1)}
-                    />
-                  )}
-                </div>
-              );
-            })}
           </div>
         </div>
+        <p className="text-xs text-muted-foreground">
+          横方向へドラッグ、スクロールバー、トラックパッドで移動できます。表示中{" "}
+          {visibleItemCount} / {allItems.length} 行
+        </p>
       </div>
-      <p className="text-xs text-muted-foreground">
-        横方向へドラッグ、スクロールバー、トラックパッドで移動できます。表示中{" "}
-        {visibleItemCount} / {allItems.length} 行
-      </p>
-    </div>
+    </TooltipProvider>
   );
 }

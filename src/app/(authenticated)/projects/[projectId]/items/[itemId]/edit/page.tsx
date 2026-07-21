@@ -51,14 +51,13 @@ export default async function TimelineItemEditPage({
       </Button>
       <Card>
         <CardHeader>
-          <CardTitle>タイムライン項目の詳細編集</CardTitle>
+          <CardTitle>タイムラインアイテムの詳細編集</CardTitle>
           <CardDescription>
             本文、出典、外部URLを含むすべての情報を編集します。
           </CardDescription>
         </CardHeader>
         <CardContent>
           <TimelineItemForm
-            showDetails
             item={detail.item}
             itemTypes={listing.itemTypes}
             projectId={projectId}

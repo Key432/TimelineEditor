@@ -29,7 +29,7 @@ export default async function TimelineEventEditModalPage({
   }
   const today = new Date();
   return (
-    <TimelineEventOverlay title="子イベントを編集">
+    <TimelineEventOverlay showTitle title="イベントアイテムを編集">
       <TimelineEventForm
         currentDate={{
           year: today.getUTCFullYear(),

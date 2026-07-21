@@ -23,7 +23,7 @@ export default async function TimelineEventModalPage({
     throw error;
   }
   return (
-    <TimelineEventOverlay title="子イベント詳細">
+    <TimelineEventOverlay title={event.title}>
       <TimelineEventDetail event={event} projectId={projectId} />
     </TimelineEventOverlay>
   );

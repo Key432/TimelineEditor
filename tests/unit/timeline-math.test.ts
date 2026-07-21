@@ -123,7 +123,6 @@ describe("timeline ticks and uncertainty", () => {
         updatedAt: "2026-01-01T00:00:00Z",
       },
       title: "継続中",
-      summary: null,
       temporalType: "range",
       colorOverride: null,
       manualOrder: 0,

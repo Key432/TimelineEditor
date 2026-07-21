@@ -3,19 +3,15 @@
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 export function TimelineEventOverlay({
   title,
+  showTitle = false,
   children,
 }: {
   title: string;
+  showTitle?: boolean;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -26,13 +22,10 @@ export function TimelineEventOverlay({
         if (!open) router.back();
       }}
     >
-      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            背景のタイムラインを維持した詳細表示です。
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto p-0 sm:max-w-3xl">
+        <DialogTitle className={showTitle ? "px-8 pt-8 text-2xl" : "sr-only"}>
+          {title}
+        </DialogTitle>
         {children}
       </DialogContent>
     </Dialog>

@@ -70,8 +70,8 @@ export function DeleteTimelineItemDialog({
           <AlertDialogDescription>
             この操作は取り消せません。
             {childEventCount > 0
-              ? ` 紐づく子イベント${childEventCount}件も完全に削除されます。`
-              : " 紐づく子イベントはありません。"}
+              ? ` 紐づくイベントアイテム${childEventCount}件も完全に削除されます。`
+              : " 紐づくイベントアイテムはありません。"}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {mutation.error ? (

@@ -16,11 +16,17 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { CalendarPlus, ChevronDown, Plus, Rows3 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -155,7 +161,7 @@ function ItemEditor({
         />
       ) : (
         <p className="text-sm text-muted-foreground">
-          時点型項目には子イベントを追加できません。
+          時点型タイムラインアイテムにはイベントアイテムを追加できません。
         </p>
       )}
       <DeleteTimelineItemDialog
@@ -176,6 +182,7 @@ function TimelineWorkspaceContent({
   currentDate,
   onEditItemTypes,
   onOpenEvent,
+  onOpenItem,
 }: {
   project: Project;
   initialItems: TimelineItemSummary[];
@@ -184,13 +191,14 @@ function TimelineWorkspaceContent({
   currentDate: HistoricalDate;
   onEditItemTypes?: () => void;
   onOpenEvent?: (eventId: string, editing: boolean) => void;
+  onOpenItem?: (itemId: string) => void;
 }) {
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<"create" | string | null>(null);
   const [editorDirty, setEditorDirty] = useState(false);
   const [eventDraft, setEventDraft] = useState<{
-    parentId: string;
-    date: HistoricalDate;
+    parentId?: string;
+    date?: HistoricalDate;
   } | null>(null);
   const [sortMode, setSortMode] = useState<TimelineSortMode>("manual");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
@@ -343,13 +351,32 @@ function TimelineWorkspaceContent({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
-        <Button
-          disabled={currentItemTypes.length === 0}
-          onClick={() => setEditor("create")}
-        >
-          <Plus aria-hidden="true" className="size-4" />
-          項目を追加
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button disabled={currentItemTypes.length === 0}>
+              <Plus aria-hidden="true" className="size-4" />
+              アイテムを追加
+              <ChevronDown aria-hidden="true" className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="min-w-56">
+            <DropdownMenuItem
+              className="gap-2 px-3 py-2.5"
+              onSelect={() => setEditor("create")}
+            >
+              <Rows3 aria-hidden="true" />
+              タイムラインを追加
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2 px-3 py-2.5"
+              disabled={!items.some((item) => item.temporalType === "range")}
+              onSelect={() => setEventDraft({})}
+            >
+              <CalendarPlus aria-hidden="true" />
+              イベントを追加
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <label className="flex items-center gap-2 text-sm">
           並び順
           <select
@@ -389,7 +416,7 @@ function TimelineWorkspaceContent({
           />
           対象種別でグループ化
         </label>
-        <Badge variant="outline">{items.length}項目</Badge>
+        <Badge variant="outline">{items.length}アイテム</Badge>
         {sortMode !== "manual" ? (
           <span className="text-xs text-muted-foreground">
             自動並べ替え中はドラッグできません。
@@ -411,10 +438,10 @@ function TimelineWorkspaceContent({
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-card px-6 py-12 text-center">
-          <p className="font-medium">タイムライン項目はまだありません。</p>
+          <p className="font-medium">タイムラインアイテムはまだありません。</p>
           <Button className="mt-4" onClick={() => setEditor("create")}>
             <Plus aria-hidden="true" className="size-4" />
-            最初の項目を作成
+            最初のタイムラインを作成
           </Button>
         </div>
       ) : (
@@ -435,13 +462,18 @@ function TimelineWorkspaceContent({
               project={project}
               sortDisabled={sortMode !== "manual"}
               onEdit={setEditor}
-              draftEvent={eventDraft}
+              draftEvent={
+                eventDraft?.parentId && eventDraft.date
+                  ? { parentId: eventDraft.parentId, date: eventDraft.date }
+                  : null
+              }
               onCreateEvent={(parentId, date) =>
                 setEventDraft({ parentId, date })
               }
               onOpenEvent={(eventId, editing) =>
                 onOpenEvent?.(eventId, editing)
               }
+              onOpenItem={(itemId) => onOpenItem?.(itemId)}
               onMove={moveByButton}
               onToggleGroup={(typeId) =>
                 setCollapsed((current) => {
@@ -463,10 +495,12 @@ function TimelineWorkspaceContent({
       ) : null}
 
       <Sheet open={editor !== null} onOpenChange={closeEditor}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+        <SheetContent className="w-full overflow-y-auto sm:!w-[min(52rem,calc(100vw-2rem))] sm:!max-w-3xl">
           <SheetHeader>
             <SheetTitle>
-              {editor === "create" ? "タイムライン項目を追加" : "項目を編集"}
+              {editor === "create"
+                ? "タイムラインアイテムを追加"
+                : "タイムラインアイテムを編集"}
             </SheetTitle>
             <SheetDescription>
               期間型または時点型の日付と表示内容を保存します。
@@ -513,11 +547,13 @@ function TimelineWorkspaceContent({
           if (!open) setEventDraft(null);
         }}
       >
-        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+        <SheetContent className="w-full overflow-y-auto sm:!w-[min(52rem,calc(100vw-2rem))] sm:!max-w-3xl">
           <SheetHeader>
-            <SheetTitle>子イベントを追加</SheetTitle>
+            <SheetTitle>イベントアイテムを追加</SheetTitle>
             <SheetDescription>
-              ダブルクリックした位置の日付を初期値にしています。
+              {eventDraft?.date
+                ? "ダブルクリックした位置の日付を初期値にしています。"
+                : "タイムラインと登録日付を指定してください。"}
             </SheetDescription>
           </SheetHeader>
           <div className="px-4 pb-6">
@@ -548,6 +584,7 @@ export function TimelineWorkspace(props: {
   currentDate: HistoricalDate;
   onEditItemTypes?: () => void;
   onOpenEvent?: (eventId: string, editing: boolean) => void;
+  onOpenItem?: (itemId: string) => void;
 }) {
   return (
     <TimelineStoreProvider settings={props.project.settings}>

@@ -31,7 +31,7 @@ export class TimelineEventService {
   private parseEventId(eventId: string) {
     if (!z.uuid().safeParse(eventId).success) {
       throw new ServiceError(
-        "子イベントが見つかりません。",
+        "イベントアイテムが見つかりません。",
         404,
         "TIMELINE_EVENT_NOT_FOUND",
       );
@@ -43,14 +43,14 @@ export class TimelineEventService {
     const parent = await this.items.findById(projectId, itemId);
     if (!parent) {
       throw new ServiceError(
-        "親項目が見つかりません。",
+        "親タイムラインアイテムが見つかりません。",
         400,
         "PARENT_NOT_FOUND",
       );
     }
     if (parent.temporalType !== "range") {
       throw new ServiceError(
-        "時点型項目には子イベントを登録できません。",
+        "時点型タイムラインアイテムにはイベントアイテムを登録できません。",
         400,
         "POINT_PARENT_NOT_ALLOWED",
       );
@@ -71,7 +71,7 @@ export class TimelineEventService {
     );
     if (!event) {
       throw new ServiceError(
-        "子イベントが見つかりません。",
+        "イベントアイテムが見つかりません。",
         404,
         "TIMELINE_EVENT_NOT_FOUND",
       );
@@ -99,7 +99,7 @@ export class TimelineEventService {
     );
     if (!event) {
       throw new ServiceError(
-        "子イベントが見つかりません。",
+        "イベントアイテムが見つかりません。",
         404,
         "TIMELINE_EVENT_NOT_FOUND",
       );
@@ -113,7 +113,7 @@ export class TimelineEventService {
       !(await this.repository.delete(project.id, this.parseEventId(eventId)))
     ) {
       throw new ServiceError(
-        "子イベントが見つかりません。",
+        "イベントアイテムが見つかりません。",
         404,
         "TIMELINE_EVENT_NOT_FOUND",
       );

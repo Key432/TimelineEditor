@@ -41,7 +41,7 @@ export default async function TimelineEventEditPage({
       </Button>
       <Card>
         <CardHeader>
-          <CardTitle>子イベントを編集</CardTitle>
+          <CardTitle>イベントアイテムを編集</CardTitle>
         </CardHeader>
         <CardContent>
           <TimelineEventForm

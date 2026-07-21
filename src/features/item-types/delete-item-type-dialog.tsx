@@ -52,7 +52,7 @@ export function DeleteItemTypeDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>「{typeName}」を削除しますか？</AlertDialogTitle>
           <AlertDialogDescription>
-            この操作は取り消せません。タイムライン項目で使用中の場合は削除されません。
+            この操作は取り消せません。タイムラインアイテムで使用中の場合は削除されません。
           </AlertDialogDescription>
         </AlertDialogHeader>
         {mutation.error ? (

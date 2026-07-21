@@ -64,7 +64,6 @@ const baseTimelineItemSchema = z.object({
     .trim()
     .min(1, "名称を入力してください。")
     .max(200, "名称は200文字以内で入力してください。"),
-  summary: nullableText(2000, "概要は2000文字以内で入力してください。"),
   description: nullableText(20000, "本文は20000文字以内で入力してください。"),
   sourceText: nullableText(10000, "出典は10000文字以内で入力してください。"),
   externalUrl: z
@@ -183,7 +182,6 @@ export function emptyTimelineItemValues(typeId = ""): TimelineItemInput {
   return {
     typeId,
     title: "",
-    summary: "",
     description: "",
     sourceText: "",
     externalUrl: "",

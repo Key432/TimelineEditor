@@ -62,7 +62,6 @@ export const timelineEventSchema = z.object({
     .max(200, "タイトルは200文字以内で入力してください。"),
   date: eventDateSchema,
   isApproximate: z.boolean(),
-  summary: nullableText(2000, "概要は2000文字以内で入力してください。"),
   description: nullableText(20000, "本文は20000文字以内で入力してください。"),
   sourceText: nullableText(10000, "出典は10000文字以内で入力してください。"),
   externalUrl: z
@@ -93,7 +92,6 @@ export function emptyTimelineEventValues(
     title: "",
     date: date ?? { year: "", month: "", day: "" },
     isApproximate: false,
-    summary: "",
     description: "",
     sourceText: "",
     externalUrl: "",

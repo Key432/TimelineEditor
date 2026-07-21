@@ -25,7 +25,6 @@ describe("timeline event validation and snapping", () => {
       title: "  出版  ",
       date: { year: "1905", month: "", day: "" },
       isApproximate: false,
-      summary: "",
       description: "",
       sourceText: "",
       externalUrl: "",
@@ -33,7 +32,7 @@ describe("timeline event validation and snapping", () => {
     expect(result).toMatchObject({
       title: "出版",
       date: { year: 1905, month: null, day: null },
-      summary: null,
+      description: null,
     });
   });
 
@@ -43,7 +42,6 @@ describe("timeline event validation and snapping", () => {
       title: "",
       date: { year: 1900, month: 2, day: 29 },
       isApproximate: false,
-      summary: "",
       description: "",
       sourceText: "",
       externalUrl: "javascript:alert(1)",

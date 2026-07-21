@@ -29,7 +29,6 @@ export type TimelineItem = {
   typeId: string;
   itemType: TimelineItemType;
   title: string;
-  summary: string | null;
   description: string | null;
   sourceText: string | null;
   externalUrl: string | null;

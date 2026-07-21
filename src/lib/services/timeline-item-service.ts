@@ -34,7 +34,7 @@ export class TimelineItemService {
   private parseItemId(itemId: string) {
     if (!z.uuid().safeParse(itemId).success) {
       throw new ServiceError(
-        "タイムライン項目が見つかりません。",
+        "タイムラインアイテムが見つかりません。",
         404,
         "TIMELINE_ITEM_NOT_FOUND",
       );
@@ -70,7 +70,7 @@ export class TimelineItemService {
     );
     if (!item) {
       throw new ServiceError(
-        "タイムライン項目が見つかりません。",
+        "タイムラインアイテムが見つかりません。",
         404,
         "TIMELINE_ITEM_NOT_FOUND",
       );
@@ -98,7 +98,7 @@ export class TimelineItemService {
     );
     if (!item) {
       throw new ServiceError(
-        "タイムライン項目が見つかりません。",
+        "タイムラインアイテムが見つかりません。",
         404,
         "TIMELINE_ITEM_NOT_FOUND",
       );
@@ -130,7 +130,7 @@ export class TimelineItemService {
     );
     if (!deleted) {
       throw new ServiceError(
-        "タイムライン項目が見つかりません。",
+        "タイムラインアイテムが見つかりません。",
         404,
         "TIMELINE_ITEM_NOT_FOUND",
       );

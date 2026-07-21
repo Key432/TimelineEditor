@@ -38,7 +38,7 @@ export function TimelineEventSection({
   return (
     <section className="space-y-3 border-t pt-5">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-medium">子イベント（{children.length}件）</h3>
+        <h3 className="font-medium">イベントアイテム（{children.length}件）</h3>
         <Button
           size="sm"
           type="button"
@@ -46,7 +46,7 @@ export function TimelineEventSection({
           onClick={() => setAdding((value) => !value)}
         >
           <CalendarPlus className="size-4" aria-hidden="true" />
-          子イベントを追加
+          イベントアイテムを追加
         </Button>
       </div>
       {adding ? (
@@ -82,7 +82,7 @@ export function TimelineEventSection({
         </ul>
       ) : !adding ? (
         <p className="text-sm text-muted-foreground">
-          子イベントはまだありません。
+          イベントアイテムはまだありません。
         </p>
       ) : null}
     </section>
