@@ -32,9 +32,13 @@ const selectClassName =
 
 const subscribeToClient = () => () => undefined;
 
-type ProjectFormProps =
+type ProjectFormProps = (
   | { mode: "create"; currentYear: number; project?: never }
-  | { mode: "edit"; currentYear: number; project: Project };
+  | { mode: "edit"; currentYear: number; project: Project }
+) & {
+  navigateAfterSave?: boolean;
+  onSaved?: (project: Project) => void;
+};
 
 function defaults(props: ProjectFormProps): ProjectFormInput {
   if (props.mode === "edit") {
@@ -92,7 +96,14 @@ export function ProjectForm(props: ProjectFormProps) {
     onSuccess: async (project) => {
       await queryClient.invalidateQueries({ queryKey: projectKeys.all });
       queryClient.setQueryData(projectKeys.detail(project.id), project);
-      router.push(`/projects/${project.id}/settings`);
+      props.onSaved?.(project);
+      if (props.navigateAfterSave !== false) {
+        router.push(
+          props.mode === "create"
+            ? `/projects/${project.id}/timeline`
+            : `/projects/${project.id}/settings`,
+        );
+      }
       router.refresh();
     },
   });

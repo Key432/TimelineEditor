@@ -42,7 +42,7 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   const projectResponse = await page.request.post("/api/projects", {
     data: {
       name: "近代文学史",
-      description: null,
+      description: "作家と作品の関係を比較します。",
       template: "literature",
       settings: {
         defaultUncertaintyYears: 5,
@@ -60,13 +60,61 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   } = (await projectResponse.json()) as { project: { id: string } };
 
   await page.goto(`/projects/${projectId}/timeline`);
+  await expect(page.getByText("作家と作品の関係を比較します。")).toBeVisible();
+  await expect(
+    page.getByText("期間型・時点型の項目を登録し、同じ時間軸で比較します。"),
+  ).toHaveCount(0);
+
+  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await expect(
+    page.getByRole("dialog").getByRole("heading", {
+      name: "プロジェクト設定",
+    }),
+  ).toBeVisible();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "閉じる" })
+    .click();
+
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await page.getByRole("button", { name: "対象種別", exact: true }).click();
+  const desktopItemTypeDialog = page.getByRole("dialog");
+  await expect(
+    desktopItemTypeDialog.getByRole("heading", { name: "対象種別" }),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      desktopItemTypeDialog.evaluate(
+        (element) => element.getBoundingClientRect().width,
+      ),
+    )
+    .toBeGreaterThan(800);
+  await desktopItemTypeDialog.getByRole("button", { name: "閉じる" }).click();
+  await page.setViewportSize({ width: 1280, height: 720 });
+
   await page.getByRole("button", { name: "最初の項目を作成" }).click();
   const rangeForm = page.getByRole("form", { name: "タイムライン項目作成" });
+  await rangeForm.getByRole("button", { name: "対象種別を編集" }).click();
+  const itemTypeDialog = page.getByRole("dialog").last();
+  await itemTypeDialog.getByLabel("対象種別を検索・新規作成").fill("出来事");
+  await itemTypeDialog.getByRole("button", { name: "新規作成" }).click();
+  await expect(
+    itemTypeDialog.getByRole("textbox", { name: "名称" }).last(),
+  ).toHaveValue("出来事");
+  await itemTypeDialog.getByRole("button", { name: "閉じる" }).click();
+  await expect(rangeForm.getByLabel("対象種別", { exact: true })).toContainText(
+    "出来事",
+  );
+
   await rangeForm.getByLabel("名称").fill("夏目漱石");
   const rangeYears = rangeForm.getByLabel("年");
   await rangeYears.nth(0).fill("1867");
   await rangeYears.nth(1).fill("1916");
   await rangeForm.getByLabel("開始日はおおよそ").check();
+  await rangeForm.getByText("詳細情報（本文・出典・外部URL）").click();
+  await rangeForm.getByLabel("本文（任意）").fill("明治・大正期の小説家");
+  await rangeForm.getByLabel("出典・参考文献（任意）").fill("人物事典 第一巻");
+  await rangeForm.getByLabel("外部URL（任意）").fill("https://example.com/");
   await rangeForm.getByRole("button", { name: "項目を作成" }).click();
 
   await expect(page.getByText("夏目漱石", { exact: true })).toBeVisible();
@@ -83,6 +131,73 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     page.getByText("『吾輩は猫である』刊行", { exact: true }),
   ).toBeVisible();
   await expect(page.getByLabel(/時点型マーカー/)).toBeVisible();
+
+  const zoomSlider = page.getByLabel("ズーム段階");
+  const viewport = page.getByTestId("timeline-viewport");
+  await viewport.dispatchEvent("wheel", {
+    altKey: true,
+    deltaY: -100,
+    clientX: 600,
+  });
+  await expect(zoomSlider).toHaveValue("1");
+  await viewport.dispatchEvent("wheel", {
+    ctrlKey: true,
+    deltaY: -100,
+    clientX: 600,
+  });
+  await expect(zoomSlider).toHaveValue("1");
+  await zoomSlider.fill("3");
+  await expect(zoomSlider).toHaveValue("3");
+  const beforePan = await viewport.evaluate((element) => element.scrollLeft);
+  const findPanPoints = () =>
+    viewport.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      for (let y = rect.top + 8; y < rect.bottom - 8; y += 8) {
+        const points: number[] = [];
+        for (let x = rect.left + 8; x < rect.right - 8; x += 8) {
+          if (
+            document
+              .elementFromPoint(x, y)
+              ?.closest("[data-timeline-pan-surface='true']")
+          ) {
+            points.push(x);
+          }
+        }
+        if (points.length > 16) {
+          return {
+            startX: points.at(-1)!,
+            endX: points[0]!,
+            y,
+          };
+        }
+      }
+      return null;
+    });
+  await expect.poll(findPanPoints).not.toBeNull();
+  const panPoints = await findPanPoints();
+  if (!panPoints) throw new Error("Timeline pan surface is not visible.");
+  await page.mouse.move(panPoints.startX, panPoints.y);
+  await page.mouse.down();
+  await expect(page.getByLabel(/期間型バー/).first()).toBeVisible();
+  await page.mouse.move(panPoints.endX, panPoints.y);
+  await expect(page.getByLabel(/期間型バー/).first()).toBeVisible();
+  await page.mouse.up();
+  await expect
+    .poll(() => viewport.evaluate((element) => element.scrollLeft))
+    .toBeGreaterThan(beforePan);
+  await page.getByLabel("表示密度").selectOption("compact");
+  await expect(page.getByLabel("表示密度")).toHaveValue("compact");
+  await expect(page.getByTestId(/^timeline-row-/).first()).toHaveCSS(
+    "height",
+    "44px",
+  );
+  await page.getByLabel("表示密度").selectOption("comfortable");
+  await expect(page.getByTestId(/^timeline-row-/).first()).toHaveCSS(
+    "height",
+    "64px",
+  );
+  await page.getByRole("button", { name: "全項目を表示" }).click();
+  await expect(zoomSlider).toHaveValue("0");
 
   const moveUp = page.getByRole("button", {
     name: "『吾輩は猫である』刊行を上へ移動",
@@ -101,12 +216,34 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
 
   await page.getByRole("button", { name: "夏目漱石を編集" }).click();
   const editForm = page.getByRole("form", { name: "タイムライン項目編集" });
+  await expect(editForm.getByText("詳細編集を開く")).toHaveCount(0);
+  await editForm.getByText("詳細情報（本文・出典・外部URL）").click();
+  await expect(editForm.getByLabel("本文（任意）")).toHaveValue(
+    "明治・大正期の小説家",
+  );
+  await expect(editForm.getByLabel("出典・参考文献（任意）")).toHaveValue(
+    "人物事典 第一巻",
+  );
+  await expect(editForm.getByLabel("外部URL（任意）")).toHaveValue(
+    "https://example.com/",
+  );
   await editForm.getByLabel("概要（任意）").fill("小説家・英文学者");
+  await editForm.getByLabel("タイムラインに表示").uncheck();
   await editForm.getByRole("button", { name: "変更を保存" }).click();
   await expect(editForm).toBeHidden();
 
+  const hiddenGroup = page.getByRole("button", {
+    name: "非表示にした項目 1件",
+  });
+  await expect(hiddenGroup).toBeVisible();
+  await expect(page.getByText("夏目漱石", { exact: true })).toBeHidden();
+  await expect(page.getByText(/表示中 1 \/ 2 行/)).toBeVisible();
+  await hiddenGroup.click();
   await page.getByRole("button", { name: "夏目漱石を編集" }).click();
   await page.getByRole("button", { name: "完全削除" }).click();
   await page.getByRole("button", { name: "完全削除" }).last().click();
   await expect(page.getByText("夏目漱石", { exact: true })).toBeHidden();
+  await page.reload();
+  await expect(page.getByLabel(/時点型マーカー/)).toBeVisible();
+  await expect(page.getByText("目盛り: year")).toBeVisible();
 });

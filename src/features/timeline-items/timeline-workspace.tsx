@@ -13,21 +13,10 @@ import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowDown,
-  ArrowUp,
-  ChevronDown,
-  ChevronRight,
-  EyeOff,
-  GripVertical,
-  Pencil,
-  Plus,
-} from "lucide-react";
+import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +29,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
+import { itemTypeKeys, listItemTypes } from "@/features/item-types/api";
 import type { TimelineItemType } from "@/features/item-types/types";
 import {
   getTimelineItem,
@@ -48,218 +38,31 @@ import {
   timelineItemKeys,
 } from "@/features/timeline-items/api";
 import { DeleteTimelineItemDialog } from "@/features/timeline-items/delete-timeline-item-dialog";
-import {
-  effectiveItemYear,
-  formatHistoricalDate,
-} from "@/features/timeline-items/historical-date";
+import { effectiveItemYear } from "@/features/timeline-items/historical-date";
 import { TimelineItemForm } from "@/features/timeline-items/timeline-item-form";
+import { TimelineStoreProvider } from "@/features/timeline-items/timeline-store";
+import {
+  TimelineViewport,
+  type TimelineDisplayEntry,
+} from "@/features/timeline-items/timeline-viewport";
 import {
   TIMELINE_SORT_LABELS,
   TIMELINE_SORT_MODES,
+  type HistoricalDate,
   type TimelineItemSummary,
   type TimelineSortMode,
 } from "@/features/timeline-items/types";
 import type { Project } from "@/features/projects/types";
-import { cn } from "@/lib/utils";
 
 const selectClassName =
   "h-8 rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const HIDDEN_ITEMS_GROUP_ID = "hidden-items";
 
 function endYear(item: TimelineItemSummary, currentYear: number) {
   if (item.temporalType === "point") return item.point?.year ?? 1;
   if (item.endDateStatus === "specified") return item.end?.year ?? 1;
   if (item.endDateStatus === "ongoing") return currentYear;
   return item.lastConfirmed?.year ?? item.start?.year ?? 1;
-}
-
-function itemDateLabel(item: TimelineItemSummary) {
-  if (item.temporalType === "point") {
-    return `${item.isPointApproximate ? "約 " : ""}${formatHistoricalDate(item.point)}`;
-  }
-  const end =
-    item.endDateStatus === "ongoing"
-      ? "継続中"
-      : item.endDateStatus === "unknown"
-        ? `終了不明${item.lastConfirmed ? `（最終確認 ${formatHistoricalDate(item.lastConfirmed)}）` : ""}`
-        : `${item.isEndApproximate ? "約 " : ""}${formatHistoricalDate(item.end)}`;
-  return `${item.isStartApproximate ? "約 " : ""}${formatHistoricalDate(item.start)} — ${end}`;
-}
-
-function TimelineGlyph({
-  item,
-  minYear,
-  maxYear,
-  currentYear,
-  uncertaintyYears,
-}: {
-  item: TimelineItemSummary;
-  minYear: number;
-  maxYear: number;
-  currentYear: number;
-  uncertaintyYears: number;
-}) {
-  const span = Math.max(1, maxYear - minYear);
-  const start = effectiveItemYear(item);
-  const finish =
-    item.endDateStatus === "unknown"
-      ? endYear(item, currentYear) + uncertaintyYears
-      : endYear(item, currentYear);
-  const left = Math.max(0, Math.min(100, ((start - minYear) / span) * 100));
-  const right = Math.max(
-    left,
-    Math.min(100, ((finish - minYear) / span) * 100),
-  );
-  const color = item.colorOverride ?? item.itemType.defaultColor;
-
-  if (item.temporalType === "point") {
-    return (
-      <span
-        aria-label={`時点型マーカー ${formatHistoricalDate(item.point)}`}
-        className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-white shadow-sm"
-        style={{ left: `${left}%`, backgroundColor: color }}
-      />
-    );
-  }
-
-  const gradient =
-    item.endDateStatus === "unknown"
-      ? `linear-gradient(to right, ${color} 0%, ${color} 72%, transparent 100%)`
-      : item.isStartApproximate && item.isEndApproximate
-        ? `linear-gradient(to right, transparent 0%, ${color} 18%, ${color} 82%, transparent 100%)`
-        : item.isStartApproximate
-          ? `linear-gradient(to right, transparent 0%, ${color} 22%)`
-          : item.isEndApproximate
-            ? `linear-gradient(to right, ${color} 78%, transparent 100%)`
-            : color;
-
-  return (
-    <span
-      aria-label={`期間型バー ${itemDateLabel(item)}`}
-      className={cn(
-        "absolute top-1/2 h-3 min-w-1 -translate-y-1/2 rounded-sm",
-        item.endDateStatus === "ongoing" &&
-          "after:absolute after:top-0 after:-right-1 after:h-3 after:w-1 after:bg-current",
-      )}
-      style={{
-        left: `${left}%`,
-        width: `${Math.max(0.5, right - left)}%`,
-        background: gradient,
-        color,
-      }}
-    />
-  );
-}
-
-function SortableRow({
-  item,
-  project,
-  currentYear,
-  disabled,
-  canMoveUp,
-  canMoveDown,
-  onMoveUp,
-  onMoveDown,
-  onEdit,
-}: {
-  item: TimelineItemSummary;
-  project: Project;
-  currentYear: number;
-  disabled: boolean;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onEdit: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: item.id, disabled });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        "grid min-h-16 grid-cols-[2rem_minmax(13rem,18rem)_1fr_auto] items-stretch border-b bg-card last:border-b-0",
-        !item.isVisible && "opacity-55",
-      )}
-      data-testid={`timeline-row-${item.id}`}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-    >
-      <button
-        aria-label={`${item.title}を並べ替え`}
-        className="flex cursor-grab items-center justify-center border-r text-muted-foreground disabled:cursor-not-allowed"
-        disabled={disabled}
-        type="button"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical aria-hidden="true" className="size-4" />
-      </button>
-      <div className="min-w-0 border-r px-3 py-2">
-        <div className="flex items-center gap-2">
-          <span
-            aria-hidden="true"
-            className="size-2.5 shrink-0 rounded-full"
-            style={{
-              backgroundColor: item.colorOverride ?? item.itemType.defaultColor,
-            }}
-          />
-          <button
-            className="truncate text-left text-sm font-medium hover:underline"
-            type="button"
-            onClick={onEdit}
-          >
-            {item.title}
-          </button>
-          {!item.isVisible ? (
-            <EyeOff aria-label="非表示" className="size-3.5 shrink-0" />
-          ) : null}
-        </div>
-        <p className="mt-1 truncate text-xs text-muted-foreground">
-          {item.itemType.name} · {itemDateLabel(item)}
-        </p>
-      </div>
-      <div
-        className="relative min-w-80 overflow-hidden bg-[repeating-linear-gradient(to_right,var(--color-border)_0,var(--color-border)_1px,transparent_1px,transparent_10%)] px-3"
-        data-testid={`timeline-glyph-${item.id}`}
-      >
-        <TimelineGlyph
-          currentYear={currentYear}
-          item={item}
-          maxYear={project.settings.initialEndYear}
-          minYear={project.settings.initialStartYear}
-          uncertaintyYears={project.settings.defaultUncertaintyYears}
-        />
-      </div>
-      <div className="flex items-center gap-1 border-l px-2">
-        <Button
-          aria-label={`${item.title}を上へ移動`}
-          disabled={disabled || !canMoveUp}
-          size="icon-sm"
-          variant="ghost"
-          onClick={onMoveUp}
-        >
-          <ArrowUp aria-hidden="true" className="size-4" />
-        </Button>
-        <Button
-          aria-label={`${item.title}を下へ移動`}
-          disabled={disabled || !canMoveDown}
-          size="icon-sm"
-          variant="ghost"
-          onClick={onMoveDown}
-        >
-          <ArrowDown aria-hidden="true" className="size-4" />
-        </Button>
-        <Button
-          aria-label={`${item.title}を編集`}
-          size="icon-sm"
-          variant="ghost"
-          onClick={onEdit}
-        >
-          <Pencil aria-hidden="true" className="size-4" />
-        </Button>
-      </div>
-    </div>
-  );
 }
 
 function compareItems(
@@ -284,7 +87,7 @@ function compareItems(
         result = a.title.localeCompare(b.title, "ja");
         break;
       case "itemType":
-        result = a.itemType.name.localeCompare(b.itemType.name, "ja");
+        result = a.itemType.sortOrder - b.itemType.sortOrder;
         break;
       case "createdAt":
         result = a.createdAt.localeCompare(b.createdAt);
@@ -303,12 +106,14 @@ function ItemEditor({
   itemTypes,
   onSaved,
   onDirtyChange,
+  onEditItemTypes,
 }: {
   projectId: string;
   itemId: string;
   itemTypes: TimelineItemType[];
   onSaved: () => void;
   onDirtyChange: (dirty: boolean) => void;
+  onEditItemTypes?: () => void;
 }) {
   const { data: item, error } = useQuery({
     queryKey: timelineItemKeys.detail(projectId, itemId),
@@ -323,6 +128,7 @@ function ItemEditor({
         itemTypes={itemTypes}
         projectId={projectId}
         onDirtyChange={onDirtyChange}
+        onEditItemTypes={onEditItemTypes}
         onSaved={onSaved}
       />
       <DeleteTimelineItemDialog
@@ -334,16 +140,18 @@ function ItemEditor({
   );
 }
 
-export function TimelineWorkspace({
+function TimelineWorkspaceContent({
   project,
   initialItems,
   itemTypes,
-  currentYear,
+  currentDate,
+  onEditItemTypes,
 }: {
   project: Project;
   initialItems: TimelineItemSummary[];
   itemTypes: TimelineItemType[];
-  currentYear: number;
+  currentDate: HistoricalDate;
+  onEditItemTypes?: () => void;
 }) {
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<"create" | string | null>(null);
@@ -351,11 +159,18 @@ export function TimelineWorkspace({
   const [sortMode, setSortMode] = useState<TimelineSortMode>("manual");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
   const [groupByType, setGroupByType] = useState(false);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [collapsed, setCollapsed] = useState<Set<string>>(
+    () => new Set([HIDDEN_ITEMS_GROUP_ID]),
+  );
   const { data: items = initialItems } = useQuery({
     queryKey: timelineItemKeys.list(project.id),
     queryFn: () => listTimelineItems(project.id),
     initialData: initialItems,
+  });
+  const { data: currentItemTypes = itemTypes } = useQuery({
+    queryKey: itemTypeKeys.list(project.id),
+    queryFn: () => listItemTypes(project.id),
+    initialData: itemTypes,
   });
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -378,18 +193,67 @@ export function TimelineWorkspace({
   });
 
   const sorted = useMemo(
-    () => [...items].sort(compareItems(sortMode, direction, currentYear)),
-    [currentYear, direction, items, sortMode],
+    () => [...items].sort(compareItems(sortMode, direction, currentDate.year)),
+    [currentDate.year, direction, items, sortMode],
   );
   const groups = useMemo(() => {
-    if (!groupByType) return [{ type: null, items: sorted }];
-    return itemTypes
-      .map((type) => ({
-        type,
-        items: sorted.filter((item) => item.typeId === type.id),
-      }))
-      .filter((group) => group.items.length > 0);
-  }, [groupByType, itemTypes, sorted]);
+    const visibleItems = sorted.filter((item) => item.isVisible);
+    const hiddenItems = sorted.filter((item) => !item.isVisible);
+    const visibleGroups = groupByType
+      ? currentItemTypes
+          .map((type) => ({
+            id: type.id,
+            label: type.name,
+            color: type.defaultColor,
+            showHeader: true,
+            items: visibleItems.filter((item) => item.typeId === type.id),
+          }))
+          .filter((group) => group.items.length > 0)
+      : [
+          {
+            id: "visible-items",
+            label: "",
+            color: "",
+            showHeader: false,
+            items: visibleItems,
+          },
+        ];
+    return hiddenItems.length > 0
+      ? [
+          ...visibleGroups,
+          {
+            id: HIDDEN_ITEMS_GROUP_ID,
+            label: "非表示にした項目",
+            color: "#6B7280",
+            showHeader: true,
+            items: hiddenItems,
+          },
+        ]
+      : visibleGroups;
+  }, [currentItemTypes, groupByType, sorted]);
+  const entries = useMemo<TimelineDisplayEntry[]>(
+    () =>
+      groups.flatMap((group) => {
+        if (!group.showHeader) {
+          return group.items.map((item) => ({ kind: "item" as const, item }));
+        }
+        const groupEntry: TimelineDisplayEntry = {
+          kind: "group",
+          id: group.id,
+          label: group.label,
+          color: group.color,
+          itemCount: group.items.length,
+          collapsed: collapsed.has(group.id),
+        };
+        return collapsed.has(group.id)
+          ? [groupEntry]
+          : [
+              groupEntry,
+              ...group.items.map((item) => ({ kind: "item" as const, item })),
+            ];
+      }),
+    [collapsed, groups],
+  );
 
   function closeEditor(nextOpen: boolean) {
     if (nextOpen) return;
@@ -439,7 +303,7 @@ export function TimelineWorkspace({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
         <Button
-          disabled={itemTypes.length === 0}
+          disabled={currentItemTypes.length === 0}
           onClick={() => setEditor("create")}
         >
           <Plus aria-hidden="true" className="size-4" />
@@ -492,12 +356,17 @@ export function TimelineWorkspace({
         ) : null}
       </div>
 
-      {itemTypes.length === 0 ? (
+      {currentItemTypes.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-card px-6 py-12 text-center">
           <p className="font-medium">先に対象種別を作成してください。</p>
           <p className="mt-1 text-sm text-muted-foreground">
             プロジェクト設定の「対象種別」から追加できます。
           </p>
+          {onEditItemTypes ? (
+            <Button className="mt-4" onClick={onEditItemTypes}>
+              対象種別を作成
+            </Button>
+          ) : null}
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-card px-6 py-12 text-center">
@@ -517,78 +386,23 @@ export function TimelineWorkspace({
             items={sorted.map((item) => item.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="overflow-x-auto rounded-lg border">
-              <div className="min-w-240">
-                <div className="grid grid-cols-[2rem_minmax(13rem,18rem)_1fr_auto] border-b bg-muted/70 text-xs font-medium text-muted-foreground">
-                  <span />
-                  <span className="border-r px-3 py-2">項目</span>
-                  <span className="px-3 py-2">
-                    {project.settings.initialStartYear} —{" "}
-                    {project.settings.initialEndYear}
-                  </span>
-                  <span className="w-12 border-l" />
-                </div>
-                {groups.map((group) => {
-                  const isCollapsed =
-                    group.type && collapsed.has(group.type.id);
-                  return (
-                    <section key={group.type?.id ?? "all"}>
-                      {group.type ? (
-                        <button
-                          className="flex w-full items-center gap-2 border-b bg-muted px-3 py-2 text-left text-sm font-medium"
-                          type="button"
-                          onClick={() =>
-                            setCollapsed((current) => {
-                              const next = new Set(current);
-                              if (next.has(group.type!.id)) {
-                                next.delete(group.type!.id);
-                              } else {
-                                next.add(group.type!.id);
-                              }
-                              return next;
-                            })
-                          }
-                        >
-                          {isCollapsed ? (
-                            <ChevronRight className="size-4" />
-                          ) : (
-                            <ChevronDown className="size-4" />
-                          )}
-                          <span
-                            className="size-2.5 rounded-full"
-                            style={{ backgroundColor: group.type.defaultColor }}
-                          />
-                          {group.type.name}
-                          <Badge variant="outline">{group.items.length}</Badge>
-                        </button>
-                      ) : null}
-                      {!isCollapsed
-                        ? group.items.map((item) => {
-                            const manualIndex = items.findIndex(
-                              (candidate) =>
-                                candidate.manualOrder === item.manualOrder,
-                            );
-                            return (
-                              <SortableRow
-                                key={item.id}
-                                canMoveDown={manualIndex < items.length - 1}
-                                canMoveUp={manualIndex > 0}
-                                currentYear={currentYear}
-                                disabled={sortMode !== "manual"}
-                                item={item}
-                                project={project}
-                                onEdit={() => setEditor(item.id)}
-                                onMoveDown={() => moveByButton(item.id, 1)}
-                                onMoveUp={() => moveByButton(item.id, -1)}
-                              />
-                            );
-                          })
-                        : null}
-                    </section>
-                  );
-                })}
-              </div>
-            </div>
+            <TimelineViewport
+              allItems={items}
+              currentDate={currentDate}
+              entries={entries}
+              project={project}
+              sortDisabled={sortMode !== "manual"}
+              onEdit={setEditor}
+              onMove={moveByButton}
+              onToggleGroup={(typeId) =>
+                setCollapsed((current) => {
+                  const next = new Set(current);
+                  if (next.has(typeId)) next.delete(typeId);
+                  else next.add(typeId);
+                  return next;
+                })
+              }
+            />
           </SortableContext>
         </DndContext>
       )}
@@ -612,9 +426,10 @@ export function TimelineWorkspace({
           <div className="px-4 pb-6">
             {editor === "create" ? (
               <TimelineItemForm
-                itemTypes={itemTypes}
+                itemTypes={currentItemTypes}
                 projectId={project.id}
                 onDirtyChange={setEditorDirty}
+                onEditItemTypes={onEditItemTypes}
                 onSaved={() => {
                   setEditorDirty(false);
                   setEditor(null);
@@ -623,9 +438,10 @@ export function TimelineWorkspace({
             ) : editor ? (
               <ItemEditor
                 itemId={editor}
-                itemTypes={itemTypes}
+                itemTypes={currentItemTypes}
                 projectId={project.id}
                 onDirtyChange={setEditorDirty}
+                onEditItemTypes={onEditItemTypes}
                 onSaved={() => {
                   setEditorDirty(false);
                   setEditor(null);
@@ -636,5 +452,19 @@ export function TimelineWorkspace({
         </SheetContent>
       </Sheet>
     </div>
+  );
+}
+
+export function TimelineWorkspace(props: {
+  project: Project;
+  initialItems: TimelineItemSummary[];
+  itemTypes: TimelineItemType[];
+  currentDate: HistoricalDate;
+  onEditItemTypes?: () => void;
+}) {
+  return (
+    <TimelineStoreProvider settings={props.project.settings}>
+      <TimelineWorkspaceContent {...props} />
+    </TimelineStoreProvider>
   );
 }

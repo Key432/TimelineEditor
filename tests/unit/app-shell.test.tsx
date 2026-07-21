@@ -1,9 +1,11 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "@/components/app-shell";
 import { QueryProvider } from "@/components/query-provider";
+
+afterEach(cleanup);
 
 describe("AppShell", () => {
   it("renders the authenticated shell and keyboard logout action", async () => {
@@ -60,5 +62,35 @@ describe("AppShell", () => {
 
     await user.click(toggle);
     expect(aside).toHaveAttribute("aria-hidden", "false");
+  });
+
+  it("closes the mobile navigation after choosing a project", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <QueryProvider>
+        <AppShell
+          logoutAction={vi.fn(async () => undefined)}
+          projects={[
+            {
+              id: "11111111-1111-4111-8111-111111111111",
+              name: "日本文学史",
+              description: null,
+              visibility: "private",
+              updatedAt: "2026-07-21T00:00:00Z",
+            },
+          ]}
+        >
+          <h1>プロジェクト</h1>
+        </AppShell>
+      </QueryProvider>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "ナビゲーションを開く" }),
+    );
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("link", { name: "日本文学史" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

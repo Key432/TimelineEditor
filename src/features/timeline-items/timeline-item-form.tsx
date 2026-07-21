@@ -2,9 +2,8 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Save } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useId } from "react";
+import { Save, Tags } from "lucide-react";
+import { useEffect, useId, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +34,7 @@ type TimelineItemFormProps = {
   showDetails?: boolean;
   onSaved?: (item: TimelineItem) => void;
   onDirtyChange?: (dirty: boolean) => void;
+  onEditItemTypes?: () => void;
 };
 
 function defaults(
@@ -125,9 +125,11 @@ export function TimelineItemForm({
   showDetails = false,
   onSaved,
   onDirtyChange,
+  onEditItemTypes,
 }: TimelineItemFormProps) {
   const formId = useId();
   const queryClient = useQueryClient();
+  const [detailsOpen, setDetailsOpen] = useState(showDetails);
   const {
     register,
     control,
@@ -141,6 +143,7 @@ export function TimelineItemForm({
   const temporalType = useWatch({ control, name: "temporalType" });
   const endDateStatus = useWatch({ control, name: "endDateStatus" });
   const colorOverride = useWatch({ control, name: "colorOverride" });
+  const selectedTypeId = useWatch({ control, name: "typeId" });
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -152,6 +155,20 @@ export function TimelineItemForm({
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [isDirty]);
+
+  useEffect(() => {
+    if (
+      itemTypes.length === 0 ||
+      itemTypes.some((itemType) => itemType.id === selectedTypeId)
+    ) {
+      return;
+    }
+    setValue(
+      "typeId",
+      itemTypes.find((itemType) => itemType.isVisible)?.id ?? itemTypes[0].id,
+      { shouldDirty: true, shouldValidate: true },
+    );
+  }, [itemTypes, selectedTypeId, setValue]);
 
   const mutation = useMutation({
     mutationFn: (values: TimelineItemValues) =>
@@ -205,6 +222,17 @@ export function TimelineItemForm({
         </select>
         {errors.typeId ? (
           <p className="text-sm text-destructive">{errors.typeId.message}</p>
+        ) : null}
+        {onEditItemTypes ? (
+          <Button
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={onEditItemTypes}
+          >
+            <Tags aria-hidden="true" className="size-4" />
+            対象種別を編集
+          </Button>
         ) : null}
       </div>
 
@@ -370,8 +398,15 @@ export function TimelineItemForm({
         タイムラインに表示
       </Label>
 
-      {showDetails ? (
-        <>
+      <details
+        className="rounded-lg border bg-muted/30 p-4"
+        open={detailsOpen}
+        onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
+      >
+        <summary className="cursor-pointer font-medium">
+          詳細情報（本文・出典・外部URL）
+        </summary>
+        <div className="mt-5 space-y-5">
           <div className="space-y-2">
             <Label htmlFor={`${formId}-description`}>本文（任意）</Label>
             <Textarea
@@ -402,14 +437,8 @@ export function TimelineItemForm({
               </p>
             ) : null}
           </div>
-        </>
-      ) : item ? (
-        <Button asChild variant="outline">
-          <Link href={`/projects/${projectId}/items/${item.id}/edit`}>
-            詳細編集を開く
-          </Link>
-        </Button>
-      ) : null}
+        </div>
+      </details>
 
       {isDirty && !mutation.isPending ? (
         <p className="text-xs text-muted-foreground">

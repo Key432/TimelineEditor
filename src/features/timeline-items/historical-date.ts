@@ -30,7 +30,47 @@ export function historicalDateOrdinal(
   const month = date.month ?? (boundary === "start" ? 1 : 12);
   const day =
     date.day ?? (boundary === "start" ? 1 : daysInMonth(date.year, month));
-  return date.year * 372 + month * 31 + day;
+  const previousYear = date.year - 1;
+  const daysBeforeYear =
+    previousYear * 365 +
+    Math.floor(previousYear / 4) -
+    Math.floor(previousYear / 100) +
+    Math.floor(previousYear / 400);
+  let daysBeforeMonth = 0;
+  for (let currentMonth = 1; currentMonth < month; currentMonth += 1) {
+    daysBeforeMonth += daysInMonth(date.year, currentMonth);
+  }
+  return daysBeforeYear + daysBeforeMonth + day - 1;
+}
+
+export function historicalDateFromOrdinal(ordinal: number): HistoricalDate {
+  if (!Number.isFinite(ordinal) || ordinal < 0) {
+    throw new RangeError("Historical date ordinal must be non-negative.");
+  }
+
+  const wholeDay = Math.floor(ordinal);
+  let low = 1;
+  let high = Math.max(2, Math.floor(wholeDay / 365) + 2);
+  while (historicalDateOrdinal({ year: high, month: 1, day: 1 }) <= wholeDay) {
+    high *= 2;
+  }
+  while (low < high) {
+    const middle = Math.floor((low + high + 1) / 2);
+    if (historicalDateOrdinal({ year: middle, month: 1, day: 1 }) <= wholeDay) {
+      low = middle;
+    } else {
+      high = middle - 1;
+    }
+  }
+
+  const year = low;
+  let dayOfYear = wholeDay - historicalDateOrdinal({ year, month: 1, day: 1 });
+  let month = 1;
+  while (dayOfYear >= daysInMonth(year, month)) {
+    dayOfYear -= daysInMonth(year, month);
+    month += 1;
+  }
+  return { year, month, day: dayOfYear + 1 };
 }
 
 export function formatHistoricalDate(date: HistoricalDate | null) {

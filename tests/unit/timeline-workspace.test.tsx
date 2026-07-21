@@ -1,6 +1,12 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { QueryProvider } from "@/components/query-provider";
 import type { TimelineItemType } from "@/features/item-types/types";
@@ -44,17 +50,19 @@ function item(
   id: string,
   title: string,
   temporalType: "range" | "point",
+  manualOrder = temporalType === "range" ? 0 : 1,
+  itemType = type,
 ): TimelineItemSummary {
   return {
     id,
     projectId: project.id,
-    typeId: type.id,
-    itemType: type,
+    typeId: itemType.id,
+    itemType,
     title,
     summary: null,
     temporalType,
     colorOverride: null,
-    manualOrder: temporalType === "range" ? 0 : 1,
+    manualOrder,
     isVisible: true,
     start: temporalType === "range" ? { year: 1867, month: 2, day: 9 } : null,
     isStartApproximate: true,
@@ -78,7 +86,7 @@ describe("TimelineWorkspace", () => {
     render(
       <QueryProvider>
         <TimelineWorkspace
-          currentYear={2026}
+          currentDate={{ year: 2026, month: 7, day: 21 }}
           initialItems={[
             item("33333333-3333-4333-8333-333333333333", "夏目漱石", "range"),
             item(
@@ -103,6 +111,17 @@ describe("TimelineWorkspace", () => {
     expect(
       screen.getByText("自動並べ替え中はドラッグできません。"),
     ).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("表示密度"), "compact");
+    expect(
+      screen.getByTestId("timeline-row-33333333-3333-4333-8333-333333333333"),
+    ).toHaveStyle({ height: "44px" });
+    await user.click(screen.getByRole("button", { name: "拡大" }));
+    expect(screen.getByText("世紀", { selector: "span" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "全項目を表示" }));
+    expect(
+      screen.getByText("全体表示", { selector: "span" }),
+    ).toBeInTheDocument();
   });
 
   it("groups and collapses rows by item type", async () => {
@@ -110,7 +129,7 @@ describe("TimelineWorkspace", () => {
     render(
       <QueryProvider>
         <TimelineWorkspace
-          currentYear={2026}
+          currentDate={{ year: 2026, month: 7, day: 21 }}
           initialItems={[
             item("33333333-3333-4333-8333-333333333333", "夏目漱石", "range"),
           ]}
@@ -122,8 +141,253 @@ describe("TimelineWorkspace", () => {
 
     await user.click(screen.getByLabelText("対象種別でグループ化"));
     const heading = screen.getByRole("button", { name: /人物/ });
+    expect(screen.getByText(/表示中 1 \/ 1 行/)).toBeInTheDocument();
     expect(screen.getByText("夏目漱石")).toBeInTheDocument();
     await user.click(heading);
     expect(screen.queryByText("夏目漱石")).not.toBeInTheDocument();
+  });
+
+  it("places hidden items in a collapsed group at the bottom", async () => {
+    const user = userEvent.setup();
+    const visibleItem = item(
+      "33333333-3333-4333-8333-333333333333",
+      "表示項目",
+      "range",
+    );
+    const hiddenItem = {
+      ...item("44444444-4444-4444-8444-444444444444", "非表示項目", "point"),
+      isVisible: false,
+    };
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 21 }}
+          initialItems={[hiddenItem, visibleItem]}
+          itemTypes={[type]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    const hiddenGroup = screen.getByRole("button", {
+      name: /非表示にした項目 1/,
+    });
+    expect(screen.queryByText("非表示項目")).not.toBeInTheDocument();
+    expect(screen.getByText(/表示中 1 \/ 2 行/)).toBeInTheDocument();
+
+    await user.click(hiddenGroup);
+    const rows = screen.getAllByTestId(/^timeline-row-/);
+    expect(rows[0]).toHaveTextContent("表示項目");
+    expect(rows[1]).toHaveTextContent("非表示項目");
+    expect(screen.getByText(/表示中 2 \/ 2 行/)).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("対象種別でグループ化"));
+    const groupButtons = screen
+      .getAllByRole("button")
+      .filter((button) =>
+        /^(人物|非表示にした項目)/.test(button.textContent ?? ""),
+      );
+    expect(groupButtons.at(-1)).toHaveTextContent("非表示にした項目");
+  });
+
+  it("virtualizes a 1,000-row timeline", () => {
+    const manyItems = Array.from({ length: 1000 }, (_, index) =>
+      item(`item-${index}`, `項目 ${index}`, "range", index),
+    );
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 21 }}
+          initialItems={manyItems}
+          itemTypes={[type]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    const renderedRows = screen.getAllByTestId(/^timeline-row-/);
+    expect(renderedRows.length).toBeGreaterThan(0);
+    expect(renderedRows.length).toBeLessThan(1000);
+    expect(screen.getByText("1000項目")).toBeInTheDocument();
+  });
+
+  it("remeasures virtual rows in both density directions and zooms only with Alt", async () => {
+    const user = userEvent.setup();
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 21 }}
+          initialItems={[
+            item("33333333-3333-4333-8333-333333333333", "一行目", "range"),
+            item("44444444-4444-4444-8444-444444444444", "二行目", "point"),
+          ]}
+          itemTypes={[type]}
+          project={{
+            ...project,
+            settings: { ...project.settings, timelineDensity: "compact" },
+          }}
+        />
+      </QueryProvider>,
+    );
+
+    const secondRow = screen.getByTestId(
+      "timeline-row-44444444-4444-4444-8444-444444444444",
+    );
+    await waitFor(() =>
+      expect(secondRow.closest("[data-index]")).toHaveStyle({
+        transform: "translateY(44px)",
+      }),
+    );
+    await user.selectOptions(screen.getByLabelText("表示密度"), "comfortable");
+    await waitFor(() =>
+      expect(secondRow.closest("[data-index]")).toHaveStyle({
+        transform: "translateY(64px)",
+      }),
+    );
+
+    const slider = screen.getByLabelText("ズーム段階");
+    const viewport = screen.getByTestId("timeline-viewport");
+    expect(slider).toHaveValue("0");
+    fireEvent.wheel(viewport, { altKey: true, deltaY: -100, clientX: 600 });
+    expect(slider).toHaveValue("1");
+    fireEvent.wheel(viewport, { ctrlKey: true, deltaY: -100, clientX: 600 });
+    expect(slider).toHaveValue("1");
+    expect(
+      screen.getByText("Alt＋ホイールでカーソル中心にズーム"),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps a point marker visible while pointer-panning", () => {
+    Object.defineProperties(HTMLElement.prototype, {
+      setPointerCapture: { configurable: true, value: vi.fn() },
+      releasePointerCapture: { configurable: true, value: vi.fn() },
+      hasPointerCapture: {
+        configurable: true,
+        value: vi.fn(() => true),
+      },
+    });
+    const { container } = render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 21 }}
+          initialItems={[
+            item("44444444-4444-4444-8444-444444444444", "単一時点", "point"),
+          ]}
+          itemTypes={[type]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    const marker = screen.getByLabelText(/時点型マーカー/);
+    const panSurface = container.querySelector(
+      "[data-timeline-pan-surface='true']",
+    );
+    expect(panSurface).not.toBeNull();
+    fireEvent.pointerDown(panSurface!, {
+      button: 0,
+      clientX: 600,
+      pointerId: 1,
+    });
+    expect(marker).toBeInTheDocument();
+    fireEvent.pointerUp(screen.getByTestId("timeline-viewport"), {
+      pointerId: 1,
+    });
+
+    Reflect.deleteProperty(HTMLElement.prototype, "setPointerCapture");
+    Reflect.deleteProperty(HTMLElement.prototype, "releasePointerCapture");
+    Reflect.deleteProperty(HTMLElement.prototype, "hasPointerCapture");
+  });
+
+  it("coalesces rapid scroll updates into animation frames", () => {
+    const frames: FrameRequestCallback[] = [];
+    const animationFrame = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        frames.push(callback);
+        return frames.length;
+      });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 21 }}
+          initialItems={[
+            item("44444444-4444-4444-8444-444444444444", "単一時点", "point"),
+          ]}
+          itemTypes={[type]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    const viewport = screen.getByTestId("timeline-viewport");
+    viewport.scrollLeft = 100;
+    fireEvent.scroll(viewport);
+    viewport.scrollLeft = 180;
+    fireEvent.scroll(viewport);
+
+    expect(animationFrame).toHaveBeenCalledTimes(1);
+    expect(frames).toHaveLength(1);
+  });
+
+  it("fits a single point to a readable scale", () => {
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 21 }}
+          initialItems={[
+            item("44444444-4444-4444-8444-444444444444", "単一時点", "point"),
+          ]}
+          itemTypes={[type]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    expect(screen.getByLabelText(/時点型マーカー/)).toBeInTheDocument();
+    expect(screen.getByText("目盛り: year")).toBeInTheDocument();
+  });
+
+  it("sorts item types by sortOrder instead of their names", async () => {
+    const user = userEvent.setup();
+    const workType: TimelineItemType = {
+      ...type,
+      id: "55555555-5555-4555-8555-555555555555",
+      name: "作品",
+      sortOrder: 0,
+    };
+    const personType = { ...type, sortOrder: 1 };
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 21 }}
+          initialItems={[
+            item(
+              "33333333-3333-4333-8333-333333333333",
+              "人物項目",
+              "point",
+              0,
+              personType,
+            ),
+            item(
+              "44444444-4444-4444-8444-444444444444",
+              "作品項目",
+              "point",
+              1,
+              workType,
+            ),
+          ]}
+          itemTypes={[workType, personType]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    await user.selectOptions(screen.getByLabelText("並び順"), "itemType");
+    const rows = screen.getAllByTestId(/^timeline-row-/);
+    expect(rows[0]).toHaveTextContent("作品項目");
+    expect(rows[1]).toHaveTextContent("人物項目");
   });
 });

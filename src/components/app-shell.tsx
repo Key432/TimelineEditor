@@ -31,10 +31,14 @@ export function AppShell({
   projects = [],
 }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   return (
     <div className="min-h-svh bg-background">
       <header className="sticky top-0 z-30 flex h-14 items-center border-b bg-card px-4 lg:px-6">
-        <Sheet>
+        <Sheet
+          open={mobileNavigationOpen}
+          onOpenChange={setMobileNavigationOpen}
+        >
           <SheetTrigger asChild>
             <Button
               aria-label="ナビゲーションを開く"
@@ -51,7 +55,10 @@ export function AppShell({
               <SheetDescription>プロジェクトのナビゲーション</SheetDescription>
             </SheetHeader>
             <div className="px-4">
-              <ProjectNavigation initialProjects={projects} />
+              <ProjectNavigation
+                initialProjects={projects}
+                onNavigate={() => setMobileNavigationOpen(false)}
+              />
             </div>
           </SheetContent>
         </Sheet>

@@ -52,7 +52,10 @@ export function ProjectList({
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {projects.map((project) => (
-        <Card key={project.id}>
+        <Card
+          className="relative transition-colors hover:bg-muted/30"
+          key={project.id}
+        >
           <CardHeader>
             <div className="flex items-start justify-between gap-3">
               <CardTitle className="line-clamp-2 text-lg">
@@ -60,12 +63,26 @@ export function ProjectList({
               </CardTitle>
               <Badge variant="outline">非公開</Badge>
             </div>
-            <CardDescription className="line-clamp-3 min-h-10">
-              {project.description || "説明はまだありません。"}
-            </CardDescription>
+            {project.description ? (
+              <CardDescription className="line-clamp-3 min-h-10">
+                {project.description}
+              </CardDescription>
+            ) : (
+              <div aria-hidden="true" className="min-h-10" />
+            )}
+            <Link
+              aria-label={`${project.name}のタイムラインを開く`}
+              className="absolute inset-0 rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+              href={`/projects/${project.id}/timeline`}
+            />
           </CardHeader>
-          <CardFooter className="justify-end">
-            <Button asChild size="sm" variant="outline">
+          <CardFooter className="pointer-events-none justify-end">
+            <Button
+              asChild
+              className="pointer-events-auto relative z-10"
+              size="sm"
+              variant="outline"
+            >
               <Link href={`/projects/${project.id}/settings`}>
                 設定を開く
                 <ArrowRight aria-hidden="true" className="size-4" />
