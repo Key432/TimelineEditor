@@ -2,6 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { Settings, Tags } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ import {
 import { itemTypeKeys } from "@/features/item-types/api";
 import { ItemTypeManager } from "@/features/item-types/item-type-manager";
 import type { TimelineItemType } from "@/features/item-types/types";
+import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import { DeleteProjectDialog } from "@/features/projects/delete-project-dialog";
 import { ProjectForm } from "@/features/projects/project-form";
 import type { Project } from "@/features/projects/types";
@@ -31,14 +33,17 @@ type Panel = "settings" | "item-types" | null;
 export function TimelinePageClient({
   project,
   initialItems,
+  initialEvents = [],
   itemTypes,
   currentDate,
 }: {
   project: Project;
   initialItems: TimelineItemSummary[];
+  initialEvents?: TimelineEventSummary[];
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
 }) {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [activeProject, setActiveProject] = useState(project);
   const [panel, setPanel] = useState<Panel>(null);
@@ -93,8 +98,14 @@ export function TimelinePageClient({
         key={activeProject.updatedAt}
         currentDate={currentDate}
         initialItems={initialItems}
+        initialEvents={initialEvents}
         itemTypes={itemTypes}
         project={activeProject}
+        onOpenEvent={(eventId, editing) =>
+          router.push(
+            `/projects/${project.id}/events/${eventId}${editing ? "/edit" : ""}`,
+          )
+        }
         onEditItemTypes={() => setPanel("item-types")}
       />
 

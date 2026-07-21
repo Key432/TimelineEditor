@@ -115,6 +115,57 @@ export type Database = {
         };
         Relationships: [];
       };
+      timeline_events: {
+        Row: {
+          id: string;
+          project_id: string;
+          timeline_item_id: string;
+          title: string;
+          event_year: number;
+          event_month: number | null;
+          event_day: number | null;
+          is_approximate: boolean;
+          summary: string | null;
+          description: string | null;
+          source_text: string | null;
+          external_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          timeline_item_id: string;
+          title: string;
+          event_year: number;
+          event_month?: number | null;
+          event_day?: number | null;
+          is_approximate?: boolean;
+          summary?: string | null;
+          description?: string | null;
+          source_text?: string | null;
+          external_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          timeline_item_id?: string;
+          title?: string;
+          event_year?: number;
+          event_month?: number | null;
+          event_day?: number | null;
+          is_approximate?: boolean;
+          summary?: string | null;
+          description?: string | null;
+          source_text?: string | null;
+          external_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       timeline_items: {
         Row: {
           id: string;
@@ -215,6 +266,45 @@ export type Database = {
           point_month?: number | null;
           point_day?: number | null;
           is_point_approximate?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      entity_relationships: {
+        Row: {
+          id: string;
+          project_id: string;
+          source_type: "timeline_item" | "timeline_event";
+          source_id: string;
+          target_type: "timeline_item" | "timeline_event";
+          target_id: string;
+          relation_type: "influence" | "reference" | "collaboration" | "other";
+          note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          source_type: "timeline_item" | "timeline_event";
+          source_id: string;
+          target_type: "timeline_item" | "timeline_event";
+          target_id: string;
+          relation_type: "influence" | "reference" | "collaboration" | "other";
+          note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          source_type?: "timeline_item" | "timeline_event";
+          source_id?: string;
+          target_type?: "timeline_item" | "timeline_event";
+          target_id?: string;
+          relation_type?: "influence" | "reference" | "collaboration" | "other";
+          note?: string | null;
           created_at?: string;
           updated_at?: string;
         };

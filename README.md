@@ -208,6 +208,29 @@ Phase 5では、タイムラインを精密な日単位座標へ移行し、次�
 
 Phase 5はDB、RLS、APIの変更を必要とせず、既存のタイムライン一覧APIが返す軽量データを使用します。
 
+## 子イベントと詳細表示
+
+Phase 6では、期間型項目へ子イベントを登録し、タイムライン上の独立した円形マーカーから詳細を開けます。
+
+- 項目のサイドパネル／詳細編集ページと、タイムライン行の時間軸部分のダブルクリックの2経路から登録できます。時点型項目はクライアント、service、DBトリガーの各層で親として拒否します。
+- ダブルクリック位置は現在の表示倍率に応じ、広域表示では年、年表示では月、近接表示では日にスナップします。フォームでは自由に修正でき、曖昧フラグは自動設定しません。
+- 親期間外の日付は保存を許可しつつ、没後刊行・回顧展等を想定した警告を表示します。
+- 保存前は破線の仮マーカー、保存後は個別ツールチップ付きマーカーを表示します。クリックは詳細、ダブルクリックは編集を開きます。
+- タイムラインから開いた詳細・編集はIntercepting RoutesとParallel RoutesによるURL連動オーバーレイです。ブラウザの戻る操作で閉じ、同じURLへ直接アクセスした場合は通常ページを表示します。
+- 一覧APIは本文・出典・外部URLを除く描画用要約だけを返し、詳細APIで完全なデータを取得します。
+- `timeline_events` は初期版の単一親を複合外部キーで保証します。`entity_relationships` は将来の多対多関連と関連線描画に備えて導入しますが、登録UIと線描画は将来フェーズまで提供しません。
+- 両テーブルでRLSを有効にし、所有者CRUDを許可します。公開プロジェクトSELECT用ポリシーと `anon` のSELECT権限は準備済みですが、実際の匿名公開はPhase 9で親テーブルを含む公開RLSを完成させてから有効になります。
+
+Phase 6で提供するAPI：
+
+```text
+GET    /api/projects/[projectId]/events
+POST   /api/projects/[projectId]/events
+GET    /api/projects/[projectId]/events/[eventId]
+PATCH  /api/projects/[projectId]/events/[eventId]
+DELETE /api/projects/[projectId]/events/[eventId]
+```
+
 ## 検証
 
 ```bash

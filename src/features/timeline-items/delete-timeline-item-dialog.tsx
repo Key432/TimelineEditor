@@ -17,6 +17,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { timelineEventKeys } from "@/features/timeline-events/api";
 import {
   deleteTimelineItem,
   timelineItemKeys,
@@ -26,11 +27,13 @@ export function DeleteTimelineItemDialog({
   projectId,
   itemId,
   title,
+  childEventCount = 0,
   redirectAfterDelete = false,
 }: {
   projectId: string;
   itemId: string;
   title: string;
+  childEventCount?: number;
   redirectAfterDelete?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -41,6 +44,9 @@ export function DeleteTimelineItemDialog({
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: timelineItemKeys.list(projectId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: timelineEventKeys.list(projectId),
       });
       setOpen(false);
       if (redirectAfterDelete) {
@@ -62,8 +68,10 @@ export function DeleteTimelineItemDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>「{title}」を完全削除しますか？</AlertDialogTitle>
           <AlertDialogDescription>
-            この操作は取り消せません。子イベント件数はPhase
-            6で表示します（現在は子イベント未実装です）。
+            この操作は取り消せません。
+            {childEventCount > 0
+              ? ` 紐づく子イベント${childEventCount}件も完全に削除されます。`
+              : " 紐づく子イベントはありません。"}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {mutation.error ? (

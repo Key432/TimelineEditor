@@ -30,6 +30,13 @@ import {
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { itemTypeKeys, listItemTypes } from "@/features/item-types/api";
+import {
+  listTimelineEvents,
+  timelineEventKeys,
+} from "@/features/timeline-events/api";
+import { TimelineEventForm } from "@/features/timeline-events/timeline-event-form";
+import { TimelineEventSection } from "@/features/timeline-events/timeline-event-section";
+import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import type { TimelineItemType } from "@/features/item-types/types";
 import {
   getTimelineItem,
@@ -107,6 +114,9 @@ function ItemEditor({
   onSaved,
   onDirtyChange,
   onEditItemTypes,
+  allItems,
+  currentDate,
+  childEventCount,
 }: {
   projectId: string;
   itemId: string;
@@ -114,6 +124,9 @@ function ItemEditor({
   onSaved: () => void;
   onDirtyChange: (dirty: boolean) => void;
   onEditItemTypes?: () => void;
+  allItems: TimelineItemSummary[];
+  currentDate: HistoricalDate;
+  childEventCount: number;
 }) {
   const { data: item, error } = useQuery({
     queryKey: timelineItemKeys.detail(projectId, itemId),
@@ -131,7 +144,22 @@ function ItemEditor({
         onEditItemTypes={onEditItemTypes}
         onSaved={onSaved}
       />
+      {item.temporalType === "range" ? (
+        <TimelineEventSection
+          currentDate={currentDate}
+          parentId={item.id}
+          projectId={projectId}
+          rangeItems={allItems.filter(
+            (candidate) => candidate.temporalType === "range",
+          )}
+        />
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          時点型項目には子イベントを追加できません。
+        </p>
+      )}
       <DeleteTimelineItemDialog
+        childEventCount={childEventCount}
         itemId={item.id}
         projectId={projectId}
         title={item.title}
@@ -143,19 +171,27 @@ function ItemEditor({
 function TimelineWorkspaceContent({
   project,
   initialItems,
+  initialEvents,
   itemTypes,
   currentDate,
   onEditItemTypes,
+  onOpenEvent,
 }: {
   project: Project;
   initialItems: TimelineItemSummary[];
+  initialEvents: TimelineEventSummary[];
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
   onEditItemTypes?: () => void;
+  onOpenEvent?: (eventId: string, editing: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<"create" | string | null>(null);
   const [editorDirty, setEditorDirty] = useState(false);
+  const [eventDraft, setEventDraft] = useState<{
+    parentId: string;
+    date: HistoricalDate;
+  } | null>(null);
   const [sortMode, setSortMode] = useState<TimelineSortMode>("manual");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
   const [groupByType, setGroupByType] = useState(false);
@@ -166,6 +202,11 @@ function TimelineWorkspaceContent({
     queryKey: timelineItemKeys.list(project.id),
     queryFn: () => listTimelineItems(project.id),
     initialData: initialItems,
+  });
+  const { data: events = initialEvents } = useQuery({
+    queryKey: timelineEventKeys.list(project.id),
+    queryFn: () => listTimelineEvents(project.id),
+    initialData: initialEvents,
   });
   const { data: currentItemTypes = itemTypes } = useQuery({
     queryKey: itemTypeKeys.list(project.id),
@@ -390,9 +431,17 @@ function TimelineWorkspaceContent({
               allItems={items}
               currentDate={currentDate}
               entries={entries}
+              events={events}
               project={project}
               sortDisabled={sortMode !== "manual"}
               onEdit={setEditor}
+              draftEvent={eventDraft}
+              onCreateEvent={(parentId, date) =>
+                setEventDraft({ parentId, date })
+              }
+              onOpenEvent={(eventId, editing) =>
+                onOpenEvent?.(eventId, editing)
+              }
               onMove={moveByButton}
               onToggleGroup={(typeId) =>
                 setCollapsed((current) => {
@@ -437,6 +486,12 @@ function TimelineWorkspaceContent({
               />
             ) : editor ? (
               <ItemEditor
+                allItems={items}
+                currentDate={currentDate}
+                childEventCount={
+                  events.filter((event) => event.timelineItemId === editor)
+                    .length
+                }
                 itemId={editor}
                 itemTypes={currentItemTypes}
                 projectId={project.id}
@@ -451,6 +506,36 @@ function TimelineWorkspaceContent({
           </div>
         </SheetContent>
       </Sheet>
+
+      <Sheet
+        open={eventDraft !== null}
+        onOpenChange={(open) => {
+          if (!open) setEventDraft(null);
+        }}
+      >
+        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>子イベントを追加</SheetTitle>
+            <SheetDescription>
+              ダブルクリックした位置の日付を初期値にしています。
+            </SheetDescription>
+          </SheetHeader>
+          <div className="px-4 pb-6">
+            {eventDraft ? (
+              <TimelineEventForm
+                currentDate={currentDate}
+                initialDate={eventDraft.date}
+                initialParentId={eventDraft.parentId}
+                projectId={project.id}
+                rangeItems={items.filter(
+                  (item) => item.temporalType === "range",
+                )}
+                onSaved={() => setEventDraft(null)}
+              />
+            ) : null}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -458,13 +543,18 @@ function TimelineWorkspaceContent({
 export function TimelineWorkspace(props: {
   project: Project;
   initialItems: TimelineItemSummary[];
+  initialEvents?: TimelineEventSummary[];
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
   onEditItemTypes?: () => void;
+  onOpenEvent?: (eventId: string, editing: boolean) => void;
 }) {
   return (
     <TimelineStoreProvider settings={props.project.settings}>
-      <TimelineWorkspaceContent {...props} />
+      <TimelineWorkspaceContent
+        {...props}
+        initialEvents={props.initialEvents ?? []}
+      />
     </TimelineStoreProvider>
   );
 }

@@ -31,6 +31,8 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { eventX, snapTimelineDate } from "@/features/timeline-events/snap";
+import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import {
   formatHistoricalDate,
   historicalDateFromOrdinal,
@@ -215,6 +217,10 @@ function TimelineItemRow({
   onMoveUp,
   onMoveDown,
   onEdit,
+  events,
+  draftEvent,
+  onCreateEvent,
+  onOpenEvent,
   isPanning,
 }: {
   item: TimelineItemSummary;
@@ -232,6 +238,10 @@ function TimelineItemRow({
   onMoveUp: () => void;
   onMoveDown: () => void;
   onEdit: () => void;
+  events: TimelineEventSummary[];
+  draftEvent: HistoricalDate | null;
+  onCreateEvent: (date: HistoricalDate) => void;
+  onOpenEvent: (eventId: string, editing: boolean) => void;
   isPanning: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
@@ -299,7 +309,27 @@ function TimelineItemRow({
           isPanning && "cursor-grabbing",
         )}
         data-timeline-pan-surface="true"
+        data-timeline-event-parent-id={
+          item.temporalType === "range" ? item.id : undefined
+        }
         style={{ width: canvasWidth }}
+        onDoubleClick={(event) => {
+          if (item.temporalType !== "range") return;
+          const target = event.target;
+          if (
+            target instanceof Element &&
+            target.closest("[data-timeline-event-marker='true']")
+          )
+            return;
+          const rect = event.currentTarget.getBoundingClientRect();
+          onCreateEvent(
+            snapTimelineDate(
+              event.clientX - rect.left - HORIZONTAL_PADDING,
+              domainStart,
+              pixelsPerDay,
+            ),
+          );
+        }}
       >
         <TimelineGlyph
           currentDate={currentDate}
@@ -310,6 +340,43 @@ function TimelineItemRow({
           visibleEnd={visibleEnd}
           visibleStart={visibleStart}
         />
+        {events.map((timelineEvent) => {
+          const left =
+            HORIZONTAL_PADDING +
+            eventX(timelineEvent.date, domainStart, pixelsPerDay);
+          if (!overlapsViewport(left, left, visibleStart, visibleEnd))
+            return null;
+          return (
+            <button
+              key={timelineEvent.id}
+              aria-label={`子イベント ${timelineEvent.title} ${formatHistoricalDate(timelineEvent.date)}`}
+              className="focus-visible:ring-focus absolute top-1/2 z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-secondary shadow-sm focus-visible:ring-2 focus-visible:outline-none"
+              data-timeline-event-marker="true"
+              style={{ left }}
+              title={`${timelineEvent.title}（${timelineEvent.isApproximate ? "約 " : ""}${formatHistoricalDate(timelineEvent.date)}）`}
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenEvent(timelineEvent.id, false);
+              }}
+              onDoubleClick={(event) => {
+                event.stopPropagation();
+                onOpenEvent(timelineEvent.id, true);
+              }}
+            />
+          );
+        })}
+        {draftEvent ? (
+          <span
+            aria-label={`仮マーカー ${formatHistoricalDate(draftEvent)}`}
+            className="absolute top-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-secondary bg-secondary/20"
+            style={{
+              left:
+                HORIZONTAL_PADDING +
+                eventX(draftEvent, domainStart, pixelsPerDay),
+            }}
+          />
+        ) : null}
       </div>
       <div
         className="sticky right-0 z-20 flex shrink-0 items-center gap-1 border-l bg-card px-2"
@@ -355,6 +422,10 @@ export function TimelineViewport({
   onToggleGroup,
   onMove,
   onEdit,
+  events,
+  draftEvent,
+  onCreateEvent,
+  onOpenEvent,
 }: {
   project: Project;
   entries: TimelineDisplayEntry[];
@@ -364,9 +435,18 @@ export function TimelineViewport({
   onToggleGroup: (typeId: string) => void;
   onMove: (itemId: string, offset: -1 | 1) => void;
   onEdit: (itemId: string) => void;
+  events: TimelineEventSummary[];
+  draftEvent: { parentId: string; date: HistoricalDate } | null;
+  onCreateEvent: (parentId: string, date: HistoricalDate) => void;
+  onOpenEvent: (eventId: string, editing: boolean) => void;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const pointerRef = useRef<{ x: number; scrollLeft: number } | null>(null);
+  const lastSurfacePressRef = useRef<{
+    parentId: string;
+    clientX: number;
+    time: number;
+  } | null>(null);
   const scrollFrameRef = useRef<number | null>(null);
   const pendingScrollLeftRef = useRef(0);
   const lastScrollSyncRef = useRef(Number.NEGATIVE_INFINITY);
@@ -389,6 +469,15 @@ export function TimelineViewport({
     240,
     viewportWidth - HANDLE_WIDTH - INFO_WIDTH - ACTION_WIDTH,
   );
+  const eventsByParent = useMemo(() => {
+    const grouped = new Map<string, TimelineEventSummary[]>();
+    for (const timelineEvent of events) {
+      const current = grouped.get(timelineEvent.timelineItemId) ?? [];
+      current.push(timelineEvent);
+      grouped.set(timelineEvent.timelineItemId, current);
+    }
+    return grouped;
+  }, [events]);
 
   const scheduleScrollSync = useCallback(
     (nextScrollLeft: number) => {
@@ -508,9 +597,39 @@ export function TimelineViewport({
       const target = event.target;
       if (
         !(target instanceof Element) ||
+        target.closest("[data-timeline-event-marker='true']") ||
         !target.closest("[data-timeline-pan-surface='true']")
       ) {
         return;
+      }
+      const eventSurface = target.closest<HTMLElement>(
+        "[data-timeline-event-parent-id]",
+      );
+      if (eventSurface?.dataset.timelineEventParentId) {
+        const parentId = eventSurface.dataset.timelineEventParentId;
+        const previous = lastSurfacePressRef.current;
+        const isDoublePress =
+          previous?.parentId === parentId &&
+          event.timeStamp - previous.time <= 500 &&
+          Math.abs(event.clientX - previous.clientX) <= 8;
+        if (isDoublePress) {
+          lastSurfacePressRef.current = null;
+          const rect = eventSurface.getBoundingClientRect();
+          onCreateEvent(
+            parentId,
+            snapTimelineDate(
+              event.clientX - rect.left - HORIZONTAL_PADDING,
+              bounds.domainStart,
+              pixelsPerDay,
+            ),
+          );
+          return;
+        }
+        lastSurfacePressRef.current = {
+          parentId,
+          clientX: event.clientX,
+          time: event.timeStamp,
+        };
       }
       pointerRef.current = {
         x: event.clientX,
@@ -518,7 +637,6 @@ export function TimelineViewport({
       };
       viewport.setPointerCapture(event.pointerId);
       setPanning(true);
-      event.preventDefault();
     };
     const pointerMove = (event: PointerEvent) => {
       const pointer = pointerRef.current;
@@ -545,7 +663,13 @@ export function TimelineViewport({
       viewport.removeEventListener("pointerup", pointerEnd);
       viewport.removeEventListener("pointercancel", pointerEnd);
     };
-  }, [flushScrollSync, setPanning]);
+  }, [
+    bounds.domainStart,
+    flushScrollSync,
+    onCreateEvent,
+    pixelsPerDay,
+    setPanning,
+  ]);
 
   useLayoutEffect(() => {
     const element = viewportRef.current;
@@ -847,11 +971,21 @@ export function TimelineViewport({
                       domainStart={bounds.domainStart}
                       isPanning={isPanning}
                       item={entry.item}
+                      events={eventsByParent.get(entry.item.id) ?? []}
+                      draftEvent={
+                        draftEvent?.parentId === entry.item.id
+                          ? draftEvent.date
+                          : null
+                      }
                       pixelsPerDay={pixelsPerDay}
                       rowHeight={rowHeight}
                       visibleEnd={visibleEnd}
                       visibleStart={visibleStart}
                       onEdit={() => onEdit(entry.item.id)}
+                      onCreateEvent={(date) =>
+                        onCreateEvent(entry.item.id, date)
+                      }
+                      onOpenEvent={onOpenEvent}
                       onMoveDown={() => onMove(entry.item.id, 1)}
                       onMoveUp={() => onMove(entry.item.id, -1)}
                     />

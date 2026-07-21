@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { TimelinePageClient } from "@/features/timeline-items/timeline-page-client";
 import { ServiceError } from "@/lib/services/errors";
+import { TimelineEventService } from "@/lib/services/timeline-event-service";
 import { TimelineItemService } from "@/lib/services/timeline-item-service";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,9 +15,12 @@ export default async function TimelinePage({
   let result;
 
   try {
-    result = await new TimelineItemService(await createClient()).list(
-      projectId,
-    );
+    const client = await createClient();
+    const [listing, events] = await Promise.all([
+      new TimelineItemService(client).list(projectId),
+      new TimelineEventService(client).list(projectId),
+    ]);
+    result = { ...listing, events };
   } catch (error) {
     if (error instanceof ServiceError && error.status === 404) notFound();
     throw error;
@@ -32,6 +36,7 @@ export default async function TimelinePage({
         day: today.getUTCDate(),
       }}
       initialItems={result.items}
+      initialEvents={result.events}
       itemTypes={result.itemTypes}
       project={result.project}
     />

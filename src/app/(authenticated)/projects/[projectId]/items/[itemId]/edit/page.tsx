@@ -11,6 +11,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DeleteTimelineItemDialog } from "@/features/timeline-items/delete-timeline-item-dialog";
+import { TimelineEventSection } from "@/features/timeline-events/timeline-event-section";
+import { TimelineEventService } from "@/lib/services/timeline-event-service";
 import { TimelineItemForm } from "@/features/timeline-items/timeline-item-form";
 import { ServiceError } from "@/lib/services/errors";
 import { TimelineItemService } from "@/lib/services/timeline-item-service";
@@ -25,16 +27,19 @@ export default async function TimelineItemEditPage({
   const service = new TimelineItemService(await createClient());
   let detail;
   let listing;
+  let events;
 
   try {
-    [detail, listing] = await Promise.all([
+    [detail, listing, events] = await Promise.all([
       service.get(projectId, itemId),
       service.list(projectId),
+      new TimelineEventService(await createClient()).list(projectId),
     ]);
   } catch (error) {
     if (error instanceof ServiceError && error.status === 404) notFound();
     throw error;
   }
+  const today = new Date();
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -58,6 +63,22 @@ export default async function TimelineItemEditPage({
             itemTypes={listing.itemTypes}
             projectId={projectId}
           />
+          {detail.item.temporalType === "range" ? (
+            <div className="mt-6">
+              <TimelineEventSection
+                currentDate={{
+                  year: today.getUTCFullYear(),
+                  month: today.getUTCMonth() + 1,
+                  day: today.getUTCDate(),
+                }}
+                parentId={detail.item.id}
+                projectId={projectId}
+                rangeItems={listing.items.filter(
+                  (item) => item.temporalType === "range",
+                )}
+              />
+            </div>
+          ) : null}
         </CardContent>
       </Card>
       <Card className="border-destructive/40">
@@ -69,6 +90,9 @@ export default async function TimelineItemEditPage({
         </CardHeader>
         <CardContent>
           <DeleteTimelineItemDialog
+            childEventCount={
+              events.filter((event) => event.timelineItemId === itemId).length
+            }
             redirectAfterDelete
             itemId={itemId}
             projectId={projectId}
