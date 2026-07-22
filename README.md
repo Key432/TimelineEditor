@@ -14,7 +14,7 @@
 
 ## 必要な環境
 
-- Node.js 20.9以降
+- Node.js 22.12以降
 - pnpm 11
 - Docker Desktop
 - Supabase CLI（devDependencyとして導入済み）

@@ -197,6 +197,31 @@ describe("timeline item type management", () => {
     ]);
   });
 
+  it("rejects moving an item type that does not belong to the project", async () => {
+    const projectId = await createProject("philosophy");
+    const otherProjectId = await createProject("empty");
+    const { data: otherType, error: createError } = await owner
+      .from("timeline_item_types")
+      .insert({
+        project_id: otherProjectId,
+        name: "別プロジェクトの種別",
+        default_color: "#00B0B0",
+        sort_order: 0,
+      })
+      .select("id")
+      .single();
+    if (createError) throw createError;
+
+    const { error } = await owner.rpc("move_timeline_item_type", {
+      p_project_id: projectId,
+      p_type_id: otherType.id,
+      p_new_position: 1,
+    });
+
+    expect(error?.code).toBe("P0002");
+    expect(error?.message).toBe("Timeline item type not found");
+  });
+
   it("deletes unused item types and cascades all types with the project", async () => {
     const projectId = await createProject("empty");
     const { data: created, error: createError } = await owner

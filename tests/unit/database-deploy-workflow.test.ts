@@ -34,6 +34,13 @@ describe("production database deployment workflow", () => {
     expect(applyIndex).toBeGreaterThan(previewIndex);
     expect(workflow).not.toContain("--include-seed");
   });
+
+  it("uses GitHub Actions that no longer depend on the Node.js 20 action runtime", () => {
+    expect(workflow).toContain("actions/checkout@v7");
+    expect(workflow).toContain("supabase/setup-cli@v3");
+    expect(workflow).not.toMatch(/actions\/checkout@v[1-4]\b/);
+    expect(workflow).not.toContain("supabase/setup-cli@v1");
+  });
 });
 
 describe("Vercel deployment files", () => {
