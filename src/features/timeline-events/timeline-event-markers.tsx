@@ -1,11 +1,12 @@
 "use client";
 
+import { ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -139,28 +140,32 @@ export function TimelineEventMarkers({
           if (!open) setSelectedCluster(null);
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>イベントアイテムを選択</DialogTitle>
-            <DialogDescription>
-              重なっているイベントから詳細を表示する項目を選びます。
-            </DialogDescription>
+            <DialogTitle>イベントを選択</DialogTitle>
           </DialogHeader>
-          <div className="max-h-80 space-y-1 overflow-y-auto pr-1">
+          <div className="max-h-80 overflow-y-auto rounded-lg border bg-card">
             {(selectedCluster ?? []).map((event) => (
-              <button
+              <Button
                 key={event.id}
-                className="flex w-full items-center justify-between gap-4 rounded-md px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="group h-auto w-full cursor-pointer justify-start rounded-none border-b px-3 py-3 text-left last:border-b-0 hover:bg-primary/10 hover:text-foreground focus-visible:bg-primary/10 focus-visible:ring-2 focus-visible:ring-inset"
                 type="button"
+                variant="ghost"
                 onClick={() => openEvent(event.id, false)}
               >
-                <span className="min-w-0 truncate font-medium">
-                  {event.title}
+                <span className="flex min-w-0 flex-1 items-center justify-between gap-4">
+                  <span className="min-w-0 truncate font-medium">
+                    {event.title}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
+                    {eventDateLabel(event)}
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="size-4 transition-[color,transform] group-hover:translate-x-0.5 group-hover:text-primary group-focus-visible:translate-x-0.5 group-focus-visible:text-primary"
+                    />
+                  </span>
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {eventDateLabel(event)}
-                </span>
-              </button>
+              </Button>
             ))}
           </div>
         </DialogContent>

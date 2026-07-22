@@ -31,6 +31,14 @@ describe("clusterTimelineMarkers", () => {
     ).toHaveLength(2);
   });
 
+  it("keeps markers about one year apart separate at the century zoom scale", () => {
+    const groups = clusterTimelineMarkers([
+      marker("1968", 0),
+      marker("1969", 10.9),
+    ]);
+    expect(groups).toHaveLength(2);
+  });
+
   it("forms one cluster through chained collisions", () => {
     const groups = clusterTimelineMarkers(
       [marker("c", 40), marker("a", 0), marker("b", 20)],

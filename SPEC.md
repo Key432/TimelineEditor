@@ -734,8 +734,8 @@ type EndDateStatus = "specified" | "ongoing" | "unknown";
 初期候補：
 
 ```ts
-markerDiameterPx = 18;
-collisionPaddingPx = 2;
+collisionDiameterPx = 10;
+collisionPaddingPx = 0;
 ```
 
 ### 13.3 クラスターホバー

@@ -204,7 +204,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await cluster.click({ force: true });
 
   const picker = page.getByRole("dialog");
-  await expect(picker).toContainText("イベントアイテムを選択");
+  await expect(picker).toContainText("イベントを選択");
   await picker.getByRole("button", { name: /クラスタ候補A/ }).click();
   await expect(page).toHaveURL(
     new RegExp(`/projects/${project.id}/events/[0-9a-f-]+$`),

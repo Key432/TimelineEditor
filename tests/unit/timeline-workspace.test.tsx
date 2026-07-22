@@ -136,9 +136,13 @@ describe("TimelineWorkspace", () => {
     await user.click(cluster);
 
     const dialog = screen.getByRole("dialog");
+    expect(dialog).not.toHaveTextContent(
+      "重なっているイベントから詳細を表示する項目を選びます。",
+    );
     const choices = within(dialog).getAllByRole("button", {
       name: /番目/,
     });
+    expect(choices[0]).toHaveClass("hover:bg-primary/10");
     expect(choices.map((choice) => choice.textContent)).toEqual([
       "一番目1905/01/01",
       "二番目1905/01/02",
