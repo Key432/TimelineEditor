@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { eventX, snapTimelineDate } from "@/features/timeline-events/snap";
+import { TimelineEventMarkers } from "@/features/timeline-events/timeline-event-markers";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import {
   formatHistoricalDate,
@@ -277,14 +278,11 @@ function TimelineItemRow({
       disabled,
     });
   const itemOpenTimerRef = useRef<number | null>(null);
-  const eventOpenTimerRef = useRef<number | null>(null);
 
   useEffect(
     () => () => {
       if (itemOpenTimerRef.current !== null)
         window.clearTimeout(itemOpenTimerRef.current);
-      if (eventOpenTimerRef.current !== null)
-        window.clearTimeout(eventOpenTimerRef.current);
     },
     [],
   );
@@ -298,12 +296,6 @@ function TimelineItemRow({
   function scheduleItemOpen() {
     cancelItemOpen();
     itemOpenTimerRef.current = window.setTimeout(onOpenItem, 250);
-  }
-
-  function cancelEventOpen() {
-    if (eventOpenTimerRef.current !== null)
-      window.clearTimeout(eventOpenTimerRef.current);
-    eventOpenTimerRef.current = null;
   }
 
   return (
@@ -398,41 +390,15 @@ function TimelineItemRow({
           onCancelOpen={cancelItemOpen}
           onOpen={scheduleItemOpen}
         />
-        {events.map((timelineEvent) => {
-          const left =
-            HORIZONTAL_PADDING +
-            eventX(timelineEvent.date, domainStart, pixelsPerDay);
-          if (!overlapsViewport(left, left, visibleStart, visibleEnd))
-            return null;
-          return (
-            <TimelineEntityTooltip
-              key={timelineEvent.id}
-              date={`${timelineEvent.isApproximate ? "約 " : ""}${formatHistoricalDate(timelineEvent.date)}`}
-              title={timelineEvent.title}
-            >
-              <button
-                aria-label={`イベントアイテム ${timelineEvent.title} ${formatHistoricalDate(timelineEvent.date)}`}
-                className="focus-visible:ring-focus absolute top-1/2 z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-secondary shadow-sm transition-[box-shadow,transform] hover:scale-125 hover:shadow-[0_0_0_3px_rgba(255,51,153,0.25)] focus-visible:scale-125 focus-visible:ring-2 focus-visible:outline-none"
-                data-timeline-event-marker="true"
-                style={{ left }}
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  cancelEventOpen();
-                  eventOpenTimerRef.current = window.setTimeout(
-                    () => onOpenEvent(timelineEvent.id, false),
-                    250,
-                  );
-                }}
-                onDoubleClick={(event) => {
-                  event.stopPropagation();
-                  cancelEventOpen();
-                  onOpenEvent(timelineEvent.id, true);
-                }}
-              />
-            </TimelineEntityTooltip>
-          );
-        })}
+        <TimelineEventMarkers
+          domainStart={domainStart}
+          events={events}
+          horizontalPadding={HORIZONTAL_PADDING}
+          pixelsPerDay={pixelsPerDay}
+          visibleEnd={visibleEnd}
+          visibleStart={visibleStart}
+          onOpenEvent={onOpenEvent}
+        />
         {draftEvent ? (
           <span
             aria-label={`仮マーカー ${formatHistoricalDate(draftEvent)}`}

@@ -4,12 +4,17 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { QueryProvider } from "@/components/query-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { TimelineItemType } from "@/features/item-types/types";
+import { TimelineEventMarkers } from "@/features/timeline-events/timeline-event-markers";
+import type { TimelineEventSummary } from "@/features/timeline-events/types";
+import { historicalDateOrdinal } from "@/features/timeline-items/historical-date";
 import type { TimelineItemSummary } from "@/features/timeline-items/types";
 import { TimelineWorkspace } from "@/features/timeline-items/timeline-workspace";
 import type { Project } from "@/features/projects/types";
@@ -79,7 +84,127 @@ function item(
   };
 }
 
+function timelineEvent(
+  id: string,
+  title: string,
+  day: number,
+): TimelineEventSummary {
+  return {
+    id,
+    projectId: project.id,
+    timelineItemId: "33333333-3333-4333-8333-333333333333",
+    title,
+    date: { year: 1905, month: 1, day },
+    isApproximate: false,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  };
+}
+
 describe("TimelineWorkspace", () => {
+  it("opens a keyboard-accessible event picker for overlapping markers", async () => {
+    const user = userEvent.setup();
+    const onOpenEvent = vi.fn();
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 21 }}
+          initialEvents={[
+            timelineEvent("event-3", "三番目", 3),
+            timelineEvent("event-1", "一番目", 1),
+            timelineEvent("event-2", "二番目", 2),
+          ]}
+          initialItems={[
+            item("33333333-3333-4333-8333-333333333333", "夏目漱石", "range"),
+          ]}
+          itemTypes={[type]}
+          project={project}
+          onOpenEvent={onOpenEvent}
+        />
+      </QueryProvider>,
+    );
+
+    const cluster = screen.getByRole("button", {
+      name: "3件のイベントアイテムを選択",
+    });
+    expect(cluster).toHaveTextContent("3");
+    await user.hover(cluster);
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("一番目");
+    expect(tooltip).toHaveTextContent("二番目");
+    expect(tooltip).toHaveTextContent("三番目");
+    await user.click(cluster);
+
+    const dialog = screen.getByRole("dialog");
+    const choices = within(dialog).getAllByRole("button", {
+      name: /番目/,
+    });
+    expect(choices.map((choice) => choice.textContent)).toEqual([
+      "一番目1905/01/01",
+      "二番目1905/01/02",
+      "三番目1905/01/03",
+    ]);
+
+    choices[0]!.focus();
+    await user.keyboard("{Enter}");
+    expect(onOpenEvent).toHaveBeenCalledWith("event-1", false);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("releases a cluster when zoom separates its marker coordinates", () => {
+    const events = [
+      timelineEvent("event-1", "一番目", 1),
+      timelineEvent("event-2", "二番目", 2),
+      timelineEvent("event-3", "三番目", 3),
+    ];
+    const domainStart = historicalDateOrdinal({
+      year: 1905,
+      month: 1,
+      day: 1,
+    });
+    const onOpenEvent = vi.fn();
+    const { rerender } = render(
+      <TooltipProvider>
+        <TimelineEventMarkers
+          domainStart={domainStart}
+          events={events}
+          horizontalPadding={24}
+          pixelsPerDay={0.1}
+          visibleEnd={200}
+          visibleStart={0}
+          onOpenEvent={onOpenEvent}
+        />
+      </TooltipProvider>,
+    );
+    expect(
+      screen.getByRole("button", {
+        name: "3件のイベントアイテムを選択",
+      }),
+    ).toBeInTheDocument();
+
+    rerender(
+      <TooltipProvider>
+        <TimelineEventMarkers
+          domainStart={domainStart}
+          events={events}
+          horizontalPadding={24}
+          pixelsPerDay={36}
+          visibleEnd={200}
+          visibleStart={0}
+          onOpenEvent={onOpenEvent}
+        />
+      </TooltipProvider>,
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: "3件のイベントアイテムを選択",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /イベントアイテム 一番目/ }),
+    ).toBeInTheDocument();
+  });
+
   it("separates a glyph click from range double-click event creation", () => {
     vi.useFakeTimers();
     const onOpenItem = vi.fn();

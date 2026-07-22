@@ -30,6 +30,7 @@ test.afterAll(async () => {
 test("creates an event from a row and preserves the timeline in URL overlays", async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   expect(
     (
       await page.request.post("/api/test-auth", {
@@ -176,4 +177,37 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await page.goto(`/projects/${project.id}/events/${eventId}`);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "代表作刊行" })).toBeVisible();
+
+  for (const title of ["クラスタ候補A", "クラスタ候補B"]) {
+    const response = await page.request.post(
+      `/api/projects/${project.id}/events`,
+      {
+        data: {
+          timelineItemId: item.id,
+          title,
+          date: { year: 1905, month: 1, day: 15 },
+          isApproximate: false,
+          description: "",
+          sourceText: "",
+          externalUrl: "",
+        },
+      },
+    );
+    expect(response.ok()).toBe(true);
+  }
+
+  await page.goto(`/projects/${project.id}/timeline`);
+  const cluster = page.getByRole("button", {
+    name: "3件のイベントアイテムを選択",
+  });
+  await expect(cluster).toBeVisible();
+  await cluster.click({ force: true });
+
+  const picker = page.getByRole("dialog");
+  await expect(picker).toContainText("イベントアイテムを選択");
+  await picker.getByRole("button", { name: /クラスタ候補A/ }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/projects/${project.id}/events/[0-9a-f-]+$`),
+  );
+  await expect(page.getByRole("dialog")).toContainText("クラスタ候補A");
 });
