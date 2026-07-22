@@ -66,10 +66,14 @@ export function TimelineItemDetail({
   projectId,
   item,
   events,
+  readOnly = false,
+  eventBasePath,
 }: {
   projectId: string;
   item: TimelineItem;
   events: TimelineEventSummary[];
+  readOnly?: boolean;
+  eventBasePath?: string;
 }) {
   return (
     <article className="space-y-8 px-6 py-8 sm:px-10 sm:py-10">
@@ -87,7 +91,11 @@ export function TimelineItemDetail({
           <dd>{dateLabel(item)}</dd>
           <dt className="text-muted-foreground">イベント</dt>
           <dd>
-            <TimelineItemEventList events={events} projectId={projectId} />
+            <TimelineItemEventList
+              basePath={eventBasePath}
+              events={events}
+              projectId={projectId}
+            />
           </dd>
         </dl>
       </header>
@@ -114,21 +122,23 @@ export function TimelineItemDetail({
           </a>
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-2 border-t pt-6">
-        <Button asChild>
-          <Link href={`/projects/${projectId}/items/${item.id}/edit`}>
-            <Pencil aria-hidden="true" className="size-4" />
-            編集
-          </Link>
-        </Button>
-        <DeleteTimelineItemDialog
-          childEventCount={events.length}
-          redirectAfterDelete
-          itemId={item.id}
-          projectId={projectId}
-          title={item.title}
-        />
-      </div>
+      {!readOnly ? (
+        <div className="flex flex-wrap gap-2 border-t pt-6">
+          <Button asChild>
+            <Link href={`/projects/${projectId}/items/${item.id}/edit`}>
+              <Pencil aria-hidden="true" className="size-4" />
+              編集
+            </Link>
+          </Button>
+          <DeleteTimelineItemDialog
+            childEventCount={events.length}
+            redirectAfterDelete
+            itemId={item.id}
+            projectId={projectId}
+            title={item.title}
+          />
+        </div>
+      ) : null}
     </article>
   );
 }

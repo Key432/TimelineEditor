@@ -20,6 +20,7 @@ import type { TimelineItemType } from "@/features/item-types/types";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import { DeleteProjectDialog } from "@/features/projects/delete-project-dialog";
 import { ProjectForm } from "@/features/projects/project-form";
+import { ProjectSharing } from "@/features/projects/project-sharing";
 import { CollapsibleProjectDescription } from "@/features/projects/collapsible-project-description";
 import type { Project } from "@/features/projects/types";
 import type {
@@ -80,7 +81,9 @@ export function TimelinePageClient({
             <h1 className="text-2xl font-semibold tracking-tight">
               {activeProject.name}
             </h1>
-            <Badge variant="outline">非公開</Badge>
+            <Badge variant="outline">
+              {activeProject.visibility === "public" ? "公開中" : "非公開"}
+            </Badge>
           </div>
           {activeProject.description ? (
             <CollapsibleProjectDescription
@@ -174,6 +177,13 @@ export function TimelinePageClient({
                     setPanel(null);
                   }}
                 />
+                <div className="space-y-3 border-t pt-6">
+                  <h2 className="font-medium">公開・共有</h2>
+                  <ProjectSharing
+                    project={activeProject}
+                    onChanged={setActiveProject}
+                  />
+                </div>
                 <div className="space-y-3 border-t border-destructive/30 pt-6">
                   <h2 className="font-medium text-destructive">危険な操作</h2>
                   <p className="text-sm text-muted-foreground">

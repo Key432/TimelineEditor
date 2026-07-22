@@ -55,9 +55,11 @@ function SourceText({ value }: { value: string | null }) {
 export function TimelineEventDetail({
   projectId,
   event,
+  readOnly = false,
 }: {
   projectId: string;
   event: TimelineEvent;
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -110,26 +112,28 @@ export function TimelineEventDetail({
           </a>
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-2 border-t pt-6">
-        <Button asChild>
-          <Link href={`/projects/${projectId}/events/${event.id}/edit`}>
-            <Pencil className="size-4" aria-hidden="true" />
-            編集
-          </Link>
-        </Button>
-        <Button
-          variant="destructive"
-          disabled={deletion.isPending}
-          onClick={() => {
-            if (window.confirm(`「${event.title}」を完全に削除しますか？`))
-              deletion.mutate();
-          }}
-        >
-          <Trash2 className="size-4" aria-hidden="true" />
-          完全削除
-        </Button>
-      </div>
-      {deletion.error ? (
+      {!readOnly ? (
+        <div className="flex flex-wrap gap-2 border-t pt-6">
+          <Button asChild>
+            <Link href={`/projects/${projectId}/events/${event.id}/edit`}>
+              <Pencil className="size-4" aria-hidden="true" />
+              編集
+            </Link>
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={deletion.isPending}
+            onClick={() => {
+              if (window.confirm(`「${event.title}」を完全に削除しますか？`))
+                deletion.mutate();
+            }}
+          >
+            <Trash2 className="size-4" aria-hidden="true" />
+            完全削除
+          </Button>
+        </div>
+      ) : null}
+      {!readOnly && deletion.error ? (
         <p role="alert" className="text-sm text-destructive">
           {deletion.error.message}
         </p>

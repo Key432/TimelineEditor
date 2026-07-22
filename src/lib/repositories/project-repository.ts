@@ -35,6 +35,8 @@ function mapSummary(row: ProjectRow): ProjectSummary {
     name: row.name,
     description: row.description,
     visibility: row.visibility,
+    publicId: row.public_id,
+    publishedAt: row.published_at,
     updatedAt: row.updated_at,
   };
 }
@@ -94,6 +96,25 @@ export class ProjectRepository {
     return mapProject(projectResult.data, settingsResult.data);
   }
 
+  async findByPublicId(publicId: string): Promise<Project | null> {
+    const { data, error } = await this.client
+      .from("projects")
+      .select("*")
+      .eq("public_id", publicId)
+      .eq("visibility", "public")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+
+    const { data: settings, error: settingsError } = await this.client
+      .from("project_settings")
+      .select("*")
+      .eq("project_id", data.id)
+      .maybeSingle();
+    if (settingsError) throw settingsError;
+    return settings ? mapProject(data, settings) : null;
+  }
+
   async create(input: CreateProject): Promise<Project> {
     const { data: projectId, error } = await this.client.rpc(
       "create_project_with_settings",
@@ -129,5 +150,29 @@ export class ProjectRepository {
       .select("id");
     if (error) throw error;
     return data.length === 1;
+  }
+
+  async publish(projectId: string) {
+    const { data, error } = await this.client.rpc("publish_project", {
+      p_project_id: projectId,
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  async unpublish(projectId: string) {
+    const { error } = await this.client.rpc("unpublish_project", {
+      p_project_id: projectId,
+    });
+    if (error) throw error;
+  }
+
+  async regeneratePublicId(projectId: string) {
+    const { data, error } = await this.client.rpc(
+      "regenerate_project_public_id",
+      { p_project_id: projectId },
+    );
+    if (error) throw error;
+    return data;
   }
 }

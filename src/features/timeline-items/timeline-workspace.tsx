@@ -217,6 +217,7 @@ function TimelineWorkspaceContent({
   onLayoutModeChange,
   filters,
   onFiltersChange,
+  readOnly = false,
 }: {
   project: Project;
   initialItems: TimelineItemSummary[];
@@ -230,6 +231,7 @@ function TimelineWorkspaceContent({
   onLayoutModeChange?: (layoutMode: TimelineLayoutMode) => void;
   filters: TimelineFilters;
   onFiltersChange?: (filters: TimelineFilters) => void;
+  readOnly?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<"create" | string | null>(null);
@@ -297,8 +299,11 @@ function TimelineWorkspaceContent({
   });
 
   const sorted = useMemo(
-    () => [...items].sort(compareItems(sortMode, direction, currentDate)),
-    [currentDate, direction, items, sortMode],
+    () =>
+      [...(readOnly ? items.filter((item) => item.isVisible) : items)].sort(
+        compareItems(sortMode, direction, currentDate),
+      ),
+    [currentDate, direction, items, readOnly, sortMode],
   );
   const activeFilters = hasActiveTimelineFilters(filters);
   const searchReady =
@@ -434,33 +439,37 @@ function TimelineWorkspaceContent({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2 shadow-xs">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button disabled={currentItemTypes.length === 0}>
-              <Plus aria-hidden="true" className="size-4" />
-              アイテムを追加
-              <ChevronDown aria-hidden="true" className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="min-w-56">
-            <DropdownMenuItem
-              className="gap-2 px-3 py-2.5"
-              onSelect={() => setEditor("create")}
-            >
-              <Rows3 aria-hidden="true" />
-              タイムラインを追加
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="gap-2 px-3 py-2.5"
-              disabled={!items.some((item) => item.temporalType === "range")}
-              onSelect={() => setEventDraft({})}
-            >
-              <CalendarPlus aria-hidden="true" />
-              イベントを追加
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+        {!readOnly ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button disabled={currentItemTypes.length === 0}>
+                <Plus aria-hidden="true" className="size-4" />
+                アイテムを追加
+                <ChevronDown aria-hidden="true" className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="min-w-56">
+              <DropdownMenuItem
+                className="gap-2 px-3 py-2.5"
+                onSelect={() => setEditor("create")}
+              >
+                <Rows3 aria-hidden="true" />
+                タイムラインを追加
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2 px-3 py-2.5"
+                disabled={!items.some((item) => item.temporalType === "range")}
+                onSelect={() => setEventDraft({})}
+              >
+                <CalendarPlus aria-hidden="true" />
+                イベントを追加
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+        {!readOnly ? (
+          <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+        ) : null}
         <div
           aria-label="表示モード"
           className="flex h-8 items-center rounded-lg bg-muted p-[3px]"
@@ -577,10 +586,16 @@ function TimelineWorkspaceContent({
 
       {currentItemTypes.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-card px-6 py-12 text-center">
-          <p className="font-medium">先に対象種別を作成してください。</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            プロジェクト設定の「対象種別」から追加できます。
+          <p className="font-medium">
+            {readOnly
+              ? "表示できる対象種別はありません。"
+              : "先に対象種別を作成してください。"}
           </p>
+          {!readOnly ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              プロジェクト設定の「対象種別」から追加できます。
+            </p>
+          ) : null}
           {onEditItemTypes ? (
             <Button className="mt-4" onClick={onEditItemTypes}>
               対象種別を作成
@@ -590,10 +605,12 @@ function TimelineWorkspaceContent({
       ) : items.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-card px-6 py-12 text-center">
           <p className="font-medium">タイムラインアイテムはまだありません。</p>
-          <Button className="mt-4" onClick={() => setEditor("create")}>
-            <Plus aria-hidden="true" className="size-4" />
-            最初のタイムラインを作成
-          </Button>
+          {!readOnly ? (
+            <Button className="mt-4" onClick={() => setEditor("create")}>
+              <Plus aria-hidden="true" className="size-4" />
+              最初のタイムラインを作成
+            </Button>
+          ) : null}
         </div>
       ) : (
         <DndContext
@@ -617,7 +634,10 @@ function TimelineWorkspaceContent({
                 layoutMode={layoutMode}
                 project={project}
                 showItemType={!groupByType}
-                sortDisabled={sortMode !== "manual" || layoutMode === "compact"}
+                readOnly={readOnly}
+                sortDisabled={
+                  readOnly || sortMode !== "manual" || layoutMode === "compact"
+                }
                 onEdit={setEditor}
                 draftEvent={
                   eventDraft?.parentId && eventDraft.date
@@ -646,13 +666,13 @@ function TimelineWorkspaceContent({
         </DndContext>
       )}
 
-      {moveMutation.error ? (
+      {!readOnly && moveMutation.error ? (
         <p role="alert" className="text-sm text-destructive">
           並べ替えを保存できませんでした。{moveMutation.error.message}
         </p>
       ) : null}
 
-      {creationFailures.length > 0 ? (
+      {!readOnly && creationFailures.length > 0 ? (
         <div
           role="status"
           className="rounded-lg border border-warning/40 bg-amber-50 px-4 py-3 text-sm text-amber-950"
@@ -689,85 +709,89 @@ function TimelineWorkspaceContent({
         </SheetContent>
       </Sheet>
 
-      <Sheet open={editor !== null} onOpenChange={closeEditor}>
-        <SheetContent className="styled-scrollbar w-full overflow-y-auto sm:!w-[min(52rem,calc(100vw-2rem))] sm:!max-w-3xl">
-          <SheetHeader>
-            <SheetTitle>
-              {editor === "create"
-                ? "タイムラインアイテムを追加"
-                : "タイムラインアイテムを編集"}
-            </SheetTitle>
-            <SheetDescription>
-              期間型または時点型の日付と表示内容を保存します。
-            </SheetDescription>
-          </SheetHeader>
-          <div className="px-4 pb-6">
-            {editor === "create" ? (
-              <TimelineItemForm
-                itemTypes={currentItemTypes}
-                projectId={project.id}
-                onDirtyChange={setEditorDirty}
-                onEditItemTypes={onEditItemTypes}
-                onSaved={(_saved, failures = []) => {
-                  setCreationFailures(failures);
-                  setEditorDirty(false);
-                  setEditor(null);
-                }}
-              />
-            ) : editor ? (
-              <ItemEditor
-                allItems={items}
-                currentDate={currentDate}
-                childEventCount={
-                  events.filter((event) => event.timelineItemId === editor)
-                    .length
-                }
-                itemId={editor}
-                itemTypes={currentItemTypes}
-                projectId={project.id}
-                onDirtyChange={setEditorDirty}
-                onEditItemTypes={onEditItemTypes}
-                onSaved={() => {
-                  setEditorDirty(false);
-                  setEditor(null);
-                }}
-              />
-            ) : null}
-          </div>
-        </SheetContent>
-      </Sheet>
+      {!readOnly ? (
+        <Sheet open={editor !== null} onOpenChange={closeEditor}>
+          <SheetContent className="styled-scrollbar w-full overflow-y-auto sm:!w-[min(52rem,calc(100vw-2rem))] sm:!max-w-3xl">
+            <SheetHeader>
+              <SheetTitle>
+                {editor === "create"
+                  ? "タイムラインアイテムを追加"
+                  : "タイムラインアイテムを編集"}
+              </SheetTitle>
+              <SheetDescription>
+                期間型または時点型の日付と表示内容を保存します。
+              </SheetDescription>
+            </SheetHeader>
+            <div className="px-4 pb-6">
+              {editor === "create" ? (
+                <TimelineItemForm
+                  itemTypes={currentItemTypes}
+                  projectId={project.id}
+                  onDirtyChange={setEditorDirty}
+                  onEditItemTypes={onEditItemTypes}
+                  onSaved={(_saved, failures = []) => {
+                    setCreationFailures(failures);
+                    setEditorDirty(false);
+                    setEditor(null);
+                  }}
+                />
+              ) : editor ? (
+                <ItemEditor
+                  allItems={items}
+                  currentDate={currentDate}
+                  childEventCount={
+                    events.filter((event) => event.timelineItemId === editor)
+                      .length
+                  }
+                  itemId={editor}
+                  itemTypes={currentItemTypes}
+                  projectId={project.id}
+                  onDirtyChange={setEditorDirty}
+                  onEditItemTypes={onEditItemTypes}
+                  onSaved={() => {
+                    setEditorDirty(false);
+                    setEditor(null);
+                  }}
+                />
+              ) : null}
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
 
-      <Sheet
-        open={eventDraft !== null}
-        onOpenChange={(open) => {
-          if (!open) setEventDraft(null);
-        }}
-      >
-        <SheetContent className="styled-scrollbar w-full overflow-y-auto sm:!w-[min(52rem,calc(100vw-2rem))] sm:!max-w-3xl">
-          <SheetHeader>
-            <SheetTitle>イベントアイテムを追加</SheetTitle>
-            <SheetDescription>
-              {eventDraft?.date
-                ? "ダブルクリックした位置の日付を初期値にしています。"
-                : "タイムラインと登録日付を指定してください。"}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="px-4 pb-6">
-            {eventDraft ? (
-              <TimelineEventForm
-                currentDate={currentDate}
-                initialDate={eventDraft.date}
-                initialParentId={eventDraft.parentId}
-                projectId={project.id}
-                rangeItems={items.filter(
-                  (item) => item.temporalType === "range",
-                )}
-                onSaved={() => setEventDraft(null)}
-              />
-            ) : null}
-          </div>
-        </SheetContent>
-      </Sheet>
+      {!readOnly ? (
+        <Sheet
+          open={eventDraft !== null}
+          onOpenChange={(open) => {
+            if (!open) setEventDraft(null);
+          }}
+        >
+          <SheetContent className="styled-scrollbar w-full overflow-y-auto sm:!w-[min(52rem,calc(100vw-2rem))] sm:!max-w-3xl">
+            <SheetHeader>
+              <SheetTitle>イベントアイテムを追加</SheetTitle>
+              <SheetDescription>
+                {eventDraft?.date
+                  ? "ダブルクリックした位置の日付を初期値にしています。"
+                  : "タイムラインと登録日付を指定してください。"}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="px-4 pb-6">
+              {eventDraft ? (
+                <TimelineEventForm
+                  currentDate={currentDate}
+                  initialDate={eventDraft.date}
+                  initialParentId={eventDraft.parentId}
+                  projectId={project.id}
+                  rangeItems={items.filter(
+                    (item) => item.temporalType === "range",
+                  )}
+                  onSaved={() => setEventDraft(null)}
+                />
+              ) : null}
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
     </div>
   );
 }
@@ -785,6 +809,7 @@ export function TimelineWorkspace(props: {
   onLayoutModeChange?: (layoutMode: TimelineLayoutMode) => void;
   filters?: TimelineFilters;
   onFiltersChange?: (filters: TimelineFilters) => void;
+  readOnly?: boolean;
 }) {
   const [uncontrolledLayoutMode, setUncontrolledLayoutMode] =
     useState<TimelineLayoutMode>(props.layoutMode ?? "row");

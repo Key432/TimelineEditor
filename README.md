@@ -291,9 +291,26 @@ POST /api/projects/[projectId]/items
   response: { item, createdEventIds[], failedEvents[] }
 ```
 
-## 次の実装：Phase 9
+## Phase 9：公開・共有
 
-公開閲覧ページ、共有URL、匿名SELECT、`noindex` を完成させます。
+- プロジェクト設定とタイムライン内の設定パネルから、確認ダイアログ付きで公開・非公開を切り替えられます。
+- 初回公開時に推測困難な `public_id` をDBで生成し、`/public/[publicId]` を共有URLとして発行します。非公開化してもIDは維持し、再公開では同じURLを使用します。
+- 共有URLのコピー、別タブ表示、URL再発行に対応しています。再発行後は旧URLが直ちに404になります。
+- 公開ページでは認証不要で、パン、ズーム、表示モード、配置、フィルター、タイムラインアイテム／イベントアイテム詳細を利用できます。管理ナビ、追加、編集、削除、並べ替えは表示しません。
+- `projects`、`project_settings`、`timeline_item_types`、`timeline_items`、`timeline_events` の匿名SELECTは、公開プロジェクト配下だけをRLSで許可します。書き込みは引き続き所有者だけです。
+- 非公開化は匿名閲覧へ即時反映されます。`noindex`、`X-Robots-Tag`、`robots.txt` はアプリ全体へ適用しますが、アクセス制御はサーバー認可とRLSが担います。
+
+Phase 9で提供するAPI：
+
+```text
+POST /api/projects/[projectId]/publish
+POST /api/projects/[projectId]/unpublish
+POST /api/projects/[projectId]/public-id/regenerate
+```
+
+## 次の実装：Phase 10
+
+JSON／CSV入出力、モバイル閲覧、性能、アクセシビリティの仕上げを行います。
 
 Phase 8で提供するAPI：
 

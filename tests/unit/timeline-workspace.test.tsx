@@ -39,6 +39,8 @@ const project: Project = {
   name: "文学史",
   description: null,
   visibility: "private",
+  publicId: null,
+  publishedAt: null,
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",
   settings: {
@@ -127,6 +129,27 @@ async function chooseDensity(user: TestUser, name: "標準" | "高密度") {
 }
 
 describe("TimelineWorkspace", () => {
+  it("removes editing controls in read-only mode", () => {
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 23 }}
+          initialItems={[
+            item("33333333-3333-4333-8333-333333333333", "夏目漱石", "range"),
+          ]}
+          itemTypes={[type]}
+          project={{ ...project, visibility: "public" }}
+          readOnly
+        />
+      </QueryProvider>,
+    );
+    expect(screen.queryByRole("button", { name: /アイテムを追加/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /夏目漱石を編集/ })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /夏目漱石を並べ替え/ }),
+    ).toBeNull();
+  });
+
   it("opens a keyboard-accessible event picker for overlapping markers", async () => {
     const user = userEvent.setup();
     const onOpenEvent = vi.fn();

@@ -126,7 +126,8 @@ describe("project ownership RLS", () => {
     expect(otherProjects.data).toEqual([]);
     expect(otherSettings.error).toBeNull();
     expect(otherSettings.data).toEqual([]);
-    expect(anonymousProjects.error).not.toBeNull();
+    expect(anonymousProjects.error).toBeNull();
+    expect(anonymousProjects.data).toEqual([]);
   });
 
   it("rejects another user writing a project for the owner", async () => {

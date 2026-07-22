@@ -318,6 +318,7 @@ function TimelineItemRow({
   showItemType,
   dimmed,
   highlightedEventIds,
+  readOnly,
 }: {
   item: TimelineItemSummary;
   canvasWidth: number;
@@ -343,6 +344,7 @@ function TimelineItemRow({
   showItemType: boolean;
   dimmed: boolean;
   highlightedEventIds: ReadonlySet<string>;
+  readOnly: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -385,17 +387,25 @@ function TimelineItemRow({
         transition,
       }}
     >
-      <button
-        aria-label={`${item.title}を並べ替え`}
-        className="sticky left-0 z-20 flex shrink-0 cursor-grab items-center justify-center border-r bg-card text-muted-foreground disabled:cursor-not-allowed"
-        disabled={disabled}
-        style={{ width: HANDLE_WIDTH }}
-        type="button"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical aria-hidden="true" className="size-4" />
-      </button>
+      {readOnly ? (
+        <span
+          aria-hidden="true"
+          className="sticky left-0 z-20 shrink-0 border-r bg-card"
+          style={{ width: HANDLE_WIDTH }}
+        />
+      ) : (
+        <button
+          aria-label={`${item.title}を並べ替え`}
+          className="sticky left-0 z-20 flex shrink-0 cursor-grab items-center justify-center border-r bg-card text-muted-foreground disabled:cursor-not-allowed"
+          disabled={disabled}
+          style={{ width: HANDLE_WIDTH }}
+          type="button"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical aria-hidden="true" className="size-4" />
+        </button>
+      )}
       <div
         className="sticky z-20 min-w-0 shrink-0 border-r bg-card px-3 py-2"
         style={{ left: HANDLE_WIDTH, width: INFO_WIDTH }}
@@ -437,6 +447,7 @@ function TimelineItemRow({
         }
         style={{ width: canvasWidth }}
         onDoubleClick={(event) => {
+          if (readOnly) return;
           if (item.temporalType !== "range") return;
           const target = event.target;
           if (
@@ -492,32 +503,36 @@ function TimelineItemRow({
         className="sticky right-0 z-20 flex shrink-0 items-center gap-1 border-l bg-card px-2"
         style={{ width: ACTION_WIDTH }}
       >
-        <Button
-          aria-label={`${item.title}を上へ移動`}
-          disabled={disabled || !canMoveUp}
-          size="icon-sm"
-          variant="ghost"
-          onClick={onMoveUp}
-        >
-          <ArrowUp aria-hidden="true" className="size-4" />
-        </Button>
-        <Button
-          aria-label={`${item.title}を下へ移動`}
-          disabled={disabled || !canMoveDown}
-          size="icon-sm"
-          variant="ghost"
-          onClick={onMoveDown}
-        >
-          <ArrowDown aria-hidden="true" className="size-4" />
-        </Button>
-        <Button
-          aria-label={`${item.title}を編集`}
-          size="icon-sm"
-          variant="ghost"
-          onClick={onEdit}
-        >
-          <Pencil aria-hidden="true" className="size-4" />
-        </Button>
+        {!readOnly ? (
+          <>
+            <Button
+              aria-label={`${item.title}を上へ移動`}
+              disabled={disabled || !canMoveUp}
+              size="icon-sm"
+              variant="ghost"
+              onClick={onMoveUp}
+            >
+              <ArrowUp aria-hidden="true" className="size-4" />
+            </Button>
+            <Button
+              aria-label={`${item.title}を下へ移動`}
+              disabled={disabled || !canMoveDown}
+              size="icon-sm"
+              variant="ghost"
+              onClick={onMoveDown}
+            >
+              <ArrowDown aria-hidden="true" className="size-4" />
+            </Button>
+            <Button
+              aria-label={`${item.title}を編集`}
+              size="icon-sm"
+              variant="ghost"
+              onClick={onEdit}
+            >
+              <Pencil aria-hidden="true" className="size-4" />
+            </Button>
+          </>
+        ) : null}
       </div>
     </div>
   );
@@ -538,6 +553,7 @@ function CompactLaneItem({
   onOpenItem,
   dimmed,
   highlightedEventIds,
+  readOnly,
 }: {
   placement: CompactLaneDisplayPlacement;
   currentDate: HistoricalDate;
@@ -553,6 +569,7 @@ function CompactLaneItem({
   onOpenItem: () => void;
   dimmed: boolean;
   highlightedEventIds: ReadonlySet<string>;
+  readOnly: boolean;
 }) {
   const item = placement.item;
   const itemOpenTimerRef = useRef<number | null>(null);
@@ -614,6 +631,7 @@ function CompactLaneItem({
             scheduleItemOpen();
           }}
           onDoubleClick={(event) => {
+            if (readOnly) return;
             event.stopPropagation();
             cancelItemOpen();
             onEdit();
@@ -638,7 +656,7 @@ function CompactLaneItem({
           currentDate={currentDate}
           defaultUncertaintyYears={defaultUncertaintyYears}
           domainStart={domainStart}
-          editOnDoubleClick
+          editOnDoubleClick={!readOnly}
           item={item}
           pixelsPerDay={pixelsPerDay}
           visibleEnd={visibleEnd}
@@ -691,6 +709,7 @@ export function TimelineViewport({
   showItemType,
   dimmedItemIds,
   highlightedEventIds,
+  readOnly = false,
 }: {
   project: Project;
   groups: TimelineDisplayGroup[];
@@ -709,6 +728,7 @@ export function TimelineViewport({
   showItemType: boolean;
   dimmedItemIds?: ReadonlySet<string>;
   highlightedEventIds?: ReadonlySet<string>;
+  readOnly?: boolean;
 }) {
   const dimmed = dimmedItemIds ?? EMPTY_ID_SET;
   const highlightedEvents = highlightedEventIds ?? EMPTY_ID_SET;
@@ -1454,6 +1474,7 @@ export function TimelineViewport({
                         item={entry.item}
                         events={eventsByParent.get(entry.item.id) ?? []}
                         highlightedEventIds={highlightedEvents}
+                        readOnly={readOnly}
                         draftEvent={
                           draftEvent?.parentId === entry.item.id
                             ? draftEvent.date
@@ -1503,6 +1524,7 @@ export function TimelineViewport({
                             events={eventsByParent.get(placement.itemId) ?? []}
                             dimmed={dimmed.has(placement.itemId)}
                             highlightedEventIds={highlightedEvents}
+                            readOnly={readOnly}
                             pixelsPerDay={pixelsPerDay}
                             placement={placement}
                             visibleEnd={visibleEnd}

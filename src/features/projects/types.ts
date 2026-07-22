@@ -30,6 +30,8 @@ export type Project = {
   name: string;
   description: string | null;
   visibility: "private" | "public";
+  publicId: string | null;
+  publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
   settings: ProjectSettings;
@@ -37,5 +39,11 @@ export type Project = {
 
 export type ProjectSummary = Pick<
   Project,
-  "id" | "name" | "description" | "visibility" | "updatedAt"
+  | "id"
+  | "name"
+  | "description"
+  | "visibility"
+  | "publicId"
+  | "publishedAt"
+  | "updatedAt"
 >;

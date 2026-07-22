@@ -375,6 +375,18 @@ export type Database = {
           failed_events: Json;
         }[];
       };
+      publish_project: {
+        Args: { p_project_id: string };
+        Returns: string;
+      };
+      unpublish_project: {
+        Args: { p_project_id: string };
+        Returns: undefined;
+      };
+      regenerate_project_public_id: {
+        Args: { p_project_id: string };
+        Returns: string;
+      };
       create_project_with_settings: {
         Args: {
           p_name: string;

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { DeleteProjectDialog } from "@/features/projects/delete-project-dialog";
 import { ProjectForm } from "@/features/projects/project-form";
+import { ProjectSharing } from "@/features/projects/project-sharing";
 import { ServiceError } from "@/lib/services/errors";
 import { ProjectService } from "@/lib/services/project-service";
 import { createClient } from "@/lib/supabase/server";
@@ -49,7 +50,9 @@ export default async function ProjectSettingsPage({
                 名前、説明、タイムラインの初期表示を変更します。
               </CardDescription>
             </div>
-            <Badge variant="outline">非公開</Badge>
+            <Badge variant="outline">
+              {project.visibility === "public" ? "公開中" : "非公開"}
+            </Badge>
           </div>
         </CardHeader>
         <CardContent>
@@ -58,6 +61,18 @@ export default async function ProjectSettingsPage({
             mode="edit"
             project={project}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">公開・共有</CardTitle>
+          <CardDescription>
+            閲覧専用URLの公開状態と共有先を管理します。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ProjectSharing project={project} />
         </CardContent>
       </Card>
 

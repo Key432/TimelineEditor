@@ -350,7 +350,8 @@ describe("timeline item persistence and RLS", () => {
 
     expect(otherRead.error).toBeNull();
     expect(otherRead.data).toEqual([]);
-    expect(anonymousRead.error).not.toBeNull();
+    expect(anonymousRead.error).toBeNull();
+    expect(anonymousRead.data).toEqual([]);
     expect(otherUpdate.data).toEqual([]);
     expect(otherDelete.data).toEqual([]);
   });

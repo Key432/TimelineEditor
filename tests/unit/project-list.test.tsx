@@ -11,6 +11,8 @@ const projects: ProjectSummary[] = [
     name: "説明なしの年表",
     description: null,
     visibility: "private",
+    publicId: null,
+    publishedAt: null,
     updatedAt: "2026-07-21T00:00:00Z",
   },
   {
@@ -18,6 +20,8 @@ const projects: ProjectSummary[] = [
     name: "説明ありの年表",
     description: "作家と作品を比較します。",
     visibility: "private",
+    publicId: null,
+    publishedAt: null,
     updatedAt: "2026-07-21T00:00:00Z",
   },
 ];

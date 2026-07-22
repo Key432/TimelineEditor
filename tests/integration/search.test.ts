@@ -198,7 +198,11 @@ describe("PGroonga search synchronization and RLS", () => {
 
     const publish = await admin
       .from("projects")
-      .update({ visibility: "public", published_at: new Date().toISOString() })
+      .update({
+        visibility: "public",
+        public_id: crypto.randomUUID().replaceAll("-", ""),
+        published_at: new Date().toISOString(),
+      })
       .eq("id", projectId);
     if (publish.error) throw publish.error;
 

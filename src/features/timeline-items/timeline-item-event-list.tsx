@@ -7,9 +7,11 @@ import { formatHistoricalDate } from "@/features/timeline-items/historical-date"
 export function TimelineItemEventList({
   projectId,
   events,
+  basePath,
 }: {
   projectId: string;
   events: TimelineEventSummary[];
+  basePath?: string;
 }) {
   if (events.length === 0) {
     return <p className="text-sm text-muted-foreground">イベント 0件</p>;
@@ -32,7 +34,7 @@ export function TimelineItemEventList({
           >
             <Link
               className="truncate font-medium text-primary underline-offset-4 hover:underline"
-              href={`/projects/${projectId}/events/${event.id}`}
+              href={`${basePath ?? `/projects/${projectId}`}/events/${event.id}`}
             >
               {event.title}
             </Link>

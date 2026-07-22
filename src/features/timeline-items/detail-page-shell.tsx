@@ -14,6 +14,7 @@ export function DetailPageShell({
   returnTo,
   breadcrumbParent,
   children,
+  timelineHref,
 }: {
   projectId: string;
   projectName: string;
@@ -21,6 +22,7 @@ export function DetailPageShell({
   returnTo: string | null;
   breadcrumbParent?: { href: string; label: string };
   children: ReactNode;
+  timelineHref?: string;
 }) {
   const [wide, setWide] = useState(false);
 
@@ -50,7 +52,11 @@ export function DetailPageShell({
           ) : null}
           <Link
             className="truncate hover:text-foreground"
-            href={breadcrumbParent?.href ?? `/projects/${projectId}/timeline`}
+            href={
+              breadcrumbParent?.href ??
+              timelineHref ??
+              `/projects/${projectId}/timeline`
+            }
           >
             {breadcrumbParent?.label ?? projectName}
           </Link>
@@ -61,7 +67,7 @@ export function DetailPageShell({
         </nav>
         <div className="flex items-center gap-1">
           <Button asChild size="sm" variant="ghost">
-            <Link href={`/projects/${projectId}/timeline`}>
+            <Link href={timelineHref ?? `/projects/${projectId}/timeline`}>
               <Rows3 aria-hidden="true" />
               タイムラインを表示
             </Link>

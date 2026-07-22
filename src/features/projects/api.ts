@@ -81,6 +81,26 @@ export async function deleteProject(
   }
 }
 
+async function changePublication(
+  projectId: string,
+  action: "publish" | "unpublish" | "public-id/regenerate",
+) {
+  const data = await requestJson<{ project: Project }>(
+    `/api/projects/${projectId}/${action}`,
+    { method: "POST" },
+  );
+  return data.project;
+}
+
+export const publishProject = (projectId: string) =>
+  changePublication(projectId, "publish");
+
+export const unpublishProject = (projectId: string) =>
+  changePublication(projectId, "unpublish");
+
+export const regenerateProjectPublicId = (projectId: string) =>
+  changePublication(projectId, "public-id/regenerate");
+
 export const projectKeys = {
   all: ["projects"] as const,
   detail: (projectId: string) => ["projects", projectId] as const,
