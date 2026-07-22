@@ -98,6 +98,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await sideForm
     .getByRole("button", { name: "イベントアイテムを作成" })
     .click();
+  await page.getByRole("button", { name: "全体に合わせる" }).click();
   await expect(
     page.getByRole("button", { name: /イベントアイテム 初期作品/ }),
   ).toBeVisible();
@@ -125,6 +126,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await createForm
     .getByRole("button", { name: "イベントアイテムを作成" })
     .click();
+  await page.getByRole("button", { name: "全体に合わせる" }).click();
 
   const marker = page.getByRole("button", {
     name: /イベントアイテム 代表作刊行/,
@@ -145,6 +147,12 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await expect(detailDialog).toContainText("代表作刊行");
   await expect(detailDialog.getByText("親人物", { exact: true })).toBeVisible();
   const eventId = page.url().split("/").at(-1)!;
+
+  await detailDialog.getByRole("button", { name: "全画面で表示" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "代表作刊行" })).toBeVisible();
+  await page.goto(`/projects/${project.id}/timeline`);
+  await marker.click();
 
   await detailDialog.getByRole("link", { name: "編集" }).click();
   const overlayEditForm = page

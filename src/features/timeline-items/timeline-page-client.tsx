@@ -20,6 +20,7 @@ import type { TimelineItemType } from "@/features/item-types/types";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import { DeleteProjectDialog } from "@/features/projects/delete-project-dialog";
 import { ProjectForm } from "@/features/projects/project-form";
+import { CollapsibleProjectDescription } from "@/features/projects/collapsible-project-description";
 import type { Project } from "@/features/projects/types";
 import type {
   HistoricalDate,
@@ -72,9 +73,9 @@ export function TimelinePageClient({
   }
 
   return (
-    <div className="space-y-5">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-3">
+      <header className="flex shrink-0 flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">
               {activeProject.name}
@@ -82,9 +83,9 @@ export function TimelinePageClient({
             <Badge variant="outline">非公開</Badge>
           </div>
           {activeProject.description ? (
-            <p className="mt-1 max-w-3xl text-sm whitespace-pre-wrap text-muted-foreground">
-              {activeProject.description}
-            </p>
+            <CollapsibleProjectDescription
+              description={activeProject.description}
+            />
           ) : null}
         </div>
         <div className="flex gap-2">

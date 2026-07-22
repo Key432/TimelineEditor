@@ -201,6 +201,127 @@ describe("timeline item persistence and RLS", () => {
     expect(crossProjectType.error?.code).toBe("23503");
   });
 
+  it("keeps the parent and successful siblings when individual event inserts fail", async () => {
+    const projectId = await createProject("partial child events");
+    const typeId = await firstType(projectId);
+    const { data, error } = await owner.rpc(
+      "create_timeline_item_with_events",
+      {
+        p_project_id: projectId,
+        p_item: rangeRow(projectId, typeId, "parent with partial events"),
+        p_events: [
+          {
+            title: "成功イベント",
+            event_year: 1905,
+            event_month: 1,
+            event_day: 15,
+            is_approximate: false,
+          },
+          {
+            title: "不正日付イベント",
+            event_year: 1905,
+            event_month: 2,
+            event_day: 30,
+            is_approximate: false,
+          },
+          {
+            title: "",
+            event_year: 1906,
+            is_approximate: false,
+          },
+        ],
+      },
+    );
+    expect(error).toBeNull();
+    expect(data?.[0]?.created_event_ids).toHaveLength(1);
+    expect(data?.[0]?.failed_events).toEqual([
+      {
+        title: "不正日付イベント",
+        reason: "入力内容がデータベース制約を満たしていません。",
+      },
+      {
+        title: "タイトル未入力",
+        reason: "入力内容がデータベース制約を満たしていません。",
+      },
+    ]);
+
+    const [{ data: items }, { data: events }] = await Promise.all([
+      owner
+        .from("timeline_items")
+        .select("id, title")
+        .eq("project_id", projectId),
+      owner.from("timeline_events").select("title").eq("project_id", projectId),
+    ]);
+    expect(items).toEqual([
+      expect.objectContaining({ title: "parent with partial events" }),
+    ]);
+    expect(events).toEqual([{ title: "成功イベント" }]);
+  });
+
+  it("creates a point parent while reporting all child events as failed", async () => {
+    const projectId = await createProject("point parent batch");
+    const typeId = await firstType(projectId);
+    const { data, error } = await owner.rpc(
+      "create_timeline_item_with_events",
+      {
+        p_project_id: projectId,
+        p_item: {
+          project_id: projectId,
+          type_id: typeId,
+          title: "時点の親",
+          temporal_type: "point",
+          manual_order: 0,
+          point_year: 1905,
+          is_point_approximate: false,
+          is_start_approximate: false,
+          is_end_approximate: false,
+        },
+        p_events: [
+          {
+            title: "作成不可イベント",
+            event_year: 1905,
+            is_approximate: false,
+          },
+        ],
+      },
+    );
+    expect(error).toBeNull();
+    expect(data?.[0]?.created_event_ids).toEqual([]);
+    expect(data?.[0]?.failed_events).toEqual([
+      {
+        title: "作成不可イベント",
+        reason: "入力内容がデータベース制約を満たしていません。",
+      },
+    ]);
+    const { data: parent } = await owner
+      .from("timeline_items")
+      .select("title, temporal_type")
+      .eq("project_id", projectId)
+      .single();
+    expect(parent).toEqual({ title: "時点の親", temporal_type: "point" });
+  });
+
+  it("does not let another user or an anonymous client create a batch", async () => {
+    const projectId = await createProject("batch RLS");
+    const typeId = await firstType(projectId);
+    const args = {
+      p_project_id: projectId,
+      p_item: rangeRow(projectId, typeId, "forbidden parent"),
+      p_events: [],
+    };
+    const [otherResult, anonymousResult] = await Promise.all([
+      otherUser.rpc("create_timeline_item_with_events", args),
+      anonymous.rpc("create_timeline_item_with_events", args),
+    ]);
+    expect(otherResult.error).not.toBeNull();
+    expect(anonymousResult.error).not.toBeNull();
+    const { data } = await owner
+      .from("timeline_items")
+      .select("id")
+      .eq("project_id", projectId);
+    expect(data).toEqual([]);
+  });
+
   it("allows only the owner to read and write timeline items", async () => {
     const projectId = await createProject("private items");
     const typeId = await firstType(projectId);

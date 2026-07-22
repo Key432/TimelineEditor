@@ -82,6 +82,7 @@ import {
   TIMELINE_SORT_LABELS,
   TIMELINE_SORT_MODES,
   type HistoricalDate,
+  type TimelineEventCreationFailure,
   type TimelineLayoutMode,
   type TimelineItemSummary,
   type TimelineSortMode,
@@ -233,6 +234,9 @@ function TimelineWorkspaceContent({
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<"create" | string | null>(null);
   const [editorDirty, setEditorDirty] = useState(false);
+  const [creationFailures, setCreationFailures] = useState<
+    TimelineEventCreationFailure[]
+  >([]);
   const [eventDraft, setEventDraft] = useState<{
     parentId?: string;
     date?: HistoricalDate;
@@ -428,7 +432,7 @@ function TimelineWorkspaceContent({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2 shadow-xs">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -602,40 +606,42 @@ function TimelineWorkspaceContent({
             items={sorted.map((item) => item.id)}
             strategy={verticalListSortingStrategy}
           >
-            <TimelineViewport
-              allItems={items}
-              currentDate={currentDate}
-              groups={displayGroups}
-              events={events}
-              dimmedItemIds={dimmedItemIds}
-              highlightedEventIds={filterResult.matchingEventIds}
-              layoutMode={layoutMode}
-              project={project}
-              showItemType={!groupByType}
-              sortDisabled={sortMode !== "manual" || layoutMode === "compact"}
-              onEdit={setEditor}
-              draftEvent={
-                eventDraft?.parentId && eventDraft.date
-                  ? { parentId: eventDraft.parentId, date: eventDraft.date }
-                  : null
-              }
-              onCreateEvent={(parentId, date) =>
-                setEventDraft({ parentId, date })
-              }
-              onOpenEvent={(eventId, editing) =>
-                onOpenEvent?.(eventId, editing)
-              }
-              onOpenItem={(itemId) => onOpenItem?.(itemId)}
-              onMove={moveByButton}
-              onToggleGroup={(typeId) =>
-                setCollapsed((current) => {
-                  const next = new Set(current);
-                  if (next.has(typeId)) next.delete(typeId);
-                  else next.add(typeId);
-                  return next;
-                })
-              }
-            />
+            <div className="flex min-h-0 min-w-0 flex-1">
+              <TimelineViewport
+                allItems={items}
+                currentDate={currentDate}
+                groups={displayGroups}
+                events={events}
+                dimmedItemIds={dimmedItemIds}
+                highlightedEventIds={filterResult.matchingEventIds}
+                layoutMode={layoutMode}
+                project={project}
+                showItemType={!groupByType}
+                sortDisabled={sortMode !== "manual" || layoutMode === "compact"}
+                onEdit={setEditor}
+                draftEvent={
+                  eventDraft?.parentId && eventDraft.date
+                    ? { parentId: eventDraft.parentId, date: eventDraft.date }
+                    : null
+                }
+                onCreateEvent={(parentId, date) =>
+                  setEventDraft({ parentId, date })
+                }
+                onOpenEvent={(eventId, editing) =>
+                  onOpenEvent?.(eventId, editing)
+                }
+                onOpenItem={(itemId) => onOpenItem?.(itemId)}
+                onMove={moveByButton}
+                onToggleGroup={(typeId) =>
+                  setCollapsed((current) => {
+                    const next = new Set(current);
+                    if (next.has(typeId)) next.delete(typeId);
+                    else next.add(typeId);
+                    return next;
+                  })
+                }
+              />
+            </div>
           </SortableContext>
         </DndContext>
       )}
@@ -646,8 +652,26 @@ function TimelineWorkspaceContent({
         </p>
       ) : null}
 
+      {creationFailures.length > 0 ? (
+        <div
+          role="status"
+          className="rounded-lg border border-warning/40 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+        >
+          <p className="font-medium">
+            タイムラインアイテムは作成されましたが、次のイベントは追加できませんでした。
+          </p>
+          <ul className="mt-1 list-disc pl-5">
+            {creationFailures.map((failure, index) => (
+              <li key={`${failure.title}-${index}`}>
+                {failure.title}: {failure.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <Sheet open={filterPanelOpen} onOpenChange={setFilterPanelOpen}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        <SheetContent className="styled-scrollbar w-full overflow-y-auto sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>タイムラインを絞り込む</SheetTitle>
             <SheetDescription>
@@ -663,7 +687,7 @@ function TimelineWorkspaceContent({
       </Sheet>
 
       <Sheet open={editor !== null} onOpenChange={closeEditor}>
-        <SheetContent className="w-full overflow-y-auto sm:!w-[min(52rem,calc(100vw-2rem))] sm:!max-w-3xl">
+        <SheetContent className="styled-scrollbar w-full overflow-y-auto sm:!w-[min(52rem,calc(100vw-2rem))] sm:!max-w-3xl">
           <SheetHeader>
             <SheetTitle>
               {editor === "create"
@@ -681,7 +705,8 @@ function TimelineWorkspaceContent({
                 projectId={project.id}
                 onDirtyChange={setEditorDirty}
                 onEditItemTypes={onEditItemTypes}
-                onSaved={() => {
+                onSaved={(_saved, failures = []) => {
+                  setCreationFailures(failures);
                   setEditorDirty(false);
                   setEditor(null);
                 }}
@@ -715,7 +740,7 @@ function TimelineWorkspaceContent({
           if (!open) setEventDraft(null);
         }}
       >
-        <SheetContent className="w-full overflow-y-auto sm:!w-[min(52rem,calc(100vw-2rem))] sm:!max-w-3xl">
+        <SheetContent className="styled-scrollbar w-full overflow-y-auto sm:!w-[min(52rem,calc(100vw-2rem))] sm:!max-w-3xl">
           <SheetHeader>
             <SheetTitle>イベントアイテムを追加</SheetTitle>
             <SheetDescription>

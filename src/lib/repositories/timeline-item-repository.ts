@@ -1,13 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { TimelineItemType } from "@/features/item-types/types";
+import type { TimelineEventDraftValues } from "@/features/timeline-events/validation";
 import type {
   HistoricalDate,
   TimelineItem,
+  TimelineEventCreationFailure,
   TimelineItemSummary,
 } from "@/features/timeline-items/types";
 import type { TimelineItemValues } from "@/features/timeline-items/validation";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database, Json } from "@/lib/supabase/database.types";
 
 type Client = SupabaseClient<Database>;
 type ItemRow = Database["public"]["Tables"]["timeline_items"]["Row"];
@@ -117,6 +119,35 @@ function persistenceValues(
   };
 }
 
+function eventPersistenceValues(input: TimelineEventDraftValues) {
+  return {
+    title: input.title,
+    event_year: input.date.year,
+    event_month: input.date.month,
+    event_day: input.date.day,
+    is_approximate: input.isApproximate,
+    description: input.description,
+    source_text: input.sourceText,
+    external_url: input.externalUrl,
+  };
+}
+
+function parseFailures(value: Json): TimelineEventCreationFailure[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((failure) => {
+    if (
+      typeof failure !== "object" ||
+      failure === null ||
+      Array.isArray(failure) ||
+      typeof failure.title !== "string" ||
+      typeof failure.reason !== "string"
+    ) {
+      return [];
+    }
+    return [{ title: failure.title, reason: failure.reason }];
+  });
+}
+
 export class TimelineItemRepository {
   constructor(private readonly client: Client) {}
 
@@ -177,6 +208,37 @@ export class TimelineItemRepository {
       .single();
     if (error) throw error;
     return mapItem(data as unknown as JoinedRow);
+  }
+
+  async createWithEvents(
+    projectId: string,
+    input: TimelineItemValues,
+    events: TimelineEventDraftValues[],
+  ) {
+    const itemValues = persistenceValues(input);
+    const { data, error } = await this.client.rpc(
+      "create_timeline_item_with_events",
+      {
+        p_project_id: projectId,
+        p_item: {
+          ...itemValues,
+          type_id: input.typeId,
+          title: input.title,
+          temporal_type: input.temporalType,
+        } as Json,
+        p_events: events.map(eventPersistenceValues) as Json,
+      },
+    );
+    if (error) throw error;
+    const result = data[0];
+    if (!result) throw new Error("Timeline item batch result is missing.");
+    const item = await this.findById(projectId, result.item_id);
+    if (!item) throw new Error("Created timeline item could not be loaded.");
+    return {
+      item,
+      createdEventIds: result.created_event_ids,
+      failedEvents: parseFailures(result.failed_events),
+    };
   }
 
   async update(projectId: string, itemId: string, input: TimelineItemValues) {

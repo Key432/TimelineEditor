@@ -2,8 +2,8 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Save, Tags } from "lucide-react";
-import { useEffect, useId } from "react";
+import { Pencil, Plus, Save, Tags, Trash2 } from "lucide-react";
+import { useEffect, useId, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,18 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import type { TimelineItemType } from "@/features/item-types/types";
+import { timelineEventKeys } from "@/features/timeline-events/api";
+import { TimelineEventDraftEditor } from "@/features/timeline-events/timeline-event-draft-editor";
+import type { TimelineEventDraftValues } from "@/features/timeline-events/validation";
 import {
   createTimelineItem,
   timelineItemKeys,
   updateTimelineItem,
 } from "@/features/timeline-items/api";
-import type { TimelineItem } from "@/features/timeline-items/types";
+import type {
+  TimelineEventCreationFailure,
+  TimelineItem,
+} from "@/features/timeline-items/types";
 import {
   emptyTimelineItemValues,
   timelineItemSchema,
@@ -32,7 +38,10 @@ type TimelineItemFormProps = {
   projectId: string;
   itemTypes: TimelineItemType[];
   item?: TimelineItem;
-  onSaved?: (item: TimelineItem) => void;
+  onSaved?: (
+    item: TimelineItem,
+    failedEvents?: TimelineEventCreationFailure[],
+  ) => void;
   onDirtyChange?: (dirty: boolean) => void;
   onEditItemTypes?: () => void;
 };
@@ -83,7 +92,7 @@ function DateFields({
 }) {
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-[1fr_5rem_5rem] gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-2 sm:grid-cols-[minmax(7.5rem,10rem)_4.5rem_4.5rem]">
         <Input
           id={`${formId}-${prefix}-year`}
           aria-label="年"
@@ -131,6 +140,7 @@ export function TimelineItemForm({
     register,
     control,
     handleSubmit,
+    getValues,
     setValue,
     formState: { errors, isDirty },
   } = useForm<TimelineItemInput, undefined, TimelineItemValues>({
@@ -141,6 +151,10 @@ export function TimelineItemForm({
   const endDateStatus = useWatch({ control, name: "endDateStatus" });
   const colorOverride = useWatch({ control, name: "colorOverride" });
   const selectedTypeId = useWatch({ control, name: "typeId" });
+  const [eventDrafts, setEventDrafts] = useState<TimelineEventDraftValues[]>(
+    [],
+  );
+  const [editingEvent, setEditingEvent] = useState<number | "new" | null>(null);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -168,21 +182,55 @@ export function TimelineItemForm({
   }, [itemTypes, selectedTypeId, setValue]);
 
   const mutation = useMutation({
-    mutationFn: (values: TimelineItemValues) =>
-      item
-        ? updateTimelineItem(projectId, item.id, values)
-        : createTimelineItem(projectId, values),
+    mutationFn: async (values: TimelineItemValues) => {
+      if (item) {
+        return {
+          item: await updateTimelineItem(projectId, item.id, values),
+          failedEvents: [],
+        };
+      }
+      return createTimelineItem(projectId, values, eventDrafts);
+    },
     onSuccess: async (saved) => {
-      await queryClient.invalidateQueries({
-        queryKey: timelineItemKeys.list(projectId),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: timelineItemKeys.list(projectId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: timelineEventKeys.list(projectId),
+        }),
+      ]);
       queryClient.setQueryData(
-        timelineItemKeys.detail(projectId, saved.id),
-        saved,
+        timelineItemKeys.detail(projectId, saved.item.id),
+        saved.item,
       );
-      onSaved?.(saved);
+      onSaved?.(saved.item, saved.failedEvents);
     },
   });
+
+  function changeTemporalType(next: "range" | "point") {
+    if (next === temporalType) return;
+    if (next === "point") {
+      setValue("point", getValues("start"), {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("isPointApproximate", getValues("isStartApproximate"), {
+        shouldDirty: true,
+      });
+    } else {
+      setValue("start", getValues("point"), {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("isStartApproximate", getValues("isPointApproximate"), {
+        shouldDirty: true,
+      });
+      if (!getValues("endDateStatus"))
+        setValue("endDateStatus", "specified", { shouldDirty: true });
+    }
+    setValue("temporalType", next, { shouldDirty: true, shouldValidate: true });
+  }
 
   return (
     <form
@@ -237,48 +285,27 @@ export function TimelineItemForm({
 
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">時間形式</legend>
-        <div className="flex gap-4">
-          <Label className="font-normal">
-            <input
-              type="radio"
-              value="range"
-              {...register("temporalType", {
-                onChange: () => {
-                  setValue("start", {
-                    year: "",
-                    month: "",
-                    day: "",
-                  });
-                  setValue("endDateStatus", "specified");
-                  setValue("end", {
-                    year: "",
-                    month: "",
-                    day: "",
-                  });
-                  setValue("point", null);
-                  setValue("isPointApproximate", false);
-                },
-              })}
-            />
+        <div
+          aria-label="時間形式"
+          className="grid grid-cols-2 rounded-lg bg-muted p-1"
+          role="group"
+        >
+          <Button
+            aria-pressed={temporalType === "range"}
+            type="button"
+            variant={temporalType === "range" ? "secondary" : "ghost"}
+            onClick={() => changeTemporalType("range")}
+          >
             期間
-          </Label>
-          <Label className="font-normal">
-            <input
-              type="radio"
-              value="point"
-              {...register("temporalType", {
-                onChange: () => {
-                  setValue("start", null);
-                  setValue("isStartApproximate", false);
-                  setValue("endDateStatus", null);
-                  setValue("end", null);
-                  setValue("isEndApproximate", false);
-                  setValue("lastConfirmed", null);
-                },
-              })}
-            />
+          </Button>
+          <Button
+            aria-pressed={temporalType === "point"}
+            type="button"
+            variant={temporalType === "point" ? "secondary" : "ghost"}
+            onClick={() => changeTemporalType("point")}
+          >
             時点
-          </Label>
+          </Button>
         </div>
       </fieldset>
 
@@ -302,17 +329,7 @@ export function TimelineItemForm({
             <select
               id={`${formId}-end-status`}
               className={selectClassName}
-              {...register("endDateStatus", {
-                onChange: (event) => {
-                  if (event.target.value !== "specified") {
-                    setValue("end", null);
-                    setValue("isEndApproximate", false);
-                  }
-                  if (event.target.value !== "unknown") {
-                    setValue("lastConfirmed", null);
-                  }
-                },
-              })}
+              {...register("endDateStatus")}
             >
               <option value="specified">終了日あり</option>
               <option value="ongoing">継続中</option>
@@ -368,29 +385,138 @@ export function TimelineItemForm({
       )}
 
       <div className="space-y-2">
-        <Label className="font-normal">
+        <Label className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 font-normal">
           <input
             checked={colorOverride !== null}
             type="checkbox"
             onChange={(event) =>
-              setValue("colorOverride", event.target.checked ? "#00B0B0" : null)
+              setValue(
+                "colorOverride",
+                event.target.checked
+                  ? (itemTypes.find((type) => type.id === selectedTypeId)
+                      ?.defaultColor ?? "#00B0B0")
+                  : null,
+                { shouldDirty: true, shouldValidate: true },
+              )
             }
           />
           対象種別の色を上書き
         </Label>
         {colorOverride ? (
-          <Input
-            aria-label="個別色"
-            className="font-mono uppercase"
-            {...register("colorOverride")}
-          />
+          <div className="flex items-center gap-3 rounded-lg border p-3">
+            <Input
+              aria-label="個別色カラーピッカー"
+              className="h-10 w-14 cursor-pointer p-1"
+              type="color"
+              {...register("colorOverride")}
+            />
+            <Input
+              aria-label="個別色"
+              className="font-mono uppercase"
+              {...register("colorOverride")}
+            />
+          </div>
         ) : null}
       </div>
 
-      <Label className="font-normal">
+      <Label className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 font-normal">
         <input type="checkbox" {...register("isVisible")} />
         タイムラインに表示
       </Label>
+
+      {!item ? (
+        <section
+          className="space-y-3 rounded-xl border p-4"
+          aria-labelledby={`${formId}-events`}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 id={`${formId}-events`} className="font-medium">
+                同時に追加するイベント
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                親アイテムの作成後、登録できたイベントだけが保存されます。
+              </p>
+            </div>
+            <Button
+              disabled={temporalType !== "range" || editingEvent !== null}
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={() => setEditingEvent("new")}
+            >
+              <Plus aria-hidden="true" className="size-4" />
+              イベントを追加
+            </Button>
+          </div>
+          {temporalType !== "range" ? (
+            <p className="text-sm text-muted-foreground">
+              イベントは期間型の親にのみ追加できます。
+            </p>
+          ) : null}
+          {eventDrafts.length > 0 ? (
+            <ul className="divide-y rounded-lg border">
+              {eventDrafts.map((draft, index) => (
+                <li
+                  key={`${draft.title}-${index}`}
+                  className="flex items-center gap-3 px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {draft.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {draft.date.year}年
+                      {draft.date.month ? `${draft.date.month}月` : ""}
+                      {draft.date.day ? `${draft.date.day}日` : ""}
+                    </p>
+                  </div>
+                  <Button
+                    aria-label={`${draft.title}を編集`}
+                    size="icon-sm"
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setEditingEvent(index)}
+                  >
+                    <Pencil aria-hidden="true" />
+                  </Button>
+                  <Button
+                    aria-label={`${draft.title}を削除`}
+                    size="icon-sm"
+                    type="button"
+                    variant="ghost"
+                    onClick={() =>
+                      setEventDrafts((current) =>
+                        current.filter((_, candidate) => candidate !== index),
+                      )
+                    }
+                  >
+                    <Trash2 aria-hidden="true" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {editingEvent !== null ? (
+            <TimelineEventDraftEditor
+              value={
+                editingEvent === "new" ? undefined : eventDrafts[editingEvent]
+              }
+              onCancel={() => setEditingEvent(null)}
+              onSave={(draft) => {
+                setEventDrafts((current) =>
+                  editingEvent === "new"
+                    ? [...current, draft]
+                    : current.map((value, index) =>
+                        index === editingEvent ? draft : value,
+                      ),
+                );
+                setEditingEvent(null);
+              }}
+            />
+          ) : null}
+        </section>
+      ) : null}
 
       <Separator className="my-7" />
       <div className="space-y-8">
@@ -445,18 +571,20 @@ export function TimelineItemForm({
         </p>
       ) : null}
 
-      <Button
-        className="w-full"
-        disabled={mutation.isPending || itemTypes.length === 0}
-        type="submit"
-      >
-        <Save aria-hidden="true" className="size-4" />
-        {mutation.isPending
-          ? "保存中…"
-          : item
-            ? "変更を保存"
-            : "タイムラインアイテムを作成"}
-      </Button>
+      <div className="sticky bottom-0 -mx-1 border-t bg-background/95 px-1 pt-4 pb-1 backdrop-blur">
+        <Button
+          className="w-full"
+          disabled={mutation.isPending || itemTypes.length === 0}
+          type="submit"
+        >
+          <Save aria-hidden="true" className="size-4" />
+          {mutation.isPending
+            ? "保存中…"
+            : item
+              ? "変更を保存"
+              : "タイムラインアイテムを作成"}
+        </Button>
+      </div>
     </form>
   );
 }

@@ -1,4 +1,5 @@
 import type {
+  TimelineItemCreateResult,
   TimelineItem,
   TimelineItemSummary,
 } from "@/features/timeline-items/types";
@@ -6,6 +7,7 @@ import type {
   MoveTimelineItemInput,
   TimelineItemInput,
 } from "@/features/timeline-items/validation";
+import type { TimelineEventDraftInput } from "@/features/timeline-events/validation";
 
 type ApiErrorPayload = { error?: { message?: string } };
 
@@ -50,16 +52,16 @@ export async function getTimelineItem(projectId: string, itemId: string) {
 export async function createTimelineItem(
   projectId: string,
   input: TimelineItemInput,
+  events: TimelineEventDraftInput[] = [],
 ) {
-  const data = await requestJson<{ item: TimelineItem }>(
+  return requestJson<TimelineItemCreateResult>(
     `/api/projects/${projectId}/items`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify({ item: input, events }),
     },
   );
-  return data.item;
 }
 
 export async function updateTimelineItem(

@@ -141,7 +141,7 @@ export function TimelineEventForm({
       </div>
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">日付</legend>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-2 sm:grid-cols-[minmax(7.5rem,10rem)_4.5rem_4.5rem]">
           <Input
             aria-label="イベント年"
             inputMode="numeric"
@@ -167,8 +167,12 @@ export function TimelineEventForm({
           </p>
         ) : null}
       </fieldset>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" {...register("isApproximate")} />
+      <label className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-sm">
+        <input
+          className="size-4 accent-primary"
+          type="checkbox"
+          {...register("isApproximate")}
+        />
         日付はおおよそ
       </label>
       {outside ? (
@@ -219,13 +223,15 @@ export function TimelineEventForm({
           {mutation.error.message}
         </p>
       ) : null}
-      <Button disabled={mutation.isPending} type="submit">
-        {mutation.isPending
-          ? "保存中…"
-          : event
-            ? "変更を保存"
-            : "イベントアイテムを作成"}
-      </Button>
+      <div className="sticky bottom-0 border-t bg-background/95 pt-4 pb-1 backdrop-blur">
+        <Button className="w-full" disabled={mutation.isPending} type="submit">
+          {mutation.isPending
+            ? "保存中…"
+            : event
+              ? "変更を保存"
+              : "イベントアイテムを作成"}
+        </Button>
+      </div>
     </form>
   );
 }

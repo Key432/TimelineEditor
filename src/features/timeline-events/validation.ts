@@ -80,8 +80,16 @@ export const timelineEventSchema = z.object({
     .nullable(),
 });
 
+export const timelineEventDraftSchema = timelineEventSchema.omit({
+  timelineItemId: true,
+});
+
 export type TimelineEventInput = z.input<typeof timelineEventSchema>;
 export type TimelineEventValues = z.output<typeof timelineEventSchema>;
+export type TimelineEventDraftInput = z.input<typeof timelineEventDraftSchema>;
+export type TimelineEventDraftValues = z.output<
+  typeof timelineEventDraftSchema
+>;
 
 export function emptyTimelineEventValues(
   timelineItemId = "",
@@ -91,6 +99,17 @@ export function emptyTimelineEventValues(
     timelineItemId,
     title: "",
     date: date ?? { year: "", month: "", day: "" },
+    isApproximate: false,
+    description: "",
+    sourceText: "",
+    externalUrl: "",
+  };
+}
+
+export function emptyTimelineEventDraftValues(): TimelineEventDraftInput {
+  return {
+    title: "",
+    date: { year: "", month: "", day: "" },
     isApproximate: false,
     description: "",
     sourceText: "",

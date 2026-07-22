@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { searchGlobally } from "@/features/search/api";
+import { withSearchReturn } from "@/lib/navigation";
 
 const TYPE_LABELS = {
   project: "プロジェクト",
@@ -91,7 +92,14 @@ export function GlobalSearch() {
                 <Link
                   key={`${result.entityType}:${result.entityId}`}
                   className="block w-full border-b px-4 py-3 text-left last:border-b-0 hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                  href={result.detailPath}
+                  href={
+                    result.entityType === "project"
+                      ? result.detailPath
+                      : withSearchReturn(
+                          result.detailPath,
+                          `/search?q=${encodeURIComponent(query.trim())}`,
+                        )
+                  }
                   role="option"
                   onClick={() => setOpen(false)}
                 >

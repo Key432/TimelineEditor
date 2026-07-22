@@ -1,3 +1,11 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
 export type Database = {
   public: {
     Tables: {
@@ -355,6 +363,18 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      create_timeline_item_with_events: {
+        Args: {
+          p_project_id: string;
+          p_item: Json;
+          p_events?: Json;
+        };
+        Returns: {
+          item_id: string;
+          created_event_ids: string[];
+          failed_events: Json;
+        }[];
+      };
       create_project_with_settings: {
         Args: {
           p_name: string;

@@ -10,11 +10,11 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const { projectId } = await context.params;
     const input = await request.json().catch(() => null);
-    const item = await new TimelineItemService(await createClient()).create(
+    const result = await new TimelineItemService(await createClient()).create(
       projectId,
       input,
     );
-    return NextResponse.json({ item }, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
     return apiErrorResponse(error);
   }

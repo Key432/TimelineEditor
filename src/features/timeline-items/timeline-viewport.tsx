@@ -1227,7 +1227,7 @@ export function TimelineViewport({
 
   return (
     <TooltipProvider>
-      <div className="space-y-2">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2 rounded-md border bg-card p-2 shadow-xs">
           <div className="flex h-8 items-center gap-1 rounded-md bg-muted/70 p-1">
             <Button
@@ -1306,7 +1306,7 @@ export function TimelineViewport({
           ref={viewportRef}
           aria-label="タイムライン表示領域"
           className={cn(
-            "relative max-h-[36rem] overflow-auto rounded-lg border bg-card select-none",
+            "styled-scrollbar relative min-h-48 flex-1 overflow-auto rounded-lg border bg-card select-none",
             isPanning && "cursor-grabbing",
           )}
           data-testid="timeline-viewport"

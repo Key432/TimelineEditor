@@ -2,6 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import {
+  timelineEventDraftSchema,
+  type TimelineEventDraftValues,
+} from "@/features/timeline-events/validation";
+import type { TimelineEventCreationFailure } from "@/features/timeline-items/types";
+import {
   moveTimelineItemSchema,
   timelineItemSchema,
 } from "@/features/timeline-items/validation";
@@ -80,10 +85,64 @@ export class TimelineItemService {
 
   async create(projectId: string, input: unknown) {
     const project = await this.projects.get(projectId);
-    const result = timelineItemSchema.safeParse(input);
+    const batch: Record<string, unknown> =
+      typeof input === "object" && input !== null && "item" in input
+        ? input
+        : { item: input, events: [] };
+    const rawItem = batch.item;
+    const rawEvents: unknown[] =
+      "events" in batch && Array.isArray(batch.events) ? batch.events : [];
+    const result = timelineItemSchema.safeParse(rawItem);
     if (!result.success) throw validationError(result.error);
     await this.requireItemType(project.id, result.data.typeId);
-    return this.repository.create(project.id, result.data);
+
+    const events: TimelineEventDraftValues[] = [];
+    const failedEvents: TimelineEventCreationFailure[] = [];
+    for (const rawEvent of rawEvents.slice(0, 50)) {
+      const parsed = timelineEventDraftSchema.safeParse(rawEvent);
+      if (parsed.success) {
+        events.push(parsed.data);
+        continue;
+      }
+      const title =
+        typeof rawEvent === "object" &&
+        rawEvent !== null &&
+        "title" in rawEvent &&
+        typeof rawEvent.title === "string" &&
+        rawEvent.title.trim()
+          ? rawEvent.title.trim()
+          : "タイトル未入力";
+      failedEvents.push({
+        title,
+        reason: "入力内容を確認してください。",
+      });
+    }
+    if (rawEvents.length > 50) {
+      for (const rawEvent of rawEvents.slice(50)) {
+        const title =
+          typeof rawEvent === "object" &&
+          rawEvent !== null &&
+          "title" in rawEvent &&
+          typeof rawEvent.title === "string" &&
+          rawEvent.title.trim()
+            ? rawEvent.title.trim()
+            : "タイトル未入力";
+        failedEvents.push({
+          title,
+          reason: "一度に追加できるイベントは50件までです。",
+        });
+      }
+    }
+
+    const created = await this.repository.createWithEvents(
+      project.id,
+      result.data,
+      events,
+    );
+    return {
+      ...created,
+      failedEvents: [...failedEvents, ...created.failedEvents],
+    };
   }
 
   async update(projectId: string, itemId: string, input: unknown) {

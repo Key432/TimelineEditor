@@ -6,6 +6,7 @@ import { formatHistoricalDate } from "@/features/timeline-items/historical-date"
 import type { SearchEntityType, SearchResult } from "@/features/search/types";
 import { SearchService } from "@/lib/services/search-service";
 import { createClient } from "@/lib/supabase/server";
+import { withSearchReturn } from "@/lib/navigation";
 
 const LABELS: Record<SearchEntityType, string> = {
   project: "プロジェクト",
@@ -55,6 +56,10 @@ export default async function SearchPage({
     typeof raw.page === "string" && /^\d+$/.test(raw.page)
       ? Math.max(1, Number(raw.page))
       : 1;
+  const returnParams = new URLSearchParams({ q: query });
+  if (type) returnParams.set("type", type);
+  if (page > 1) returnParams.set("page", String(page));
+  const returnTo = `/search?${returnParams}`;
 
   if (!query) {
     return (
@@ -131,7 +136,11 @@ export default async function SearchPage({
                     <a
                       key={`${result.entityType}:${result.entityId}`}
                       className="block px-5 py-4 transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                      href={result.detailPath}
+                      href={
+                        result.entityType === "project"
+                          ? result.detailPath
+                          : withSearchReturn(result.detailPath, returnTo)
+                      }
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>

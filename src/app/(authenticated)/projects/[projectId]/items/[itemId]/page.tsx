@@ -1,9 +1,8 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
+import { DetailPageShell } from "@/features/timeline-items/detail-page-shell";
 import { TimelineItemDetail } from "@/features/timeline-items/timeline-item-detail";
+import { safeSearchReturnPath } from "@/lib/navigation";
 import { ServiceError } from "@/lib/services/errors";
 import { TimelineEventService } from "@/lib/services/timeline-event-service";
 import { TimelineItemService } from "@/lib/services/timeline-item-service";
@@ -11,12 +10,19 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function TimelineItemPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string; itemId: string }>;
+  searchParams: Promise<{ returnTo?: string | string[] }>;
 }) {
   const { projectId, itemId } = await params;
+  const rawSearch = await searchParams;
+  const returnTo = safeSearchReturnPath(
+    typeof rawSearch.returnTo === "string" ? rawSearch.returnTo : null,
+  );
   const client = await createClient();
   let item;
+  let project;
   let eventCount = 0;
   try {
     const [detail, events] = await Promise.all([
@@ -24,6 +30,7 @@ export default async function TimelineItemPage({
       new TimelineEventService(client).list(projectId),
     ]);
     item = detail.item;
+    project = detail.project;
     eventCount = events.filter(
       (event) => event.timelineItemId === itemId,
     ).length;
@@ -32,13 +39,12 @@ export default async function TimelineItemPage({
     throw error;
   }
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
-      <Button asChild size="sm" variant="ghost">
-        <Link href={`/projects/${projectId}/timeline`}>
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          タイムラインへ戻る
-        </Link>
-      </Button>
+    <DetailPageShell
+      projectId={projectId}
+      projectName={project.name}
+      returnTo={returnTo}
+      title={item.title}
+    >
       <div className="rounded-xl bg-card ring-1 ring-foreground/10">
         <TimelineItemDetail
           eventCount={eventCount}
@@ -46,6 +52,6 @@ export default async function TimelineItemPage({
           projectId={projectId}
         />
       </div>
-    </div>
+    </DetailPageShell>
   );
 }

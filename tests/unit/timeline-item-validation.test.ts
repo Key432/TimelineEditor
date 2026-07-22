@@ -105,6 +105,18 @@ describe("timeline item validation", () => {
     expect(invalid.success).toBe(false);
   });
 
+  it("normalizes untouched hidden date inputs when switching to a point", () => {
+    const result = timelineItemSchema.parse({
+      ...emptyTimelineItemValues(typeId),
+      title: "刊行",
+      temporalType: "point",
+      start: { year: "1905", month: "", day: "" },
+      point: { year: "1905", month: "", day: "" },
+    });
+    expect(result.end).toBeNull();
+    expect(result.point).toEqual({ year: 1905, month: null, day: null });
+  });
+
   it("rejects reversed, impossible, and incomplete dates", () => {
     expect(
       timelineItemSchema.safeParse({

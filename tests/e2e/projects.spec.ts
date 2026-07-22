@@ -62,7 +62,8 @@ test("creates, edits, and permanently deletes a project", async ({ page }) => {
   await expect(page.getByLabel("プロジェクト名")).toHaveValue("日本近代文学史");
   await expect(page.getByRole("link", { name: "一覧へ戻る" })).toBeVisible();
 
-  await page.goto("/projects");
+  await page.getByRole("link", { name: "一覧へ戻る" }).click();
+  await expect(page).toHaveURL(/\/projects$/);
   await expect(page.getByText("説明はまだありません。")).toHaveCount(0);
   const timelineCard = page.getByRole("link", {
     name: "日本近代文学史のタイムラインを開く",
@@ -76,6 +77,7 @@ test("creates, edits, and permanently deletes a project", async ({ page }) => {
   const navigationDialog = page.getByRole("dialog");
   await navigationDialog.getByRole("link", { name: "日本近代文学史" }).click();
   await expect(navigationDialog).toBeHidden();
+  await page.waitForLoadState("networkidle");
 
   await page.goto((await page.url()).replace(/\/timeline$/, "/item-types"));
   await expect(

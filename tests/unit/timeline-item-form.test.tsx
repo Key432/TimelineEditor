@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -43,5 +43,50 @@ describe("TimelineItemForm", () => {
     expect(screen.getByLabelText("出典・参考文献")).toBeVisible();
     expect(screen.getByLabelText("外部URL")).toBeVisible();
     expect(screen.queryByLabelText(/概要/)).not.toBeInTheDocument();
+  });
+
+  it("carries the entered start date across temporal format changes", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <QueryProvider>
+        <TimelineItemForm
+          itemTypes={[itemType]}
+          projectId={itemType.projectId}
+        />
+      </QueryProvider>,
+    );
+
+    const form = within(container);
+    await user.type(form.getAllByLabelText("年")[0], "1868");
+    await user.type(form.getAllByLabelText("年")[1], "1912");
+    await user.selectOptions(form.getByLabelText("終了状態"), "ongoing");
+    await user.selectOptions(form.getByLabelText("終了状態"), "specified");
+    expect(form.getAllByLabelText("年")[1]).toHaveValue(1912);
+    await user.click(form.getByRole("button", { name: "時点" }));
+    expect(form.getByLabelText("年")).toHaveValue(1868);
+    await user.click(form.getByRole("button", { name: "期間" }));
+    expect(form.getAllByLabelText("年")[0]).toHaveValue(1868);
+  });
+
+  it("offers a color picker and editable event drafts during creation", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <QueryProvider>
+        <TimelineItemForm
+          itemTypes={[itemType]}
+          projectId={itemType.projectId}
+        />
+      </QueryProvider>,
+    );
+
+    const form = within(container);
+    await user.click(form.getByLabelText("対象種別の色を上書き"));
+    expect(form.getByLabelText("個別色カラーピッカー")).toHaveValue(
+      itemType.defaultColor.toLowerCase(),
+    );
+    await user.click(form.getByRole("button", { name: "イベントを追加" }));
+    expect(
+      form.getByRole("group", { name: "同時追加するイベントアイテム" }),
+    ).toBeVisible();
   });
 });

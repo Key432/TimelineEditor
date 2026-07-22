@@ -67,7 +67,8 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   const projectResponse = await page.request.post("/api/projects", {
     data: {
       name: "近代文学史",
-      description: "作家と作品の関係を比較します。",
+      description:
+        "作家と作品の関係を比較します。明治から現代までの人物、作品、出版、交流、社会背景を横断し、長い説明でもタイムライン領域を圧迫しないことを確認するためのプロジェクトです。",
       template: "literature",
       settings: {
         defaultUncertaintyYears: 5,
@@ -85,7 +86,15 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   } = (await projectResponse.json()) as { project: { id: string } };
 
   await page.goto(`/projects/${projectId}/timeline`);
-  await expect(page.getByText("作家と作品の関係を比較します。")).toBeVisible();
+  await expect(page.getByText(/作家と作品の関係を比較します。/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "続きを読む" })).toBeVisible();
+  await page.getByRole("button", { name: "続きを読む" }).click();
+  await page.getByRole("button", { name: "閉じる" }).click();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollHeight <= window.innerHeight,
+    ),
+  ).toBe(true);
   await expect(
     page.getByText("期間型・時点型の項目を登録し、同じ時間軸で比較します。"),
   ).toHaveCount(0);
@@ -141,6 +150,15 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await rangeForm.getByLabel("本文").fill("明治・大正期の小説家");
   await rangeForm.getByLabel("出典・参考文献").fill("人物事典 第一巻");
   await rangeForm.getByLabel("外部URL").fill("https://example.com/");
+  await rangeForm.getByLabel("対象種別の色を上書き").check();
+  await expect(rangeForm.getByLabel("個別色カラーピッカー")).toBeVisible();
+  await rangeForm.getByRole("button", { name: "イベントを追加" }).click();
+  const eventDraftForm = rangeForm.getByRole("group", {
+    name: "同時追加するイベントアイテム",
+  });
+  await eventDraftForm.getByLabel("タイトル").fill("ロンドン留学");
+  await eventDraftForm.getByLabel("イベント年").fill("1900");
+  await eventDraftForm.getByRole("button", { name: "下書きに追加" }).click();
   await rangeForm
     .getByRole("button", { name: "タイムラインアイテムを作成" })
     .click();
@@ -148,6 +166,9 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(page.getByText("夏目漱石", { exact: true })).toBeVisible();
   const rangeGlyph = page.getByLabel(/夏目漱石.*期間型バー/);
   await expect(rangeGlyph).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /イベントアイテム ロンドン留学/ }),
+  ).toBeVisible();
   await rangeGlyph.hover();
   const itemTooltip = page
     .getByRole("tooltip")
@@ -183,8 +204,9 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     name: "タイムラインアイテム作成",
   });
   await pointForm.getByLabel("名称").fill("『吾輩は猫である』刊行");
-  await pointForm.getByLabel("時点").check();
-  await pointForm.getByLabel("年").fill("1905");
+  await pointForm.getByLabel("年").first().fill("1905");
+  await pointForm.getByRole("button", { name: "時点" }).click();
+  await expect(pointForm.getByLabel("年")).toHaveValue("1905");
   await pointForm
     .getByRole("button", { name: "タイムラインアイテムを作成" })
     .click();
@@ -305,16 +327,19 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(compactLanes).toHaveCount(compactLaneCount);
 
   await viewport.evaluate((element) => {
-    element.style.height = "120px";
+    element.style.flex = "none";
+    element.style.minHeight = "0";
+    element.style.height = "80px";
   });
-  const firstCompactLane = compactLanes.first();
-  const viewportBox = await viewport.boundingBox();
-  const laneBox = await firstCompactLane.boundingBox();
-  if (!viewportBox || !laneBox) throw new Error("Compact lane is not visible.");
-  await page.mouse.move(viewportBox.x + viewportBox.width - 20, laneBox.y + 12);
-  await page.mouse.down();
-  await page.mouse.move(viewportBox.x + viewportBox.width - 60, laneBox.y - 60);
-  await page.mouse.up();
+  await expect
+    .poll(() =>
+      viewport.evaluate(
+        (element) => element.scrollHeight > element.clientHeight,
+      ),
+    )
+    .toBe(true);
+  await viewport.hover();
+  await page.mouse.wheel(0, 100);
   await expect
     .poll(() => viewport.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(0);

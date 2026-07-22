@@ -13,3 +13,13 @@ export function safeRelativePath(
 
   return candidate;
 }
+
+export function safeSearchReturnPath(candidate: string | null | undefined) {
+  const safe = safeRelativePath(candidate, "");
+  return safe === "/search" || safe.startsWith("/search?") ? safe : null;
+}
+
+export function withSearchReturn(detailPath: string, returnTo: string) {
+  const separator = detailPath.includes("?") ? "&" : "?";
+  return `${detailPath}${separator}returnTo=${encodeURIComponent(returnTo)}`;
+}

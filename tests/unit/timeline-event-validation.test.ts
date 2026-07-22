@@ -6,6 +6,7 @@ import {
 } from "@/features/timeline-events/snap";
 import {
   isEventOutsideParent,
+  timelineEventDraftSchema,
   timelineEventSchema,
 } from "@/features/timeline-events/validation";
 import { historicalDateOrdinal } from "@/features/timeline-items/historical-date";
@@ -47,6 +48,22 @@ describe("timeline event validation and snapping", () => {
       externalUrl: "javascript:alert(1)",
     });
     expect(result.success).toBe(false);
+  });
+
+  it("validates an event draft before its parent item has an id", () => {
+    expect(
+      timelineEventDraftSchema.parse({
+        title: "同時追加イベント",
+        date: { year: "1905", month: "6", day: "" },
+        isApproximate: true,
+        description: "",
+        sourceText: "",
+        externalUrl: "",
+      }),
+    ).toMatchObject({
+      title: "同時追加イベント",
+      date: { year: 1905, month: 6, day: null },
+    });
   });
 
   it("warns outside the parent range without rejecting the date", () => {

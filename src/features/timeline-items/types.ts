@@ -58,6 +58,17 @@ export type TimelineItemSummary = Omit<
   "description" | "sourceText" | "externalUrl"
 >;
 
+export type TimelineEventCreationFailure = {
+  title: string;
+  reason: string;
+};
+
+export type TimelineItemCreateResult = {
+  item: TimelineItem;
+  createdEventIds: string[];
+  failedEvents: TimelineEventCreationFailure[];
+};
+
 export const TIMELINE_SORT_LABELS: Record<TimelineSortMode, string> = {
   manual: "手動順",
   startDate: "開始・時点日",

@@ -34,7 +34,7 @@ export function AppShell({
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   return (
-    <div className="min-h-svh bg-background">
+    <div className="min-h-svh bg-background lg:h-svh lg:overflow-hidden">
       <header className="sticky top-0 z-30 flex h-14 items-center border-b bg-card px-4 lg:px-6">
         <Sheet
           open={mobileNavigationOpen}
@@ -89,7 +89,7 @@ export function AppShell({
       </header>
 
       <div
-        className={`grid min-h-[calc(100svh-3.5rem)] w-full ${
+        className={`grid min-h-[calc(100svh-3.5rem)] w-full lg:h-[calc(100svh-3.5rem)] lg:min-h-0 ${
           collapsed ? "lg:grid-cols-[64px_1fr]" : "lg:grid-cols-[240px_1fr]"
         }`}
       >
@@ -118,8 +118,8 @@ export function AppShell({
             <ProjectNavigation initialProjects={projects} />
           </div>
         </aside>
-        <main className="min-w-0 p-4 sm:p-6 lg:p-8">
-          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+        <main className="min-w-0 p-4 sm:p-6 lg:min-h-0 lg:overflow-y-auto lg:p-6">
+          <div className="mx-auto h-full w-full max-w-[1600px]">{children}</div>
         </main>
       </div>
     </div>

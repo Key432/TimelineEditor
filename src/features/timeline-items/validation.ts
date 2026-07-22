@@ -53,8 +53,17 @@ const historicalDateSchema = z
     day: date.day,
   }));
 
+const blankDatePart = z.union([z.literal(""), z.null(), z.undefined()]);
+const blankHistoricalDateSchema = z
+  .object({ year: blankDatePart, month: blankDatePart, day: blankDatePart })
+  .transform(() => null);
 const nullableHistoricalDateSchema = z
-  .union([historicalDateSchema, z.null(), z.undefined()])
+  .union([
+    historicalDateSchema,
+    blankHistoricalDateSchema,
+    z.null(),
+    z.undefined(),
+  ])
   .transform((value) => value ?? null);
 
 const baseTimelineItemSchema = z.object({

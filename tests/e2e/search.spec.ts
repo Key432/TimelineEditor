@@ -122,7 +122,11 @@ test("searches globally, filters by event content, restores URL state, and retur
   const result = page.getByRole("link", { name: /代表作刊行/ });
   await result.click();
   await expect(page.getByRole("heading", { name: "代表作刊行" })).toBeVisible();
-  await page.goBack();
+  await expect(page.getByRole("link", { name: "検索結果" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "タイムラインを表示" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "検索結果" }).click();
   await expect(page).toHaveURL(/\/search\?q=/);
   await expect(result).toBeVisible();
 
