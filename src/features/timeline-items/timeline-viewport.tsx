@@ -84,6 +84,7 @@ const HORIZONTAL_PADDING = 24;
 const SCROLL_STATE_INTERVAL_MS = 1000 / 30;
 const COMPACT_LANE_COMFORTABLE_HEIGHT = 56;
 const COMPACT_LANE_DENSE_HEIGHT = 44;
+const EMPTY_ID_SET: ReadonlySet<string> = new Set();
 
 function zoomLevelForInitialPreset(
   preset: Project["settings"]["initialZoomPreset"],
@@ -315,6 +316,8 @@ function TimelineItemRow({
   onOpenEvent,
   isPanning,
   showItemType,
+  dimmed,
+  highlightedEventIds,
 }: {
   item: TimelineItemSummary;
   canvasWidth: number;
@@ -338,6 +341,8 @@ function TimelineItemRow({
   onOpenEvent: (eventId: string, editing: boolean) => void;
   isPanning: boolean;
   showItemType: boolean;
+  dimmed: boolean;
+  highlightedEventIds: ReadonlySet<string>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -368,7 +373,10 @@ function TimelineItemRow({
   return (
     <div
       ref={setNodeRef}
-      className="flex border-b bg-card"
+      className={cn(
+        "flex border-b bg-card transition-opacity",
+        dimmed && "opacity-30 grayscale",
+      )}
       data-testid={`timeline-row-${item.id}`}
       style={{
         width: HANDLE_WIDTH + INFO_WIDTH + canvasWidth + ACTION_WIDTH,
@@ -465,6 +473,7 @@ function TimelineItemRow({
           pixelsPerDay={pixelsPerDay}
           visibleEnd={visibleEnd}
           visibleStart={visibleStart}
+          highlightedEventIds={highlightedEventIds}
           onOpenEvent={onOpenEvent}
         />
         {draftEvent ? (
@@ -527,6 +536,8 @@ function CompactLaneItem({
   onEdit,
   onOpenEvent,
   onOpenItem,
+  dimmed,
+  highlightedEventIds,
 }: {
   placement: CompactLaneDisplayPlacement;
   currentDate: HistoricalDate;
@@ -540,6 +551,8 @@ function CompactLaneItem({
   onEdit: () => void;
   onOpenEvent: (eventId: string, editing: boolean) => void;
   onOpenItem: () => void;
+  dimmed: boolean;
+  highlightedEventIds: ReadonlySet<string>;
 }) {
   const item = placement.item;
   const itemOpenTimerRef = useRef<number | null>(null);
@@ -583,7 +596,12 @@ function CompactLaneItem({
   }
 
   return (
-    <>
+    <div
+      className={cn(
+        "pointer-events-none absolute inset-0 transition-opacity [&_button]:pointer-events-auto",
+        dimmed && "opacity-30 grayscale",
+      )}
+    >
       <TimelineEntityTooltip date={itemDateLabel(item)} title={item.title}>
         <button
           aria-label={`${item.title}の詳細を表示`}
@@ -636,6 +654,7 @@ function CompactLaneItem({
           pixelsPerDay={pixelsPerDay}
           visibleEnd={visibleEnd}
           visibleStart={visibleStart}
+          highlightedEventIds={highlightedEventIds}
           onOpenEvent={onOpenEvent}
         />
         {draftEvent ? (
@@ -650,7 +669,7 @@ function CompactLaneItem({
           />
         ) : null}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -670,6 +689,8 @@ export function TimelineViewport({
   onOpenEvent,
   onOpenItem,
   showItemType,
+  dimmedItemIds,
+  highlightedEventIds,
 }: {
   project: Project;
   groups: TimelineDisplayGroup[];
@@ -686,7 +707,11 @@ export function TimelineViewport({
   onOpenEvent: (eventId: string, editing: boolean) => void;
   onOpenItem: (itemId: string) => void;
   showItemType: boolean;
+  dimmedItemIds?: ReadonlySet<string>;
+  highlightedEventIds?: ReadonlySet<string>;
 }) {
+  const dimmed = dimmedItemIds ?? EMPTY_ID_SET;
+  const highlightedEvents = highlightedEventIds ?? EMPTY_ID_SET;
   const viewportRef = useRef<HTMLDivElement>(null);
   const pointerRef = useRef<{
     x: number;
@@ -1422,11 +1447,13 @@ export function TimelineViewport({
                           project.settings.defaultUncertaintyYears
                         }
                         disabled={sortDisabled}
+                        dimmed={dimmed.has(entry.item.id)}
                         domainStart={bounds.domainStart}
                         isPanning={isPanning}
                         showItemType={showItemType}
                         item={entry.item}
                         events={eventsByParent.get(entry.item.id) ?? []}
+                        highlightedEventIds={highlightedEvents}
                         draftEvent={
                           draftEvent?.parentId === entry.item.id
                             ? draftEvent.date
@@ -1474,6 +1501,8 @@ export function TimelineViewport({
                                 : null
                             }
                             events={eventsByParent.get(placement.itemId) ?? []}
+                            dimmed={dimmed.has(placement.itemId)}
+                            highlightedEventIds={highlightedEvents}
                             pixelsPerDay={pixelsPerDay}
                             placement={placement}
                             visibleEnd={visibleEnd}

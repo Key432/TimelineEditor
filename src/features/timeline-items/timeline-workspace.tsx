@@ -23,8 +23,9 @@ import {
   LayoutGrid,
   Plus,
   Rows3,
+  SlidersHorizontal,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ import { TimelineEventForm } from "@/features/timeline-events/timeline-event-for
 import { TimelineEventSection } from "@/features/timeline-events/timeline-event-section";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import type { TimelineItemType } from "@/features/item-types/types";
+import { searchTimeline } from "@/features/search/api";
 import {
   getTimelineItem,
   listTimelineItems,
@@ -64,6 +66,13 @@ import {
 import { DeleteTimelineItemDialog } from "@/features/timeline-items/delete-timeline-item-dialog";
 import { historicalDateOrdinal } from "@/features/timeline-items/historical-date";
 import { TimelineItemForm } from "@/features/timeline-items/timeline-item-form";
+import { TimelineFilterPanel } from "@/features/timeline-items/timeline-filter-panel";
+import {
+  DEFAULT_TIMELINE_FILTERS,
+  filterTimelineItems,
+  hasActiveTimelineFilters,
+  type TimelineFilters,
+} from "@/features/timeline-items/timeline-filters";
 import { TimelineStoreProvider } from "@/features/timeline-items/timeline-store";
 import {
   TimelineViewport,
@@ -205,6 +214,8 @@ function TimelineWorkspaceContent({
   onOpenItem,
   layoutMode,
   onLayoutModeChange,
+  filters,
+  onFiltersChange,
 }: {
   project: Project;
   initialItems: TimelineItemSummary[];
@@ -216,6 +227,8 @@ function TimelineWorkspaceContent({
   onOpenItem?: (itemId: string) => void;
   layoutMode: TimelineLayoutMode;
   onLayoutModeChange?: (layoutMode: TimelineLayoutMode) => void;
+  filters: TimelineFilters;
+  onFiltersChange?: (filters: TimelineFilters) => void;
 }) {
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<"create" | string | null>(null);
@@ -227,6 +240,8 @@ function TimelineWorkspaceContent({
   const [sortMode, setSortMode] = useState<TimelineSortMode>("manual");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
   const [groupByType, setGroupByType] = useState(false);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState(filters.query.trim());
   const [collapsed, setCollapsed] = useState<Set<string>>(
     () => new Set([HIDDEN_ITEMS_GROUP_ID]),
   );
@@ -244,6 +259,18 @@ function TimelineWorkspaceContent({
     queryKey: itemTypeKeys.list(project.id),
     queryFn: () => listItemTypes(project.id),
     initialData: itemTypes,
+  });
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setDebouncedQuery(filters.query.trim()),
+      250,
+    );
+    return () => window.clearTimeout(timer);
+  }, [filters.query]);
+  const searchMatches = useQuery({
+    queryKey: ["projects", project.id, "timeline-search", debouncedQuery],
+    queryFn: ({ signal }) => searchTimeline(project.id, debouncedQuery, signal),
+    enabled: debouncedQuery.length > 0,
   });
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -269,9 +296,52 @@ function TimelineWorkspaceContent({
     () => [...items].sort(compareItems(sortMode, direction, currentDate)),
     [currentDate, direction, items, sortMode],
   );
+  const activeFilters = hasActiveTimelineFilters(filters);
+  const searchReady =
+    !filters.query.trim() ||
+    (debouncedQuery === filters.query.trim() &&
+      searchMatches.data !== undefined);
+  const filterResult = useMemo(
+    () =>
+      filterTimelineItems({
+        items: sorted,
+        events,
+        filters: searchReady ? filters : { ...filters, query: "" },
+        matches: searchMatches.data ?? { itemIds: [], eventIds: [] },
+        currentDate,
+        uncertaintyYears: project.settings.defaultUncertaintyYears,
+      }),
+    [
+      currentDate,
+      events,
+      filters,
+      project.settings.defaultUncertaintyYears,
+      searchMatches.data,
+      searchReady,
+      sorted,
+    ],
+  );
+  const filtered = useMemo(
+    () =>
+      filters.mode === "dim"
+        ? sorted
+        : sorted.filter((item) => filterResult.matchedIds.has(item.id)),
+    [filterResult.matchedIds, filters.mode, sorted],
+  );
+  const dimmedItemIds = useMemo(
+    () =>
+      filters.mode === "dim" && activeFilters
+        ? new Set(
+            sorted
+              .filter((item) => !filterResult.matchedIds.has(item.id))
+              .map((item) => item.id),
+          )
+        : new Set<string>(),
+    [activeFilters, filterResult.matchedIds, filters.mode, sorted],
+  );
   const groups = useMemo(() => {
-    const visibleItems = sorted.filter((item) => item.isVisible);
-    const hiddenItems = sorted.filter((item) => !item.isVisible);
+    const visibleItems = filtered.filter((item) => item.isVisible);
+    const hiddenItems = filtered.filter((item) => !item.isVisible);
     const visibleGroups = groupByType
       ? currentItemTypes
           .map((type) => ({
@@ -303,7 +373,7 @@ function TimelineWorkspaceContent({
           },
         ]
       : visibleGroups;
-  }, [currentItemTypes, groupByType, sorted]);
+  }, [currentItemTypes, filtered, groupByType]);
   const displayGroups = useMemo<TimelineDisplayGroup[]>(
     () =>
       groups.map((group) => ({
@@ -480,8 +550,24 @@ function TimelineWorkspaceContent({
             </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <Button
+          aria-pressed={filterPanelOpen}
+          size="sm"
+          variant={activeFilters ? "secondary" : "outline"}
+          onClick={() => setFilterPanelOpen(true)}
+        >
+          <SlidersHorizontal aria-hidden="true" className="size-4" />
+          フィルター
+          {activeFilters ? (
+            <Badge className="h-5 px-1.5" variant="outline">
+              {filterResult.matchedIds.size}
+            </Badge>
+          ) : null}
+        </Button>
         <Badge className="ml-auto" variant="outline">
-          {items.length}項目
+          {activeFilters
+            ? `${filterResult.matchedIds.size} / ${items.length}項目`
+            : `${items.length}項目`}
         </Badge>
       </div>
 
@@ -521,6 +607,8 @@ function TimelineWorkspaceContent({
               currentDate={currentDate}
               groups={displayGroups}
               events={events}
+              dimmedItemIds={dimmedItemIds}
+              highlightedEventIds={filterResult.matchingEventIds}
               layoutMode={layoutMode}
               project={project}
               showItemType={!groupByType}
@@ -557,6 +645,22 @@ function TimelineWorkspaceContent({
           並べ替えを保存できませんでした。{moveMutation.error.message}
         </p>
       ) : null}
+
+      <Sheet open={filterPanelOpen} onOpenChange={setFilterPanelOpen}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>タイムラインを絞り込む</SheetTitle>
+            <SheetDescription>
+              現在のプロジェクト内だけを検索します。条件はURLへ保存されます。
+            </SheetDescription>
+          </SheetHeader>
+          <TimelineFilterPanel
+            filters={filters}
+            itemTypes={currentItemTypes}
+            onChange={(nextFilters) => onFiltersChange?.(nextFilters)}
+          />
+        </SheetContent>
+      </Sheet>
 
       <Sheet open={editor !== null} onOpenChange={closeEditor}>
         <SheetContent className="w-full overflow-y-auto sm:!w-[min(52rem,calc(100vw-2rem))] sm:!max-w-3xl">
@@ -651,6 +755,8 @@ export function TimelineWorkspace(props: {
   onOpenItem?: (itemId: string) => void;
   layoutMode?: TimelineLayoutMode;
   onLayoutModeChange?: (layoutMode: TimelineLayoutMode) => void;
+  filters?: TimelineFilters;
+  onFiltersChange?: (filters: TimelineFilters) => void;
 }) {
   const [uncontrolledLayoutMode, setUncontrolledLayoutMode] =
     useState<TimelineLayoutMode>(props.layoutMode ?? "row");
@@ -661,6 +767,7 @@ export function TimelineWorkspace(props: {
       <TimelineWorkspaceContent
         {...props}
         initialEvents={props.initialEvents ?? []}
+        filters={props.filters ?? DEFAULT_TIMELINE_FILTERS}
         layoutMode={layoutMode}
         onLayoutModeChange={(nextLayoutMode) => {
           setUncontrolledLayoutMode(nextLayoutMode);

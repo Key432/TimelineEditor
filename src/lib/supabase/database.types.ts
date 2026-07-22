@@ -304,6 +304,54 @@ export type Database = {
         };
         Relationships: [];
       };
+      search_documents: {
+        Row: {
+          entity_type: "project" | "timeline_item" | "timeline_event";
+          entity_id: string;
+          project_id: string;
+          owner_id: string;
+          is_public: boolean;
+          title: string;
+          project_name: string;
+          content: string;
+          detail_path: string;
+          start_year: number | null;
+          start_month: number | null;
+          start_day: number | null;
+          end_year: number | null;
+          end_month: number | null;
+          end_day: number | null;
+          end_date_status: "specified" | "ongoing" | "unknown" | null;
+          is_start_approximate: boolean;
+          is_end_approximate: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          entity_type: "project" | "timeline_item" | "timeline_event";
+          entity_id: string;
+          project_id: string;
+          owner_id: string;
+          is_public?: boolean;
+          title: string;
+          project_name: string;
+          content: string;
+          detail_path: string;
+          start_year?: number | null;
+          start_month?: number | null;
+          start_day?: number | null;
+          end_year?: number | null;
+          end_month?: number | null;
+          end_day?: number | null;
+          end_date_status?: "specified" | "ongoing" | "unknown" | null;
+          is_start_approximate?: boolean;
+          is_end_approximate?: boolean;
+          updated_at: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["search_documents"]["Insert"]
+        >;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -351,6 +399,37 @@ export type Database = {
           p_minimum_time_unit: string;
         };
         Returns: undefined;
+      };
+      search_global_documents: {
+        Args: {
+          p_query: string;
+          p_entity_type?: string | null;
+          p_page?: number;
+          p_page_size?: number;
+        };
+        Returns: {
+          entity_type: string;
+          entity_id: string;
+          project_id: string;
+          title: string;
+          project_name: string;
+          content: string;
+          detail_path: string;
+          start_year: number | null;
+          start_month: number | null;
+          start_day: number | null;
+          end_year: number | null;
+          end_month: number | null;
+          end_day: number | null;
+          end_date_status: "specified" | "ongoing" | "unknown" | null;
+          is_start_approximate: boolean;
+          is_end_approximate: boolean;
+          total_count: number;
+        }[];
+      };
+      match_project_search_documents: {
+        Args: { p_project_id: string; p_query: string };
+        Returns: { entity_type: string; entity_id: string }[];
       };
     };
     Enums: Record<string, never>;

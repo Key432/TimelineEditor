@@ -16,6 +16,7 @@ import {
 import { signOut } from "@/features/auth/actions";
 import { ProjectNavigation } from "@/features/projects/project-navigation";
 import type { ProjectSummary } from "@/features/projects/types";
+import { GlobalSearch } from "@/features/search/global-search";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -69,6 +70,8 @@ export function AppShell({
             Chronology Studio
           </span>
         </Link>
+
+        <GlobalSearch />
 
         <div className="ml-auto flex items-center gap-3">
           {email ? (

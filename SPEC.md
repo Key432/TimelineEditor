@@ -223,6 +223,7 @@ PATCH  /api/projects/[projectId]
 DELETE /api/projects/[projectId]
 
 GET    /api/projects/[projectId]/timeline
+GET    /api/projects/[projectId]/timeline/search?q=...
 GET    /api/projects/[projectId]/items/[itemId]
 POST   /api/projects/[projectId]/items
 PATCH  /api/projects/[projectId]/items/[itemId]
@@ -451,11 +452,18 @@ sort_date
 updated_at timestamptz
 ```
 
+実装では歴史日付をPostgreSQLの日付型へ変換せず、`start_year`、`start_month`、
+`start_day`、`end_year`、`end_month`、`end_day` と終了状態・曖昧フラグを保持する。
+`(entity_type, entity_id)` を主キーとし、プロジェクト、対象種別、タイムライン
+アイテム、イベントアイテムの変更を内部トリガーで同期する。アプリ利用者は
+`search_documents` へ直接書き込めない。
+
 - プロジェクト、タイムラインアイテム、イベントアイテムを検索対象とする
 - PGroongaインデックスを使用する
 - 非公開データは所有者の検索結果にのみ含める
 - 公開データは未ログイン検索へ含めるか、公開検索の提供範囲に応じて制御する
 - 削除・更新時に検索インデックスを同期する
+- 検索RPCはRLSを適用し、所有者のデータまたは公開プロジェクトのデータだけを返す
 
 ---
 
@@ -1009,6 +1017,11 @@ type TimelineSortMode =
 &groupBy=itemType
 ```
 
+フリーワード検索はタイムラインの描画用一覧へ本文を同梱せず、PGroonga検索から
+一致したタイムラインアイテムIDとイベントアイテムIDだけを取得する。入力中は
+短時間待ってから検索し、イベントだけが一致した場合は親を表示対象として残す。
+非一致項目の薄表示は行表示とコンパクトレーン表示の両方へ適用する。
+
 ---
 
 ## 19. 全体検索
@@ -1047,6 +1060,11 @@ type TimelineSortMode =
 - 詳細URL
 
 ページネーションを実装する。
+
+ヘッダー候補は300msのデバウンス後に最大6件を表示する。検索結果ページは
+1ページ12件とし、全種類またはプロジェクト、タイムラインアイテム、イベント
+アイテムの種類ごとに絞り込める。抜粋はHTMLとして解釈せず、一致語周辺の
+プレーンテキストを表示する。
 
 ---
 

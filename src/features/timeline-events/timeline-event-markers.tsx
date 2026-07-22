@@ -51,6 +51,7 @@ export function TimelineEventMarkers({
   visibleStart,
   visibleEnd,
   horizontalPadding,
+  highlightedEventIds,
   onOpenEvent,
 }: {
   events: TimelineEventSummary[];
@@ -59,6 +60,7 @@ export function TimelineEventMarkers({
   visibleStart: number;
   visibleEnd: number;
   horizontalPadding: number;
+  highlightedEventIds?: ReadonlySet<string>;
   onOpenEvent: (eventId: string, editing: boolean) => void;
 }) {
   const openTimerRef = useRef<number | null>(null);
@@ -115,6 +117,9 @@ export function TimelineEventMarkers({
           <SingleEventMarker
             key={group.markers[0]!.value.id}
             marker={{ event: group.markers[0]!.value, x: group.x }}
+            highlighted={
+              highlightedEventIds?.has(group.markers[0]!.value.id) ?? false
+            }
             onCancelOpen={cancelOpen}
             onOpen={(eventId) => {
               cancelOpen();
@@ -129,6 +134,9 @@ export function TimelineEventMarkers({
           <EventClusterMarker
             key={group.markers.map((marker) => marker.value.id).join(":")}
             group={group}
+            highlighted={group.markers.some((marker) =>
+              highlightedEventIds?.has(marker.value.id),
+            )}
             onSelect={setSelectedCluster}
           />
         ),
@@ -179,11 +187,13 @@ function SingleEventMarker({
   onCancelOpen,
   onOpen,
   onOpenEdit,
+  highlighted,
 }: {
   marker: EventMarker;
   onCancelOpen: () => void;
   onOpen: (eventId: string) => void;
   onOpenEdit: (eventId: string) => void;
+  highlighted: boolean;
 }) {
   return (
     <TimelineEntityTooltip
@@ -192,8 +202,9 @@ function SingleEventMarker({
     >
       <button
         aria-label={`イベントアイテム ${marker.event.title} ${formatHistoricalDate(marker.event.date)}`}
-        className="focus-visible:ring-focus absolute top-1/2 z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-secondary shadow-sm transition-[box-shadow,transform] hover:z-20 hover:scale-125 hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-20 focus-visible:scale-125 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+        className={`focus-visible:ring-focus absolute top-1/2 z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-secondary shadow-sm transition-[box-shadow,transform] hover:z-20 hover:scale-125 hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-20 focus-visible:scale-125 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${highlighted ? "ring-4 ring-secondary ring-offset-2 ring-offset-background" : ""}`}
         data-timeline-event-marker="true"
+        data-search-match={highlighted ? "true" : undefined}
         style={{ left: marker.x }}
         type="button"
         onClick={(event) => {
@@ -213,9 +224,11 @@ function SingleEventMarker({
 function EventClusterMarker({
   group,
   onSelect,
+  highlighted,
 }: {
   group: TimelineMarkerGroup<TimelineEventSummary>;
   onSelect: (events: TimelineEventSummary[]) => void;
+  highlighted: boolean;
 }) {
   const events = useMemo(
     () => group.markers.map((marker) => marker.value).sort(sortEvents),
@@ -226,8 +239,9 @@ function EventClusterMarker({
       <TooltipTrigger asChild>
         <button
           aria-label={`${events.length}件のイベントアイテムを選択`}
-          className="absolute top-1/2 z-10 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-secondary text-[10px] font-bold text-secondary-foreground shadow-sm transition-[box-shadow,transform] hover:z-20 hover:scale-110 hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+          className={`absolute top-1/2 z-10 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-secondary text-[10px] font-bold text-secondary-foreground shadow-sm transition-[box-shadow,transform] hover:z-20 hover:scale-110 hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${highlighted ? "ring-4 ring-secondary ring-offset-2 ring-offset-background" : ""}`}
           data-timeline-event-marker="true"
+          data-search-match={highlighted ? "true" : undefined}
           data-testid="timeline-event-cluster"
           style={{ left: group.x }}
           type="button"

@@ -3,7 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Settings, Tags } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,10 @@ import type {
   TimelineLayoutMode,
   TimelineItemSummary,
 } from "@/features/timeline-items/types";
+import {
+  parseTimelineFilters,
+  writeTimelineFilters,
+} from "@/features/timeline-items/timeline-filters";
 import { TimelineWorkspace } from "@/features/timeline-items/timeline-workspace";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +56,10 @@ export function TimelinePageClient({
   const queryClient = useQueryClient();
   const [activeProject, setActiveProject] = useState(project);
   const [panel, setPanel] = useState<Panel>(null);
+  const filters = useMemo(
+    () => parseTimelineFilters(new URLSearchParams(searchParams.toString())),
+    [searchParams],
+  );
 
   function handlePanelChange(open: boolean) {
     if (open) return;
@@ -106,7 +114,15 @@ export function TimelinePageClient({
         initialEvents={initialEvents}
         itemTypes={itemTypes}
         layoutMode={layoutMode}
+        filters={filters}
         project={activeProject}
+        onFiltersChange={(nextFilters) => {
+          const next = writeTimelineFilters(
+            new URLSearchParams(searchParams.toString()),
+            nextFilters,
+          );
+          window.history.replaceState(null, "", `${pathname}?${next}`);
+        }}
         onLayoutModeChange={(nextLayout) => {
           const nextSearchParams = new URLSearchParams(searchParams.toString());
           nextSearchParams.set("layout", nextLayout);
