@@ -99,6 +99,23 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     page.getByText("期間型・時点型の項目を登録し、同じ時間軸で比較します。"),
   ).toHaveCount(0);
 
+  await page.getByRole("button", { name: "フィルター" }).click();
+  const filterDialog = page.getByRole("dialog");
+  const filterQuery = filterDialog.getByLabel("タイムライン内検索");
+  await filterQuery.pressSequentially("k");
+  await expect(filterQuery).toHaveValue("k");
+  await expect
+    .poll(() =>
+      page
+        .locator('[data-slot="sheet-overlay"]')
+        .evaluate((element) => getComputedStyle(element).backdropFilter),
+    )
+    .toBe("none");
+  await filterDialog
+    .getByRole("button", { name: "フィルターをリセット" })
+    .click();
+  await filterDialog.getByRole("button", { name: "閉じる" }).click();
+
   await page.getByRole("button", { name: "設定", exact: true }).click();
   await expect(
     page.getByRole("dialog").getByRole("heading", {
@@ -181,6 +198,11 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(itemDetail.locator("h1")).toHaveText("夏目漱石");
   await expect(itemDetail).toContainText("明治・大正期の小説家");
   await expect(itemDetail.getByText("本文", { exact: true })).toHaveCount(0);
+  await itemDetail.getByText("イベント 1件").click();
+  await expect(
+    itemDetail.getByRole("link", { name: "ロンドン留学" }),
+  ).toBeVisible();
+  await expect(itemDetail.getByText("1900")).toBeVisible();
   await itemDetail.getByRole("link", { name: "編集" }).click();
   await expect(page).toHaveURL(
     new RegExp(`/projects/${projectId}/items/[0-9a-f-]+/edit$`),

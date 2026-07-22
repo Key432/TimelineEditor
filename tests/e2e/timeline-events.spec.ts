@@ -185,6 +185,10 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await page.goto(`/projects/${project.id}/events/${eventId}`);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "代表作刊行" })).toBeVisible();
+  const breadcrumb = page.getByRole("navigation", { name: "パンくず" });
+  await expect(
+    breadcrumb.getByRole("link", { name: "親人物" }),
+  ).toHaveAttribute("href", `/projects/${project.id}/items/${item.id}`);
 
   for (const title of ["クラスタ候補A", "クラスタ候補B"]) {
     const response = await page.request.post(

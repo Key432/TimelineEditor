@@ -31,4 +31,33 @@ describe("DetailPageShell", () => {
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     expect(container.firstElementChild).toHaveClass("max-w-[1400px]");
   });
+
+  it("uses the linked timeline item as the event breadcrumb parent", () => {
+    const { container } = render(
+      <DetailPageShell
+        breadcrumbParent={{
+          href: "/projects/project-id/items/item-id",
+          label: "ヴィクトル・セガレン",
+        }}
+        projectId="project-id"
+        projectName="文学史"
+        returnTo={null}
+        title="『記憶なき人々』"
+      >
+        <article>詳細</article>
+      </DetailPageShell>,
+    );
+
+    const breadcrumb = within(container).getByRole("navigation", {
+      name: "パンくず",
+    });
+    expect(
+      within(breadcrumb).getByRole("link", { name: "ヴィクトル・セガレン" }),
+    ).toHaveAttribute("href", "/projects/project-id/items/item-id");
+    expect(within(breadcrumb).getByText("『記憶なき人々』")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(breadcrumb).queryByText("文学史")).not.toBeInTheDocument();
+  });
 });

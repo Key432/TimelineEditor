@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { TimelineEventDetail } from "@/features/timeline-events/timeline-event-detail";
 import { DetailPageShell } from "@/features/timeline-items/detail-page-shell";
 import { safeSearchReturnPath } from "@/lib/navigation";
@@ -32,16 +31,18 @@ export default async function TimelineEventPage({
   }
   return (
     <DetailPageShell
+      breadcrumbParent={{
+        href: `/projects/${projectId}/items/${event.parent.id}`,
+        label: event.parent.title,
+      }}
       projectId={projectId}
       projectName={project.name}
       returnTo={returnTo}
       title={event.title}
     >
-      <Card>
-        <CardContent className="pt-6">
-          <TimelineEventDetail event={event} projectId={projectId} />
-        </CardContent>
-      </Card>
+      <div className="rounded-xl bg-card ring-1 ring-foreground/10">
+        <TimelineEventDetail event={event} projectId={projectId} />
+      </div>
     </DetailPageShell>
   );
 }

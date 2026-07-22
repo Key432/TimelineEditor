@@ -15,6 +15,7 @@ import type { TimelineItemType } from "@/features/item-types/types";
 import { timelineEventKeys } from "@/features/timeline-events/api";
 import { TimelineEventDraftEditor } from "@/features/timeline-events/timeline-event-draft-editor";
 import type { TimelineEventDraftValues } from "@/features/timeline-events/validation";
+import { ApproximateDateCheckbox } from "@/features/timeline-items/approximate-date-checkbox";
 import {
   createTimelineItem,
   timelineItemKeys,
@@ -82,6 +83,8 @@ function DateFields({
   formId,
   register,
   error,
+  approximateLabel,
+  approximateRegistration,
 }: {
   prefix: "start" | "end" | "lastConfirmed" | "point";
   formId: string;
@@ -89,37 +92,54 @@ function DateFields({
     typeof useForm<TimelineItemInput, undefined, TimelineItemValues>
   >["register"];
   error?: string;
+  approximateLabel?: string;
+  approximateRegistration?: ReturnType<
+    ReturnType<
+      typeof useForm<TimelineItemInput, undefined, TimelineItemValues>
+    >["register"]
+  >;
 }) {
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-2 sm:grid-cols-[minmax(7.5rem,10rem)_4.5rem_4.5rem]">
-        <Input
-          id={`${formId}-${prefix}-year`}
-          aria-label="年"
-          inputMode="numeric"
-          min={1}
-          placeholder="年"
-          type="number"
-          {...register(`${prefix}.year`)}
-        />
-        <Input
-          aria-label="月"
-          inputMode="numeric"
-          max={12}
-          min={1}
-          placeholder="月"
-          type="number"
-          {...register(`${prefix}.month`)}
-        />
-        <Input
-          aria-label="日"
-          inputMode="numeric"
-          max={31}
-          min={1}
-          placeholder="日"
-          type="number"
-          {...register(`${prefix}.day`)}
-        />
+      <div
+        className="flex flex-col gap-2 sm:flex-row sm:items-center"
+        data-slot="date-approximate-row"
+      >
+        <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-2 sm:grid-cols-[minmax(7.5rem,10rem)_4.5rem_4.5rem]">
+          <Input
+            id={`${formId}-${prefix}-year`}
+            aria-label="年"
+            inputMode="numeric"
+            min={1}
+            placeholder="年"
+            type="number"
+            {...register(`${prefix}.year`)}
+          />
+          <Input
+            aria-label="月"
+            inputMode="numeric"
+            max={12}
+            min={1}
+            placeholder="月"
+            type="number"
+            {...register(`${prefix}.month`)}
+          />
+          <Input
+            aria-label="日"
+            inputMode="numeric"
+            max={31}
+            min={1}
+            placeholder="日"
+            type="number"
+            {...register(`${prefix}.day`)}
+          />
+        </div>
+        {approximateLabel && approximateRegistration ? (
+          <ApproximateDateCheckbox
+            label={approximateLabel}
+            {...approximateRegistration}
+          />
+        ) : null}
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
@@ -314,15 +334,13 @@ export function TimelineItemForm({
           <div className="space-y-2">
             <Label htmlFor={`${formId}-start-year`}>開始日</Label>
             <DateFields
+              approximateLabel="開始日はおおよそ"
+              approximateRegistration={register("isStartApproximate")}
               error={errors.start?.message ?? errors.start?.root?.message}
               formId={formId}
               prefix="start"
               register={register}
             />
-            <Label className="font-normal">
-              <input type="checkbox" {...register("isStartApproximate")} />
-              開始日はおおよそ
-            </Label>
           </div>
           <div className="space-y-2">
             <Label htmlFor={`${formId}-end-status`}>終了状態</Label>
@@ -340,15 +358,13 @@ export function TimelineItemForm({
             <div className="space-y-2">
               <Label htmlFor={`${formId}-end-year`}>終了日</Label>
               <DateFields
+                approximateLabel="終了日はおおよそ"
+                approximateRegistration={register("isEndApproximate")}
                 error={errors.end?.message ?? errors.end?.root?.message}
                 formId={formId}
                 prefix="end"
                 register={register}
               />
-              <Label className="font-normal">
-                <input type="checkbox" {...register("isEndApproximate")} />
-                終了日はおおよそ
-              </Label>
             </div>
           ) : null}
           {endDateStatus === "unknown" ? (
@@ -372,15 +388,13 @@ export function TimelineItemForm({
         <div className="space-y-2">
           <Label htmlFor={`${formId}-point-year`}>時点日</Label>
           <DateFields
+            approximateLabel="日付はおおよそ"
+            approximateRegistration={register("isPointApproximate")}
             error={errors.point?.message ?? errors.point?.root?.message}
             formId={formId}
             prefix="point"
             register={register}
           />
-          <Label className="font-normal">
-            <input type="checkbox" {...register("isPointApproximate")} />
-            日付はおおよそ
-          </Label>
         </div>
       )}
 

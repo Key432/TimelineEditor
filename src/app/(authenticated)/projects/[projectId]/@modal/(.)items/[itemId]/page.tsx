@@ -15,16 +15,14 @@ export default async function TimelineItemModalPage({
   const { projectId, itemId } = await params;
   const client = await createClient();
   let item;
-  let eventCount = 0;
+  let relatedEvents = [];
   try {
     const [detail, events] = await Promise.all([
       new TimelineItemService(client).get(projectId, itemId),
       new TimelineEventService(client).list(projectId),
     ]);
     item = detail.item;
-    eventCount = events.filter(
-      (event) => event.timelineItemId === itemId,
-    ).length;
+    relatedEvents = events.filter((event) => event.timelineItemId === itemId);
   } catch (error) {
     if (error instanceof ServiceError && error.status === 404) notFound();
     throw error;
@@ -32,7 +30,7 @@ export default async function TimelineItemModalPage({
   return (
     <TimelineEventOverlay title={item.title}>
       <TimelineItemDetail
-        eventCount={eventCount}
+        events={relatedEvents}
         item={item}
         projectId={projectId}
       />

@@ -27,6 +27,7 @@ import type {
   HistoricalDate,
   TimelineItemSummary,
 } from "@/features/timeline-items/types";
+import { ApproximateDateCheckbox } from "@/features/timeline-items/approximate-date-checkbox";
 
 export function TimelineEventForm({
   projectId,
@@ -141,24 +142,33 @@ export function TimelineEventForm({
       </div>
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">日付</legend>
-        <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-2 sm:grid-cols-[minmax(7.5rem,10rem)_4.5rem_4.5rem]">
-          <Input
-            aria-label="イベント年"
-            inputMode="numeric"
-            placeholder="年"
-            {...register("date.year")}
-          />
-          <Input
-            aria-label="イベント月"
-            inputMode="numeric"
-            placeholder="月"
-            {...register("date.month")}
-          />
-          <Input
-            aria-label="イベント日"
-            inputMode="numeric"
-            placeholder="日"
-            {...register("date.day")}
+        <div
+          className="flex flex-col gap-2 sm:flex-row sm:items-center"
+          data-slot="date-approximate-row"
+        >
+          <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-2 sm:grid-cols-[minmax(7.5rem,10rem)_4.5rem_4.5rem]">
+            <Input
+              aria-label="イベント年"
+              inputMode="numeric"
+              placeholder="年"
+              {...register("date.year")}
+            />
+            <Input
+              aria-label="イベント月"
+              inputMode="numeric"
+              placeholder="月"
+              {...register("date.month")}
+            />
+            <Input
+              aria-label="イベント日"
+              inputMode="numeric"
+              placeholder="日"
+              {...register("date.day")}
+            />
+          </div>
+          <ApproximateDateCheckbox
+            label="日付はおおよそ"
+            {...register("isApproximate")}
           />
         </div>
         {errors.date ? (
@@ -167,14 +177,6 @@ export function TimelineEventForm({
           </p>
         ) : null}
       </fieldset>
-      <label className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-sm">
-        <input
-          className="size-4 accent-primary"
-          type="checkbox"
-          {...register("isApproximate")}
-        />
-        日付はおおよそ
-      </label>
       {outside ? (
         <p
           role="status"

@@ -89,4 +89,22 @@ describe("TimelineItemForm", () => {
       form.getByRole("group", { name: "同時追加するイベントアイテム" }),
     ).toBeVisible();
   });
+
+  it("places approximate date controls beside dates in the shared bordered style", () => {
+    const { container } = render(
+      <QueryProvider>
+        <TimelineItemForm
+          itemTypes={[itemType]}
+          projectId={itemType.projectId}
+        />
+      </QueryProvider>,
+    );
+
+    const form = within(container);
+    const approximate = form.getByLabelText("開始日はおおよそ");
+    expect(approximate.parentElement).toHaveClass("rounded-lg", "border");
+    expect(
+      approximate.closest('[data-slot="date-approximate-row"]'),
+    ).not.toBeNull();
+  });
 });

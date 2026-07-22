@@ -1,6 +1,7 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,8 @@ export function TimelineFilterPanel({
   itemTypes: TimelineItemType[];
   onChange: (filters: TimelineFilters) => void;
 }) {
+  const [queryDraft, setQueryDraft] = useState(filters.query);
+  const isComposing = useRef(false);
   const update = (values: Partial<TimelineFilters>) =>
     onChange({ ...filters, ...values });
 
@@ -37,8 +40,19 @@ export function TimelineFilterPanel({
         <Input
           id="timeline-filter-query"
           placeholder="名称、本文、イベント、出典、対象種別"
-          value={filters.query}
-          onChange={(event) => update({ query: event.target.value })}
+          value={queryDraft}
+          onChange={(event) => {
+            const query = event.target.value;
+            setQueryDraft(query);
+            if (!isComposing.current) update({ query });
+          }}
+          onCompositionStart={() => {
+            isComposing.current = true;
+          }}
+          onCompositionEnd={(event) => {
+            isComposing.current = false;
+            update({ query: event.currentTarget.value });
+          }}
         />
       </div>
 
@@ -197,7 +211,10 @@ export function TimelineFilterPanel({
         className="w-full"
         type="button"
         variant="outline"
-        onClick={() => onChange(DEFAULT_TIMELINE_FILTERS)}
+        onClick={() => {
+          setQueryDraft(DEFAULT_TIMELINE_FILTERS.query);
+          onChange(DEFAULT_TIMELINE_FILTERS);
+        }}
       >
         <RotateCcw aria-hidden="true" className="size-4" />
         フィルターをリセット

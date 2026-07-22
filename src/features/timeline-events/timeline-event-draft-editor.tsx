@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ApproximateDateCheckbox } from "@/features/timeline-items/approximate-date-checkbox";
 import {
   emptyTimelineEventDraftValues,
   timelineEventDraftSchema,
@@ -58,24 +59,33 @@ export function TimelineEventDraftEditor({
       </div>
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">日付</legend>
-        <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-2 sm:grid-cols-[minmax(7.5rem,10rem)_4.5rem_4.5rem]">
-          <Input
-            aria-label="イベント年"
-            inputMode="numeric"
-            placeholder="年"
-            {...register("date.year")}
-          />
-          <Input
-            aria-label="イベント月"
-            inputMode="numeric"
-            placeholder="月"
-            {...register("date.month")}
-          />
-          <Input
-            aria-label="イベント日"
-            inputMode="numeric"
-            placeholder="日"
-            {...register("date.day")}
+        <div
+          className="flex flex-col gap-2 sm:flex-row sm:items-center"
+          data-slot="date-approximate-row"
+        >
+          <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-2 sm:grid-cols-[minmax(7.5rem,10rem)_4.5rem_4.5rem]">
+            <Input
+              aria-label="イベント年"
+              inputMode="numeric"
+              placeholder="年"
+              {...register("date.year")}
+            />
+            <Input
+              aria-label="イベント月"
+              inputMode="numeric"
+              placeholder="月"
+              {...register("date.month")}
+            />
+            <Input
+              aria-label="イベント日"
+              inputMode="numeric"
+              placeholder="日"
+              {...register("date.day")}
+            />
+          </div>
+          <ApproximateDateCheckbox
+            label="日付はおおよそ"
+            {...register("isApproximate")}
           />
         </div>
         {errors.date ? (
@@ -84,14 +94,6 @@ export function TimelineEventDraftEditor({
           </p>
         ) : null}
       </fieldset>
-      <label className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm">
-        <input
-          className="size-4 accent-primary"
-          type="checkbox"
-          {...register("isApproximate")}
-        />
-        日付はおおよそ
-      </label>
       <div className="space-y-2">
         <Label htmlFor={`${id}-description`}>本文</Label>
         <Textarea

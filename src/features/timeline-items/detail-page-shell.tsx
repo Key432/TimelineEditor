@@ -12,12 +12,14 @@ export function DetailPageShell({
   projectName,
   title,
   returnTo,
+  breadcrumbParent,
   children,
 }: {
   projectId: string;
   projectName: string;
   title: string;
   returnTo: string | null;
+  breadcrumbParent?: { href: string; label: string };
   children: ReactNode;
 }) {
   const [wide, setWide] = useState(false);
@@ -48,9 +50,9 @@ export function DetailPageShell({
           ) : null}
           <Link
             className="truncate hover:text-foreground"
-            href={`/projects/${projectId}/timeline`}
+            href={breadcrumbParent?.href ?? `/projects/${projectId}/timeline`}
           >
-            {projectName}
+            {breadcrumbParent?.label ?? projectName}
           </Link>
           <span aria-hidden="true">/</span>
           <span className="truncate text-foreground" aria-current="page">

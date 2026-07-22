@@ -671,11 +671,14 @@ function TimelineWorkspaceContent({
       ) : null}
 
       <Sheet open={filterPanelOpen} onOpenChange={setFilterPanelOpen}>
-        <SheetContent className="styled-scrollbar w-full overflow-y-auto sm:max-w-lg">
+        <SheetContent
+          className="styled-scrollbar w-full overflow-y-auto sm:max-w-lg"
+          overlayClassName="supports-backdrop-filter:backdrop-blur-none"
+        >
           <SheetHeader>
             <SheetTitle>タイムラインを絞り込む</SheetTitle>
             <SheetDescription>
-              現在のプロジェクト内だけを検索します。条件はURLへ保存されます。
+              現在のプロジェクト内だけを検索します。入力を確定した条件はURLへ保存されます。
             </SheetDescription>
           </SheetHeader>
           <TimelineFilterPanel

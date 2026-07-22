@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { DeleteTimelineItemDialog } from "@/features/timeline-items/delete-timeline-item-dialog";
 import { formatHistoricalDate } from "@/features/timeline-items/historical-date";
+import { TimelineItemEventList } from "@/features/timeline-items/timeline-item-event-list";
+import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import type { TimelineItem } from "@/features/timeline-items/types";
 
 function dateLabel(item: TimelineItem) {
@@ -63,11 +65,11 @@ function SourceText({ value }: { value: string | null }) {
 export function TimelineItemDetail({
   projectId,
   item,
-  eventCount,
+  events,
 }: {
   projectId: string;
   item: TimelineItem;
-  eventCount: number;
+  events: TimelineEventSummary[];
 }) {
   return (
     <article className="space-y-8 px-6 py-8 sm:px-10 sm:py-10">
@@ -84,7 +86,9 @@ export function TimelineItemDetail({
           <dt className="text-muted-foreground">登録日付</dt>
           <dd>{dateLabel(item)}</dd>
           <dt className="text-muted-foreground">イベント</dt>
-          <dd>{eventCount}件</dd>
+          <dd>
+            <TimelineItemEventList events={events} projectId={projectId} />
+          </dd>
         </dl>
       </header>
       <Separator />
@@ -118,7 +122,7 @@ export function TimelineItemDetail({
           </Link>
         </Button>
         <DeleteTimelineItemDialog
-          childEventCount={eventCount}
+          childEventCount={events.length}
           redirectAfterDelete
           itemId={item.id}
           projectId={projectId}

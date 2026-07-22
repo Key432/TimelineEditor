@@ -23,7 +23,7 @@ export default async function TimelineItemPage({
   const client = await createClient();
   let item;
   let project;
-  let eventCount = 0;
+  let relatedEvents = [];
   try {
     const [detail, events] = await Promise.all([
       new TimelineItemService(client).get(projectId, itemId),
@@ -31,9 +31,7 @@ export default async function TimelineItemPage({
     ]);
     item = detail.item;
     project = detail.project;
-    eventCount = events.filter(
-      (event) => event.timelineItemId === itemId,
-    ).length;
+    relatedEvents = events.filter((event) => event.timelineItemId === itemId);
   } catch (error) {
     if (error instanceof ServiceError && error.status === 404) notFound();
     throw error;
@@ -47,7 +45,7 @@ export default async function TimelineItemPage({
     >
       <div className="rounded-xl bg-card ring-1 ring-foreground/10">
         <TimelineItemDetail
-          eventCount={eventCount}
+          events={relatedEvents}
           item={item}
           projectId={projectId}
         />
