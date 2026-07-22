@@ -18,6 +18,7 @@ import {
   Minus,
   Pencil,
   Plus,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   useCallback,
@@ -31,6 +32,14 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { eventX, snapTimelineDate } from "@/features/timeline-events/snap";
 import { TimelineEventMarkers } from "@/features/timeline-events/timeline-event-markers";
@@ -1199,21 +1208,21 @@ export function TimelineViewport({
   return (
     <TooltipProvider>
       <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-card p-2">
-          <Button
-            aria-label="縮小"
-            disabled={zoomLevel === 0}
-            size="icon-sm"
-            variant="outline"
-            onClick={() => changeZoom(zoomLevel - 1)}
-          >
-            <Minus aria-hidden="true" className="size-4" />
-          </Button>
-          <label className="flex items-center gap-2 text-sm">
-            ズーム
+        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-card p-2 shadow-xs">
+          <div className="flex h-8 items-center gap-1 rounded-md bg-muted/70 p-1">
+            <Button
+              aria-label="縮小"
+              className="size-6"
+              disabled={zoomLevel === 0}
+              size="icon-sm"
+              variant="ghost"
+              onClick={() => changeZoom(zoomLevel - 1)}
+            >
+              <Minus aria-hidden="true" className="size-3.5" />
+            </Button>
             <input
               aria-label="ズーム段階"
-              className="w-36 accent-primary"
+              className="w-28 accent-primary sm:w-36"
               max={ZOOM_LABELS.length - 1}
               min={0}
               step={1}
@@ -1221,39 +1230,56 @@ export function TimelineViewport({
               value={zoomLevel}
               onChange={(event) => changeZoom(Number(event.target.value))}
             />
-          </label>
-          <Button
-            aria-label="拡大"
-            disabled={zoomLevel === ZOOM_LABELS.length - 1}
-            size="icon-sm"
-            variant="outline"
-            onClick={() => changeZoom(zoomLevel + 1)}
-          >
-            <Plus aria-hidden="true" className="size-4" />
-          </Button>
-          <Badge variant="outline">{ZOOM_LABELS[zoomLevel]}</Badge>
+            <Button
+              aria-label="拡大"
+              className="size-6"
+              disabled={zoomLevel === ZOOM_LABELS.length - 1}
+              size="icon-sm"
+              variant="ghost"
+              onClick={() => changeZoom(zoomLevel + 1)}
+            >
+              <Plus aria-hidden="true" className="size-3.5" />
+            </Button>
+          </div>
+          {zoomLevel > 0 ? (
+            <Badge className="min-w-14 justify-center" variant="outline">
+              {ZOOM_LABELS[zoomLevel]}
+            </Badge>
+          ) : null}
           <Button size="sm" variant="outline" onClick={fitRange}>
             <Maximize2 aria-hidden="true" className="size-4" />
-            全項目を表示
+            全体に合わせる
           </Button>
-          <label className="flex items-center gap-2 text-sm">
-            表示密度
-            <select
-              aria-label="表示密度"
-              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-              value={density}
-              onChange={(event) =>
-                setDensity(event.target.value as "compact" | "comfortable")
-              }
-            >
-              <option value="comfortable">標準</option>
-              <option value="compact">高密度</option>
-            </select>
-          </label>
-          <span className="text-xs text-muted-foreground">目盛り {unit}</span>
-          <span className="text-xs text-muted-foreground">
-            Alt＋ホイールでカーソル中心にズーム
-          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                aria-label="表示密度設定"
+                className="ml-auto"
+                size="sm"
+                variant="ghost"
+              >
+                <SlidersHorizontal aria-hidden="true" className="size-4" />
+                {density === "comfortable" ? "標準" : "高密度"}
+                <ChevronDown aria-hidden="true" className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-40">
+              <DropdownMenuLabel>表示密度</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={density}
+                onValueChange={(value) =>
+                  setDensity(value as "compact" | "comfortable")
+                }
+              >
+                <DropdownMenuRadioItem value="comfortable">
+                  標準
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="compact">
+                  高密度
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div
@@ -1475,7 +1501,8 @@ export function TimelineViewport({
             ? "上下左右へドラッグ、スクロールバー、トラックパッドで移動できます。"
             : "横方向へドラッグ、スクロールバー、トラックパッドで移動できます。"}
           表示中 {visibleItemCount} / {allItems.length}{" "}
-          {layoutMode === "compact" ? "項目" : "行"}
+          {layoutMode === "compact" ? "項目" : "行"} ・ 目盛り {unit} ・
+          Alt＋ホイールでカーソル中心にズーム
         </p>
       </div>
     </TooltipProvider>

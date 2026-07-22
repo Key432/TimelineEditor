@@ -101,6 +101,31 @@ function timelineEvent(
   };
 }
 
+type TestUser = ReturnType<typeof userEvent.setup>;
+
+async function chooseLayout(user: TestUser, name: "行表示" | "コンパクト") {
+  await user.click(screen.getByRole("button", { name }));
+}
+
+async function chooseArrangement(user: TestUser, name: string) {
+  await user.click(screen.getByRole("button", { name: "配置設定" }));
+  await user.click(screen.getByRole("menuitemradio", { name }));
+}
+
+async function toggleTypeGrouping(user: TestUser) {
+  await user.click(screen.getByRole("button", { name: "配置設定" }));
+  await user.click(
+    screen.getByRole("menuitemcheckbox", {
+      name: "対象種別でグループ化",
+    }),
+  );
+}
+
+async function chooseDensity(user: TestUser, name: "標準" | "高密度") {
+  await user.click(screen.getByRole("button", { name: "表示密度設定" }));
+  await user.click(screen.getByRole("menuitemradio", { name }));
+}
+
 describe("TimelineWorkspace", () => {
   it("opens a keyboard-accessible event picker for overlapping markers", async () => {
     const user = userEvent.setup();
@@ -273,22 +298,20 @@ describe("TimelineWorkspace", () => {
     const drag = screen.getByRole("button", { name: "夏目漱石を並べ替え" });
     expect(drag).toBeEnabled();
 
-    await user.selectOptions(screen.getByLabelText("並び順"), "title");
+    await chooseArrangement(user, "名称");
     expect(drag).toBeDisabled();
-    expect(
-      screen.getByText("自動並べ替え中はドラッグできません。"),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "配置設定" })).toHaveTextContent(
+      "名称",
+    );
 
-    await user.selectOptions(screen.getByLabelText("表示密度"), "compact");
+    await chooseDensity(user, "高密度");
     expect(
       screen.getByTestId("timeline-row-33333333-3333-4333-8333-333333333333"),
     ).toHaveStyle({ height: "44px" });
     await user.click(screen.getByRole("button", { name: "拡大" }));
     expect(screen.getByText("世紀", { selector: "span" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "全項目を表示" }));
-    expect(
-      screen.getByText("全体表示", { selector: "span" }),
-    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "全体に合わせる" }));
+    expect(screen.getByLabelText("ズーム段階")).toHaveValue("0");
   });
 
   it("groups and collapses rows by item type", async () => {
@@ -306,7 +329,7 @@ describe("TimelineWorkspace", () => {
       </QueryProvider>,
     );
 
-    await user.click(screen.getByLabelText("対象種別でグループ化"));
+    await toggleTypeGrouping(user);
     const heading = screen.getByRole("button", { name: /人物/ });
     expect(screen.getByText(/表示中 1 \/ 1 行/)).toBeInTheDocument();
     expect(screen.getByText("夏目漱石")).toBeInTheDocument();
@@ -362,7 +385,7 @@ describe("TimelineWorkspace", () => {
       </QueryProvider>,
     );
 
-    await user.selectOptions(screen.getByLabelText("並び順"), "startDate");
+    await chooseArrangement(user, "開始・時点日");
     const rows = screen.getAllByTestId(/^timeline-row-/);
     expect(rows[0]).toHaveTextContent("アラン・コルバン");
     expect(rows[1]).toHaveTextContent("ジョルジュ・ペレック");
@@ -403,7 +426,7 @@ describe("TimelineWorkspace", () => {
     expect(rows[1]).toHaveTextContent("非表示項目");
     expect(screen.getByText(/表示中 2 \/ 2 行/)).toBeInTheDocument();
 
-    await user.click(screen.getByLabelText("対象種別でグループ化"));
+    await toggleTypeGrouping(user);
     const groupButtons = screen
       .getAllByRole("button")
       .filter((button) =>
@@ -430,7 +453,7 @@ describe("TimelineWorkspace", () => {
     const renderedRows = screen.getAllByTestId(/^timeline-row-/);
     expect(renderedRows.length).toBeGreaterThan(0);
     expect(renderedRows.length).toBeLessThan(1000);
-    expect(screen.getByText("1000アイテム")).toBeInTheDocument();
+    expect(screen.getByText("1000項目")).toBeInTheDocument();
   });
 
   it("remeasures virtual rows in both density directions and zooms only with Alt", async () => {
@@ -460,7 +483,7 @@ describe("TimelineWorkspace", () => {
         transform: "translateY(44px)",
       }),
     );
-    await user.selectOptions(screen.getByLabelText("表示密度"), "comfortable");
+    await chooseDensity(user, "標準");
     await waitFor(() =>
       expect(secondRow.closest("[data-index]")).toHaveStyle({
         transform: "translateY(64px)",
@@ -475,7 +498,7 @@ describe("TimelineWorkspace", () => {
     fireEvent.wheel(viewport, { ctrlKey: true, deltaY: -100, clientX: 600 });
     expect(slider).toHaveValue("1");
     expect(
-      screen.getByText("Alt＋ホイールでカーソル中心にズーム"),
+      screen.getByText(/Alt＋ホイールでカーソル中心にズーム/),
     ).toBeInTheDocument();
   });
 
@@ -569,7 +592,7 @@ describe("TimelineWorkspace", () => {
     );
 
     expect(screen.getByLabelText(/時点型マーカー/)).toBeInTheDocument();
-    expect(screen.getByText("目盛り year")).toBeInTheDocument();
+    expect(screen.getByText(/目盛り year/)).toBeInTheDocument();
   });
 
   it("sorts item types by sortOrder instead of their names", async () => {
@@ -607,7 +630,7 @@ describe("TimelineWorkspace", () => {
       </QueryProvider>,
     );
 
-    await user.selectOptions(screen.getByLabelText("並び順"), "itemType");
+    await chooseArrangement(user, "対象種別");
     const rows = screen.getAllByTestId(/^timeline-row-/);
     expect(rows[0]).toHaveTextContent("作品項目");
     expect(rows[1]).toHaveTextContent("人物項目");
@@ -636,17 +659,15 @@ describe("TimelineWorkspace", () => {
       </QueryProvider>,
     );
 
-    await user.selectOptions(screen.getByLabelText("表示モード"), "compact");
+    await chooseLayout(user, "コンパクト");
 
     await waitFor(() =>
       expect(screen.getAllByTestId(/^compact-lane-/)).toHaveLength(1),
     );
     expect(screen.queryAllByTestId(/^timeline-row-/)).toHaveLength(0);
-    expect(screen.getByLabelText("並び順")).toBeDisabled();
-    expect(screen.getByLabelText("並び方向")).toBeDisabled();
-    expect(
-      screen.getByText("コンパクトレーン表示では自動配置されます。"),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "配置設定" })).toHaveTextContent(
+      "自動配置",
+    );
     expect(
       screen.getByRole("button", { name: "人物Aの詳細を表示" }),
     ).toBeInTheDocument();
@@ -664,8 +685,10 @@ describe("TimelineWorkspace", () => {
         .map((lane) => lane.dataset.testid),
     ).toEqual(laneIdsBeforeZoom);
 
-    await user.selectOptions(screen.getByLabelText("表示モード"), "row");
-    expect(screen.getByLabelText("並び順")).toBeEnabled();
+    await chooseLayout(user, "行表示");
+    expect(screen.getByRole("button", { name: "配置設定" })).toHaveTextContent(
+      "手動順",
+    );
     expect(screen.getAllByTestId(/^timeline-row-/)).toHaveLength(2);
   });
 
@@ -698,8 +721,8 @@ describe("TimelineWorkspace", () => {
       </QueryProvider>,
     );
 
-    await user.click(screen.getByLabelText("対象種別でグループ化"));
-    await user.selectOptions(screen.getByLabelText("表示モード"), "compact");
+    await toggleTypeGrouping(user);
+    await chooseLayout(user, "コンパクト");
     await waitFor(() =>
       expect(screen.getAllByTestId(/^compact-lane-/)).toHaveLength(2),
     );
@@ -736,7 +759,7 @@ describe("TimelineWorkspace", () => {
         />
       </QueryProvider>,
     );
-    await user.selectOptions(screen.getByLabelText("表示モード"), "compact");
+    await chooseLayout(user, "コンパクト");
     const lane = (await screen.findAllByTestId(/compact-lane-/))[0]!;
     const viewport = screen.getByTestId("timeline-viewport");
     viewport.scrollLeft = 100;

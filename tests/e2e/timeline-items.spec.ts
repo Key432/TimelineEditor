@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -15,6 +15,22 @@ if (!url || !serviceRoleKey || !authSecret) {
 const admin = createClient(url, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
+
+async function chooseDensity(page: Page, name: "標準" | "高密度") {
+  await page.getByRole("button", { name: "表示密度設定" }).click();
+  await page.getByRole("menuitemradio", { name }).click();
+}
+
+async function chooseLayout(page: Page, name: "行表示" | "コンパクト") {
+  await page.getByRole("button", { name }).click();
+}
+
+async function toggleTypeGrouping(page: Page) {
+  await page.getByRole("button", { name: "配置設定" }).click();
+  await page
+    .getByRole("menuitemcheckbox", { name: "対象種別でグループ化" })
+    .click();
+}
 
 test.beforeAll(async () => {
   const { data, error } = await admin.auth.admin.createUser({
@@ -239,18 +255,20 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect
     .poll(() => viewport.evaluate((element) => element.scrollLeft))
     .toBeGreaterThan(beforePan);
-  await page.getByLabel("表示密度").selectOption("compact");
-  await expect(page.getByLabel("表示密度")).toHaveValue("compact");
+  await chooseDensity(page, "高密度");
+  await expect(
+    page.getByRole("button", { name: "表示密度設定" }),
+  ).toContainText("高密度");
   await expect(page.getByTestId(/^timeline-row-/).first()).toHaveCSS(
     "height",
     "44px",
   );
-  await page.getByLabel("表示密度").selectOption("comfortable");
+  await chooseDensity(page, "標準");
   await expect(page.getByTestId(/^timeline-row-/).first()).toHaveCSS(
     "height",
     "64px",
   );
-  await page.getByRole("button", { name: "全項目を表示" }).click();
+  await page.getByRole("button", { name: "全体に合わせる" }).click();
   await expect(zoomSlider).toHaveValue("0");
 
   const moveUp = page.getByRole("button", {
@@ -261,20 +279,21 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   const rows = page.locator("[data-testid^='timeline-row-']");
   await expect(rows.first()).toContainText("『吾輩は猫である』刊行");
 
-  await page.getByLabel("対象種別でグループ化").click();
+  await toggleTypeGrouping(page);
   const personGroup = page.getByRole("button", { name: /人物/ });
   await expect(personGroup).toBeVisible();
   await personGroup.click();
   await expect(page.getByText("夏目漱石", { exact: true })).toBeHidden();
   await personGroup.click();
 
-  await page.getByLabel("対象種別でグループ化").click();
-  await page.getByLabel("表示モード").selectOption("compact");
+  await toggleTypeGrouping(page);
+  await chooseLayout(page, "コンパクト");
   await expect(page).toHaveURL(
     new RegExp(`/projects/${projectId}/timeline\\?layout=compact$`),
   );
-  await expect(page.getByLabel("並び順")).toBeDisabled();
-  await expect(page.getByLabel("並び方向")).toBeDisabled();
+  await expect(page.getByRole("button", { name: "配置設定" })).toContainText(
+    "自動配置",
+  );
   await expect(page.getByTestId(/^timeline-row-/)).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "夏目漱石の詳細を表示", exact: true }),
@@ -301,9 +320,11 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     .toBeGreaterThan(0);
 
   await page.reload();
-  await expect(page.getByLabel("表示モード")).toHaveValue("compact");
+  await expect(
+    page.getByRole("button", { name: "コンパクト" }),
+  ).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId(/^compact-lane-/).first()).toBeVisible();
-  await page.getByLabel("表示モード").selectOption("row");
+  await chooseLayout(page, "行表示");
   await expect(page).toHaveURL(
     new RegExp(`/projects/${projectId}/timeline\\?layout=row$`),
   );
@@ -339,6 +360,6 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(page.getByText("夏目漱石", { exact: true })).toBeHidden();
   await page.reload();
   await expect(page.getByLabel(/時点型マーカー/)).toBeVisible();
-  await expect(page.getByText("目盛り year")).toBeVisible();
+  await expect(page.getByText(/目盛り year/)).toBeVisible();
   expect(hydrationWarnings).toEqual([]);
 });

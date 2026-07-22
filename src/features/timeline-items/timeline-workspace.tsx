@@ -16,15 +16,27 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, ChevronDown, Plus, Rows3 } from "lucide-react";
+import {
+  ArrowUpDown,
+  CalendarPlus,
+  ChevronDown,
+  LayoutGrid,
+  Plus,
+  Rows3,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -34,7 +46,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
 import { itemTypeKeys, listItemTypes } from "@/features/item-types/api";
 import {
   listTimelineEvents,
@@ -68,8 +79,6 @@ import {
 } from "@/features/timeline-items/types";
 import type { Project } from "@/features/projects/types";
 
-const selectClassName =
-  "h-8 rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const HIDDEN_ITEMS_GROUP_ID = "hidden-items";
 
 function startOrdinal(item: TimelineItemSummary) {
@@ -350,7 +359,7 @@ function TimelineWorkspaceContent({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2 shadow-xs">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button disabled={currentItemTypes.length === 0}>
@@ -377,71 +386,103 @@ function TimelineWorkspaceContent({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <label className="flex items-center gap-2 text-sm">
-          表示
-          <select
-            aria-label="表示モード"
-            className={selectClassName}
-            value={layoutMode}
-            onChange={(event) =>
-              onLayoutModeChange?.(event.target.value as TimelineLayoutMode)
-            }
+        <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+        <div
+          aria-label="表示モード"
+          className="flex h-8 items-center rounded-lg bg-muted p-[3px]"
+          role="group"
+        >
+          <Button
+            aria-pressed={layoutMode === "row"}
+            className="h-6 rounded-md px-2"
+            size="sm"
+            variant={layoutMode === "row" ? "secondary" : "ghost"}
+            onClick={() => onLayoutModeChange?.("row")}
           >
-            <option value="row">行表示</option>
-            <option value="compact">コンパクトレーン表示</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          並び順
-          <select
-            aria-label="並び順"
-            className={selectClassName}
-            disabled={layoutMode === "compact"}
-            value={sortMode}
-            onChange={(event) =>
-              setSortMode(event.target.value as TimelineSortMode)
-            }
+            <Rows3 aria-hidden="true" />
+            行表示
+          </Button>
+          <Button
+            aria-pressed={layoutMode === "compact"}
+            className="h-6 rounded-md px-2"
+            size="sm"
+            variant={layoutMode === "compact" ? "secondary" : "ghost"}
+            onClick={() => onLayoutModeChange?.("compact")}
           >
-            {TIMELINE_SORT_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {TIMELINE_SORT_LABELS[mode]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          方向
-          <select
-            aria-label="並び方向"
-            className={selectClassName}
-            disabled={layoutMode === "compact"}
-            value={direction}
-            onChange={(event) =>
-              setDirection(event.target.value as "asc" | "desc")
-            }
-          >
-            <option value="asc">昇順</option>
-            <option value="desc">降順</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <Switch
-            aria-label="対象種別でグループ化"
-            checked={groupByType}
-            onCheckedChange={setGroupByType}
-          />
-          対象種別でグループ化
-        </label>
-        <Badge variant="outline">{items.length}アイテム</Badge>
-        {layoutMode === "compact" ? (
-          <span className="text-xs text-muted-foreground">
-            コンパクトレーン表示では自動配置されます。
-          </span>
-        ) : sortMode !== "manual" ? (
-          <span className="text-xs text-muted-foreground">
-            自動並べ替え中はドラッグできません。
-          </span>
-        ) : null}
+            <LayoutGrid aria-hidden="true" />
+            コンパクト
+          </Button>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button aria-label="配置設定" size="sm" variant="outline">
+              <ArrowUpDown aria-hidden="true" className="size-4" />
+              {layoutMode === "compact"
+                ? "自動配置"
+                : TIMELINE_SORT_LABELS[sortMode]}
+              {layoutMode === "row" ? (
+                <span className="text-muted-foreground">
+                  {direction === "asc" ? "昇順" : "降順"}
+                </span>
+              ) : null}
+              {groupByType ? (
+                <Badge className="h-5 px-1.5" variant="secondary">
+                  種別
+                </Badge>
+              ) : null}
+              <ChevronDown aria-hidden="true" className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-56">
+            <DropdownMenuLabel>配置</DropdownMenuLabel>
+            {layoutMode === "row" ? (
+              <>
+                <DropdownMenuLabel>並び順</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={sortMode}
+                  onValueChange={(value) =>
+                    setSortMode(value as TimelineSortMode)
+                  }
+                >
+                  {TIMELINE_SORT_MODES.map((mode) => (
+                    <DropdownMenuRadioItem key={mode} value={mode}>
+                      {TIMELINE_SORT_LABELS[mode]}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>方向</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={direction}
+                  onValueChange={(value) =>
+                    setDirection(value as "asc" | "desc")
+                  }
+                >
+                  <DropdownMenuRadioItem value="asc">
+                    昇順
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="desc">
+                    降順
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+              </>
+            ) : (
+              <DropdownMenuItem disabled>
+                開始日順でレーンへ自動配置
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuCheckboxItem
+              checked={groupByType}
+              onCheckedChange={(checked) => setGroupByType(checked === true)}
+            >
+              対象種別でグループ化
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Badge className="ml-auto" variant="outline">
+          {items.length}項目
+        </Badge>
       </div>
 
       {currentItemTypes.length === 0 ? (
