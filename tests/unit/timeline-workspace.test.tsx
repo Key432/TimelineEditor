@@ -142,7 +142,10 @@ describe("TimelineWorkspace", () => {
     const choices = within(dialog).getAllByRole("button", {
       name: /番目/,
     });
-    expect(choices[0]).toHaveClass("hover:bg-primary/10");
+    expect(choices[0]).toHaveClass(
+      "hover:border-l-primary",
+      "hover:bg-primary/20",
+    );
     expect(choices.map((choice) => choice.textContent)).toEqual([
       "一番目1905/01/01",
       "二番目1905/01/02",
@@ -206,7 +209,7 @@ describe("TimelineWorkspace", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /イベントアイテム 一番目/ }),
-    ).toBeInTheDocument();
+    ).toHaveClass("hover:ring-2", "hover:ring-secondary");
   });
 
   it("separates a glyph click from range double-click event creation", () => {
@@ -259,8 +262,14 @@ describe("TimelineWorkspace", () => {
       </QueryProvider>,
     );
 
-    expect(screen.getByLabelText(/期間型バー/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/時点型マーカー/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/期間型バー/)).toHaveClass(
+      "hover:ring-2",
+      "hover:ring-secondary",
+    );
+    expect(screen.getByLabelText(/時点型マーカー/)).toHaveClass(
+      "hover:ring-2",
+      "hover:ring-secondary",
+    );
     const drag = screen.getByRole("button", { name: "夏目漱石を並べ替え" });
     expect(drag).toBeEnabled();
 

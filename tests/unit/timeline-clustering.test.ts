@@ -39,6 +39,31 @@ describe("clusterTimelineMarkers", () => {
     expect(groups).toHaveLength(2);
   });
 
+  it("merges a cluster with a regular marker that its larger glyph would overlap", () => {
+    const groups = clusterTimelineMarkers([
+      marker("cluster-a", 0),
+      marker("cluster-b", 1),
+      marker("regular", 12),
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.markers.map((entry) => entry.value)).toEqual([
+      "cluster-a",
+      "cluster-b",
+      "regular",
+    ]);
+  });
+
+  it("merges neighboring clusters when their larger glyphs would overlap", () => {
+    const groups = clusterTimelineMarkers([
+      marker("left-a", 0),
+      marker("left-b", 1),
+      marker("right-a", 20),
+      marker("right-b", 21),
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.markers).toHaveLength(4);
+  });
+
   it("forms one cluster through chained collisions", () => {
     const groups = clusterTimelineMarkers(
       [marker("c", 40), marker("a", 0), marker("b", 20)],

@@ -148,7 +148,7 @@ export function TimelineEventMarkers({
             {(selectedCluster ?? []).map((event) => (
               <Button
                 key={event.id}
-                className="group h-auto w-full cursor-pointer justify-start rounded-none border-b px-3 py-3 text-left last:border-b-0 hover:bg-primary/10 hover:text-foreground focus-visible:bg-primary/10 focus-visible:ring-2 focus-visible:ring-inset"
+                className="group h-auto w-full cursor-pointer justify-start rounded-none border-b border-l-2 border-l-transparent px-3 py-3 text-left last:border-b-0 hover:border-l-primary hover:bg-primary/20 hover:text-foreground focus-visible:border-l-primary focus-visible:bg-primary/20 focus-visible:ring-2 focus-visible:ring-inset"
                 type="button"
                 variant="ghost"
                 onClick={() => openEvent(event.id, false)}
@@ -192,7 +192,7 @@ function SingleEventMarker({
     >
       <button
         aria-label={`イベントアイテム ${marker.event.title} ${formatHistoricalDate(marker.event.date)}`}
-        className="focus-visible:ring-focus absolute top-1/2 z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-secondary shadow-sm transition-[box-shadow,transform] hover:scale-125 hover:shadow-[0_0_0_3px_rgba(255,51,153,0.25)] focus-visible:scale-125 focus-visible:ring-2 focus-visible:outline-none"
+        className="focus-visible:ring-focus absolute top-1/2 z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-secondary shadow-sm transition-[box-shadow,transform] hover:z-20 hover:scale-125 hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-20 focus-visible:scale-125 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
         data-timeline-event-marker="true"
         style={{ left: marker.x }}
         type="button"
@@ -226,7 +226,7 @@ function EventClusterMarker({
       <TooltipTrigger asChild>
         <button
           aria-label={`${events.length}件のイベントアイテムを選択`}
-          className="absolute top-1/2 z-10 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-secondary text-[10px] font-bold text-secondary-foreground shadow-sm transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:outline-none"
+          className="absolute top-1/2 z-10 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-secondary text-[10px] font-bold text-secondary-foreground shadow-sm transition-[box-shadow,transform] hover:z-20 hover:scale-110 hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
           data-timeline-event-marker="true"
           data-testid="timeline-event-cluster"
           style={{ left: group.x }}

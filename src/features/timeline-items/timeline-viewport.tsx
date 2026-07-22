@@ -156,7 +156,7 @@ function TimelineGlyph({
       <TimelineEntityTooltip date={itemDateLabel(item)} title={item.title}>
         <button
           aria-label={`${item.title}の詳細を表示 時点型マーカー ${formatHistoricalDate(item.point)}`}
-          className="absolute top-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-white shadow-sm transition-[box-shadow,transform] hover:scale-125 hover:shadow-[0_0_0_3px_rgba(255,51,153,0.25)] focus-visible:scale-125 focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:outline-none"
+          className="absolute top-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-white shadow-sm transition-[box-shadow,transform] hover:z-20 hover:scale-125 hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-20 focus-visible:scale-125 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
           data-timeline-item-glyph="true"
           style={{ left: registeredStart, backgroundColor: color }}
           type="button"
@@ -207,7 +207,7 @@ function TimelineGlyph({
       <button
         aria-label={`${item.title}の詳細を表示 期間型バー ${itemDateLabel(item)}`}
         className={cn(
-          "absolute top-1/2 h-3 min-w-1 -translate-y-1/2 rounded-sm border border-transparent transition-[box-shadow,border-color,transform] hover:scale-y-125 hover:border-secondary hover:shadow-[0_0_0_3px_rgba(255,51,153,0.25)] focus-visible:scale-y-125 focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:outline-none",
+          "absolute top-1/2 h-3 min-w-1 -translate-y-1/2 rounded-sm border border-transparent transition-[box-shadow,border-color,transform] hover:z-20 hover:scale-y-125 hover:border-secondary hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-20 focus-visible:scale-y-125 focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none",
           item.endDateStatus === "ongoing" &&
             "after:absolute after:top-0 after:-right-1 after:h-3 after:w-1 after:bg-current",
         )}

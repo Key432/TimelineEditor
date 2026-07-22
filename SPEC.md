@@ -736,7 +736,11 @@ type EndDateStatus = "specified" | "ongoing" | "unknown";
 ```ts
 collisionDiameterPx = 10;
 collisionPaddingPx = 0;
+eventMarkerRenderDiameterPx = 12;
+eventClusterRenderDiameterPx = 24;
 ```
+
+初期クラスタ生成後、通常マーカー12px・クラスタマーカー24pxの実描画領域で再判定する。クラスタマーカーが通常マーカーまたは別クラスタマーカーへ接触する場合は再結合し、描画後の重なりを残さない。
 
 ### 13.3 クラスターホバー
 

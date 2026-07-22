@@ -205,7 +205,19 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
 
   const picker = page.getByRole("dialog");
   await expect(picker).toContainText("イベントを選択");
-  await picker.getByRole("button", { name: /クラスタ候補A/ }).click();
+  const clusterChoice = picker.getByRole("button", { name: /クラスタ候補A/ });
+  const initialChoiceBackground = await clusterChoice.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  );
+  await clusterChoice.hover();
+  await expect
+    .poll(() =>
+      clusterChoice.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+      ),
+    )
+    .not.toBe(initialChoiceBackground);
+  await clusterChoice.click();
   await expect(page).toHaveURL(
     new RegExp(`/projects/${project.id}/events/[0-9a-f-]+$`),
   );
