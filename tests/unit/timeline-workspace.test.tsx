@@ -424,7 +424,7 @@ describe("TimelineWorkspace", () => {
     const rows = screen.getAllByTestId(/^timeline-row-/);
     expect(rows[0]).toHaveTextContent("表示項目");
     expect(rows[1]).toHaveTextContent("非表示項目");
-    expect(screen.getByText(/表示中 2 \/ 2 行/)).toBeInTheDocument();
+    expect(screen.getByText(/表示中 1 \/ 2 行/)).toBeInTheDocument();
 
     await toggleTypeGrouping(user);
     const groupButtons = screen
@@ -454,6 +454,7 @@ describe("TimelineWorkspace", () => {
     expect(renderedRows.length).toBeGreaterThan(0);
     expect(renderedRows.length).toBeLessThan(1000);
     expect(screen.getByText("1000項目")).toBeInTheDocument();
+    expect(screen.getByText(/表示中 1000 \/ 1000 行/)).toBeInTheDocument();
   });
 
   it("remeasures virtual rows in both density directions and zooms only with Alt", async () => {

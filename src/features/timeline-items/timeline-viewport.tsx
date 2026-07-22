@@ -1127,12 +1127,7 @@ export function TimelineViewport({
   }, [density, entries.length, layoutMode, virtualizer]);
 
   const virtualItems = virtualizer.getVirtualItems();
-  const visibleItemCount = virtualItems.reduce((count, virtualRow) => {
-    const entry = entries[virtualRow.index];
-    if (entry?.kind === "item") return count + 1;
-    if (entry?.kind === "lane") return count + entry.placements.length;
-    return count;
-  }, 0);
+  const visibleItemCount = allItems.filter((item) => item.isVisible).length;
 
   const visibleStart = scrollLeft;
   const visibleEnd = scrollLeft + timelineViewportWidth;
