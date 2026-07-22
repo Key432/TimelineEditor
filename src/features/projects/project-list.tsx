@@ -61,7 +61,13 @@ export function ProjectList({
               <CardTitle className="line-clamp-2 text-lg">
                 {project.name}
               </CardTitle>
-              <Badge variant="outline">非公開</Badge>
+              <Badge
+                variant={
+                  project.visibility === "public" ? "secondary" : "outline"
+                }
+              >
+                {project.visibility === "public" ? "公開済" : "非公開"}
+              </Badge>
             </div>
             {project.description ? (
               <CardDescription className="line-clamp-3 min-h-10">

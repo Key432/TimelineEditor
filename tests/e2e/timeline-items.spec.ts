@@ -194,6 +194,10 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(itemTooltip).toContainText("約 1867 — 1916");
   await expect(itemTooltip).not.toContainText("登録日付");
   await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/projects/${projectId}/items/[0-9a-f-]+$`),
+  );
+  const rangeItemId = page.url().split("/").at(-1)!;
   const itemDetail = page.getByRole("dialog");
   await expect(itemDetail.locator("h1")).toHaveText("夏目漱石");
   await expect(itemDetail).toContainText("明治・大正期の小説家");
@@ -203,6 +207,14 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     itemDetail.getByRole("link", { name: "ロンドン留学" }),
   ).toBeVisible();
   await expect(itemDetail.getByText("1900")).toBeVisible();
+  await itemDetail.getByRole("link", { name: "ロンドン留学" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/projects/${projectId}/events/[0-9a-f-]+$`),
+  );
+  await expect(page.getByRole("dialog")).toContainText("ロンドン留学");
+  await page.goto(`/projects/${projectId}/timeline`);
+  await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
+  await expect(itemDetail.locator("h1")).toHaveText("夏目漱石");
   await itemDetail.getByRole("link", { name: "編集" }).click();
   await expect(page).toHaveURL(
     new RegExp(`/projects/${projectId}/items/[0-9a-f-]+/edit$`),
@@ -216,6 +228,15 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(page.getByRole("dialog").locator("h1")).toHaveText("夏目漱石");
   await page.goBack();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  await page.goto(`/projects/${projectId}/items/${rangeItemId}`);
+  await page.getByText("イベント 1件").click();
+  await page.getByRole("link", { name: "ロンドン留学" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/projects/${projectId}/events/[0-9a-f-]+$`),
+  );
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.goto(`/projects/${projectId}/timeline`);
 
   await page.getByRole("button", { name: "アイテムを追加" }).click();
   await expect(

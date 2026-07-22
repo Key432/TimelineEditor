@@ -19,9 +19,9 @@ const projects: ProjectSummary[] = [
     id: "22222222-2222-4222-8222-222222222222",
     name: "説明ありの年表",
     description: "作家と作品を比較します。",
-    visibility: "private",
-    publicId: null,
-    publishedAt: null,
+    visibility: "public",
+    publicId: "public-project-id",
+    publishedAt: "2026-07-23T00:00:00Z",
     updatedAt: "2026-07-21T00:00:00Z",
   },
 ];
@@ -46,6 +46,8 @@ describe("ProjectList", () => {
       screen.queryByText("説明はまだありません。"),
     ).not.toBeInTheDocument();
     expect(screen.getByText("作家と作品を比較します。")).toBeInTheDocument();
+    expect(screen.getAllByText("非公開")).toHaveLength(1);
+    expect(screen.getByText("公開済")).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /設定を開く/ })).toHaveLength(2);
   });
 });

@@ -68,12 +68,14 @@ export function TimelineItemDetail({
   events,
   readOnly = false,
   eventBasePath,
+  hardEventNavigation = false,
 }: {
   projectId: string;
   item: TimelineItem;
   events: TimelineEventSummary[];
   readOnly?: boolean;
   eventBasePath?: string;
+  hardEventNavigation?: boolean;
 }) {
   return (
     <article className="space-y-8 px-6 py-8 sm:px-10 sm:py-10">
@@ -94,6 +96,7 @@ export function TimelineItemDetail({
             <TimelineItemEventList
               basePath={eventBasePath}
               events={events}
+              hardNavigation={hardEventNavigation}
               projectId={projectId}
             />
           </dd>

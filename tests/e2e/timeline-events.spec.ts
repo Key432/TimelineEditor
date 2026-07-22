@@ -189,6 +189,9 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await expect(
     breadcrumb.getByRole("link", { name: "親人物" }),
   ).toHaveAttribute("href", `/projects/${project.id}/items/${item.id}`);
+  await breadcrumb.getByRole("link", { name: "親人物" }).click();
+  await expect(page).toHaveURL(`/projects/${project.id}/items/${item.id}`);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 
   for (const title of ["クラスタ候補A", "クラスタ候補B"]) {
     const response = await page.request.post(

@@ -46,6 +46,7 @@ export default async function TimelineItemPage({
       <div className="rounded-xl bg-card ring-1 ring-foreground/10">
         <TimelineItemDetail
           events={relatedEvents}
+          hardEventNavigation
           item={item}
           projectId={projectId}
         />

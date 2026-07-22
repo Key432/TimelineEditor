@@ -8,10 +8,12 @@ export function TimelineItemEventList({
   projectId,
   events,
   basePath,
+  hardNavigation = false,
 }: {
   projectId: string;
   events: TimelineEventSummary[];
   basePath?: string;
+  hardNavigation?: boolean;
 }) {
   if (events.length === 0) {
     return <p className="text-sm text-muted-foreground">イベント 0件</p>;
@@ -27,23 +29,31 @@ export function TimelineItemEventList({
         />
       </summary>
       <ul className="divide-y border-t">
-        {events.map((event) => (
-          <li
-            key={event.id}
-            className="grid gap-1 px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4"
-          >
-            <Link
-              className="truncate font-medium text-primary underline-offset-4 hover:underline"
-              href={`${basePath ?? `/projects/${projectId}`}/events/${event.id}`}
+        {events.map((event) => {
+          const href = `${basePath ?? `/projects/${projectId}`}/events/${event.id}`;
+          const linkClassName =
+            "truncate font-medium text-primary underline-offset-4 hover:underline";
+          return (
+            <li
+              key={event.id}
+              className="grid gap-1 px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4"
             >
-              {event.title}
-            </Link>
-            <span className="text-xs whitespace-nowrap text-muted-foreground">
-              {event.isApproximate ? "約 " : ""}
-              {formatHistoricalDate(event.date)}
-            </span>
-          </li>
-        ))}
+              {hardNavigation ? (
+                <a className={linkClassName} href={href}>
+                  {event.title}
+                </a>
+              ) : (
+                <Link className={linkClassName} href={href}>
+                  {event.title}
+                </Link>
+              )}
+              <span className="text-xs whitespace-nowrap text-muted-foreground">
+                {event.isApproximate ? "約 " : ""}
+                {formatHistoricalDate(event.date)}
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </details>
   );

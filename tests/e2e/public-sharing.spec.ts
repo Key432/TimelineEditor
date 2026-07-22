@@ -40,10 +40,63 @@ test("publishes for anonymous viewing and unpublishes immediately", async ({
   await page.goto("/projects/new");
   await page.getByLabel("プロジェクト名").fill("公開テスト年表");
   await page.getByRole("button", { name: "プロジェクトを作成" }).click();
+  await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+\/timeline$/);
+  const projectId = page.url().match(/\/projects\/([^/]+)\/timeline/)?.[1];
+  if (!projectId) throw new Error("Project ID is required.");
   await page.getByRole("button", { name: "設定", exact: true }).click();
+  const { data: itemType, error: itemTypeError } = await admin
+    .from("timeline_item_types")
+    .select("id")
+    .eq("project_id", projectId)
+    .order("sort_order")
+    .limit(1)
+    .single();
+  if (itemTypeError) throw itemTypeError;
+  const longDescription = Array.from(
+    { length: 120 },
+    (_, index) => `長い本文 ${index + 1}`,
+  ).join("\n");
+  const { data: item, error: itemError } = await admin
+    .from("timeline_items")
+    .insert({
+      project_id: projectId,
+      type_id: itemType.id,
+      title: "公開詳細のスクロール確認",
+      description: longDescription,
+      temporal_type: "range",
+      manual_order: 0,
+      start_year: 1900,
+      end_date_status: "specified",
+      end_year: 1950,
+    })
+    .select("id")
+    .single();
+  if (itemError) throw itemError;
+  const { data: event, error: eventError } = await admin
+    .from("timeline_events")
+    .insert({
+      project_id: projectId,
+      timeline_item_id: item.id,
+      title: "公開イベント詳細のスクロール確認",
+      event_year: 1920,
+      description: longDescription,
+    })
+    .select("id")
+    .single();
+  if (eventError) throw eventError;
+
   await page.getByRole("button", { name: "公開する" }).click();
   await page.getByRole("button", { name: "公開する" }).last().click();
   const publicUrl = await page.getByLabel("共有URL").inputValue();
+
+  await page.goto("/projects");
+  const projectCard = page.locator(
+    `[data-slot="card"]:has(a[href="/projects/${projectId}/timeline"])`,
+  );
+  await expect(
+    projectCard.getByText("公開テスト年表", { exact: true }),
+  ).toBeVisible();
+  await expect(projectCard.getByText("公開済", { exact: true })).toBeVisible();
 
   const anonymousContext = await browser.newContext();
   const anonymousPage = await anonymousContext.newPage();
@@ -58,6 +111,22 @@ test("publishes for anonymous viewing and unpublishes immediately", async ({
     anonymousPage.getByRole("button", { name: /アイテムを追加/ }),
   ).toHaveCount(0);
 
+  for (const detailUrl of [
+    `${publicUrl}/items/${item.id}`,
+    `${publicUrl}/events/${event.id}`,
+  ]) {
+    await anonymousPage.goto(detailUrl);
+    const main = anonymousPage.locator("main");
+    await expect(main).toHaveCSS("overflow-y", "auto");
+    await main.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect
+      .poll(() => main.evaluate((element) => element.scrollTop))
+      .toBeGreaterThan(0);
+  }
+
+  await page.goto(`/projects/${projectId}/settings`);
   await page.getByRole("button", { name: "非公開にする" }).click();
   await page.getByRole("button", { name: "非公開にする" }).last().click();
   await expect(page.getByRole("button", { name: "公開する" })).toBeVisible();

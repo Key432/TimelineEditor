@@ -34,6 +34,7 @@ export default async function TimelineEventPage({
       breadcrumbParent={{
         href: `/projects/${projectId}/items/${event.parent.id}`,
         label: event.parent.title,
+        hardNavigation: true,
       }}
       projectId={projectId}
       projectName={project.name}

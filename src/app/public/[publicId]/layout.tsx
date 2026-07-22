@@ -21,7 +21,7 @@ export default function PublicProjectLayout({
             公開タイムライン
           </span>
         </header>
-        <main className="min-h-0 min-w-0 flex-1 p-4 sm:p-6">
+        <main className="styled-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
           <div className="mx-auto h-full w-full max-w-[1600px]">{children}</div>
         </main>
       </div>

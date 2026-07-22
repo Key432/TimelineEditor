@@ -20,7 +20,11 @@ export function DetailPageShell({
   projectName: string;
   title: string;
   returnTo: string | null;
-  breadcrumbParent?: { href: string; label: string };
+  breadcrumbParent?: {
+    href: string;
+    label: string;
+    hardNavigation?: boolean;
+  };
   children: ReactNode;
   timelineHref?: string;
 }) {
@@ -50,16 +54,25 @@ export function DetailPageShell({
               <span aria-hidden="true">/</span>
             </>
           ) : null}
-          <Link
-            className="truncate hover:text-foreground"
-            href={
-              breadcrumbParent?.href ??
-              timelineHref ??
-              `/projects/${projectId}/timeline`
-            }
-          >
-            {breadcrumbParent?.label ?? projectName}
-          </Link>
+          {breadcrumbParent?.hardNavigation ? (
+            <a
+              className="truncate hover:text-foreground"
+              href={breadcrumbParent.href}
+            >
+              {breadcrumbParent.label}
+            </a>
+          ) : (
+            <Link
+              className="truncate hover:text-foreground"
+              href={
+                breadcrumbParent?.href ??
+                timelineHref ??
+                `/projects/${projectId}/timeline`
+              }
+            >
+              {breadcrumbParent?.label ?? projectName}
+            </Link>
+          )}
           <span aria-hidden="true">/</span>
           <span className="truncate text-foreground" aria-current="page">
             {title}
