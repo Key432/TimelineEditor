@@ -268,6 +268,47 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(page.getByText("夏目漱石", { exact: true })).toBeHidden();
   await personGroup.click();
 
+  await page.getByLabel("対象種別でグループ化").click();
+  await page.getByLabel("表示モード").selectOption("compact");
+  await expect(page).toHaveURL(
+    new RegExp(`/projects/${projectId}/timeline\\?layout=compact$`),
+  );
+  await expect(page.getByLabel("並び順")).toBeDisabled();
+  await expect(page.getByLabel("並び方向")).toBeDisabled();
+  await expect(page.getByTestId(/^timeline-row-/)).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "夏目漱石の詳細を表示", exact: true }),
+  ).toBeVisible();
+  const compactLanes = page.getByTestId(/^compact-lane-/);
+  const compactLaneCount = await compactLanes.count();
+  expect(compactLaneCount).toBeGreaterThan(0);
+  await zoomSlider.fill("2");
+  await expect(compactLanes).toHaveCount(compactLaneCount);
+
+  await viewport.evaluate((element) => {
+    element.style.height = "120px";
+  });
+  const firstCompactLane = compactLanes.first();
+  const viewportBox = await viewport.boundingBox();
+  const laneBox = await firstCompactLane.boundingBox();
+  if (!viewportBox || !laneBox) throw new Error("Compact lane is not visible.");
+  await page.mouse.move(viewportBox.x + viewportBox.width - 20, laneBox.y + 12);
+  await page.mouse.down();
+  await page.mouse.move(viewportBox.x + viewportBox.width - 60, laneBox.y - 60);
+  await page.mouse.up();
+  await expect
+    .poll(() => viewport.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(0);
+
+  await page.reload();
+  await expect(page.getByLabel("表示モード")).toHaveValue("compact");
+  await expect(page.getByTestId(/^compact-lane-/).first()).toBeVisible();
+  await page.getByLabel("表示モード").selectOption("row");
+  await expect(page).toHaveURL(
+    new RegExp(`/projects/${projectId}/timeline\\?layout=row$`),
+  );
+  await expect(page.getByTestId(/^timeline-row-/)).toHaveCount(2);
+
   await page.getByRole("button", { name: "夏目漱石を編集" }).click();
   const editForm = page.getByRole("form", {
     name: "タイムラインアイテム編集",

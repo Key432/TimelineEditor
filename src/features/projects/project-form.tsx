@@ -238,8 +238,8 @@ export function ProjectForm(props: ProjectFormProps) {
               className={selectClassName}
               {...register("settings.timelineDensity")}
             >
-              <option value="comfortable">ゆったり</option>
-              <option value="compact">コンパクト</option>
+              <option value="comfortable">標準</option>
+              <option value="compact">高密度</option>
             </select>
           </div>
           <div className="space-y-2">

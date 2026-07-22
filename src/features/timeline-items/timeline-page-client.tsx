@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { Settings, Tags } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,7 @@ import { ProjectForm } from "@/features/projects/project-form";
 import type { Project } from "@/features/projects/types";
 import type {
   HistoricalDate,
+  TimelineLayoutMode,
   TimelineItemSummary,
 } from "@/features/timeline-items/types";
 import { TimelineWorkspace } from "@/features/timeline-items/timeline-workspace";
@@ -36,14 +37,18 @@ export function TimelinePageClient({
   initialEvents = [],
   itemTypes,
   currentDate,
+  layoutMode,
 }: {
   project: Project;
   initialItems: TimelineItemSummary[];
   initialEvents?: TimelineEventSummary[];
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
+  layoutMode: TimelineLayoutMode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [activeProject, setActiveProject] = useState(project);
   const [panel, setPanel] = useState<Panel>(null);
@@ -100,7 +105,15 @@ export function TimelinePageClient({
         initialItems={initialItems}
         initialEvents={initialEvents}
         itemTypes={itemTypes}
+        layoutMode={layoutMode}
         project={activeProject}
+        onLayoutModeChange={(nextLayout) => {
+          const nextSearchParams = new URLSearchParams(searchParams.toString());
+          nextSearchParams.set("layout", nextLayout);
+          router.replace(`${pathname}?${nextSearchParams.toString()}`, {
+            scroll: false,
+          });
+        }}
         onOpenEvent={(eventId, editing) =>
           router.push(
             `/projects/${project.id}/events/${eventId}${editing ? "/edit" : ""}`,

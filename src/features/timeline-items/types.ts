@@ -17,6 +17,9 @@ export const TIMELINE_SORT_MODES = [
 ] as const;
 export type TimelineSortMode = (typeof TIMELINE_SORT_MODES)[number];
 
+export const TIMELINE_LAYOUT_MODES = ["row", "compact"] as const;
+export type TimelineLayoutMode = (typeof TIMELINE_LAYOUT_MODES)[number];
+
 export type HistoricalDate = {
   year: number;
   month: number | null;

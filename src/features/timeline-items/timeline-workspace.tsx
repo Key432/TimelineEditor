@@ -56,12 +56,13 @@ import { TimelineItemForm } from "@/features/timeline-items/timeline-item-form";
 import { TimelineStoreProvider } from "@/features/timeline-items/timeline-store";
 import {
   TimelineViewport,
-  type TimelineDisplayEntry,
+  type TimelineDisplayGroup,
 } from "@/features/timeline-items/timeline-viewport";
 import {
   TIMELINE_SORT_LABELS,
   TIMELINE_SORT_MODES,
   type HistoricalDate,
+  type TimelineLayoutMode,
   type TimelineItemSummary,
   type TimelineSortMode,
 } from "@/features/timeline-items/types";
@@ -193,6 +194,8 @@ function TimelineWorkspaceContent({
   onEditItemTypes,
   onOpenEvent,
   onOpenItem,
+  layoutMode,
+  onLayoutModeChange,
 }: {
   project: Project;
   initialItems: TimelineItemSummary[];
@@ -202,6 +205,8 @@ function TimelineWorkspaceContent({
   onEditItemTypes?: () => void;
   onOpenEvent?: (eventId: string, editing: boolean) => void;
   onOpenItem?: (itemId: string) => void;
+  layoutMode: TimelineLayoutMode;
+  onLayoutModeChange?: (layoutMode: TimelineLayoutMode) => void;
 }) {
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<"create" | string | null>(null);
@@ -290,27 +295,12 @@ function TimelineWorkspaceContent({
         ]
       : visibleGroups;
   }, [currentItemTypes, groupByType, sorted]);
-  const entries = useMemo<TimelineDisplayEntry[]>(
+  const displayGroups = useMemo<TimelineDisplayGroup[]>(
     () =>
-      groups.flatMap((group) => {
-        if (!group.showHeader) {
-          return group.items.map((item) => ({ kind: "item" as const, item }));
-        }
-        const groupEntry: TimelineDisplayEntry = {
-          kind: "group",
-          id: group.id,
-          label: group.label,
-          color: group.color,
-          itemCount: group.items.length,
-          collapsed: collapsed.has(group.id),
-        };
-        return collapsed.has(group.id)
-          ? [groupEntry]
-          : [
-              groupEntry,
-              ...group.items.map((item) => ({ kind: "item" as const, item })),
-            ];
-      }),
+      groups.map((group) => ({
+        ...group,
+        collapsed: collapsed.has(group.id),
+      })),
     [collapsed, groups],
   );
 
@@ -388,10 +378,25 @@ function TimelineWorkspaceContent({
           </DropdownMenuContent>
         </DropdownMenu>
         <label className="flex items-center gap-2 text-sm">
+          表示
+          <select
+            aria-label="表示モード"
+            className={selectClassName}
+            value={layoutMode}
+            onChange={(event) =>
+              onLayoutModeChange?.(event.target.value as TimelineLayoutMode)
+            }
+          >
+            <option value="row">行表示</option>
+            <option value="compact">コンパクトレーン表示</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
           並び順
           <select
             aria-label="並び順"
             className={selectClassName}
+            disabled={layoutMode === "compact"}
             value={sortMode}
             onChange={(event) =>
               setSortMode(event.target.value as TimelineSortMode)
@@ -409,6 +414,7 @@ function TimelineWorkspaceContent({
           <select
             aria-label="並び方向"
             className={selectClassName}
+            disabled={layoutMode === "compact"}
             value={direction}
             onChange={(event) =>
               setDirection(event.target.value as "asc" | "desc")
@@ -427,7 +433,11 @@ function TimelineWorkspaceContent({
           対象種別でグループ化
         </label>
         <Badge variant="outline">{items.length}アイテム</Badge>
-        {sortMode !== "manual" ? (
+        {layoutMode === "compact" ? (
+          <span className="text-xs text-muted-foreground">
+            コンパクトレーン表示では自動配置されます。
+          </span>
+        ) : sortMode !== "manual" ? (
           <span className="text-xs text-muted-foreground">
             自動並べ替え中はドラッグできません。
           </span>
@@ -468,11 +478,12 @@ function TimelineWorkspaceContent({
             <TimelineViewport
               allItems={items}
               currentDate={currentDate}
-              entries={entries}
+              groups={displayGroups}
               events={events}
+              layoutMode={layoutMode}
               project={project}
               showItemType={!groupByType}
-              sortDisabled={sortMode !== "manual"}
+              sortDisabled={sortMode !== "manual" || layoutMode === "compact"}
               onEdit={setEditor}
               draftEvent={
                 eventDraft?.parentId && eventDraft.date
@@ -597,12 +608,23 @@ export function TimelineWorkspace(props: {
   onEditItemTypes?: () => void;
   onOpenEvent?: (eventId: string, editing: boolean) => void;
   onOpenItem?: (itemId: string) => void;
+  layoutMode?: TimelineLayoutMode;
+  onLayoutModeChange?: (layoutMode: TimelineLayoutMode) => void;
 }) {
+  const [uncontrolledLayoutMode, setUncontrolledLayoutMode] =
+    useState<TimelineLayoutMode>(props.layoutMode ?? "row");
+  const layoutMode = props.layoutMode ?? uncontrolledLayoutMode;
+
   return (
     <TimelineStoreProvider settings={props.project.settings}>
       <TimelineWorkspaceContent
         {...props}
         initialEvents={props.initialEvents ?? []}
+        layoutMode={layoutMode}
+        onLayoutModeChange={(nextLayoutMode) => {
+          setUncontrolledLayoutMode(nextLayoutMode);
+          props.onLayoutModeChange?.(nextLayoutMode);
+        }}
       />
     </TimelineStoreProvider>
   );

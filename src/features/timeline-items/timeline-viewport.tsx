@@ -42,6 +42,11 @@ import {
 } from "@/features/timeline-items/historical-date";
 import { TimelineEntityTooltip } from "@/features/timeline-items/timeline-entity-tooltip";
 import {
+  calculateCompactLaneLayout,
+  measureCompactLaneTitle,
+  type CompactLanePlacement,
+} from "@/features/timeline-items/compact-lane-layout";
+import {
   expandDegenerateFitRange,
   fitPixelsPerDay,
   generateTimelineTicks,
@@ -56,6 +61,7 @@ import {
 import { useTimelineStore } from "@/features/timeline-items/timeline-store";
 import type {
   HistoricalDate,
+  TimelineLayoutMode,
   TimelineItemSummary,
 } from "@/features/timeline-items/types";
 import type { Project } from "@/features/projects/types";
@@ -67,6 +73,23 @@ const ACTION_WIDTH = 112;
 const AXIS_HEIGHT = 48;
 const HORIZONTAL_PADDING = 24;
 const SCROLL_STATE_INTERVAL_MS = 1000 / 30;
+const COMPACT_LANE_COMFORTABLE_HEIGHT = 56;
+const COMPACT_LANE_DENSE_HEIGHT = 44;
+
+function zoomLevelForInitialPreset(
+  preset: Project["settings"]["initialZoomPreset"],
+) {
+  switch (preset) {
+    case "fit-range":
+      return 0;
+    case "century":
+      return 1;
+    case "decade":
+      return 2;
+    case "year":
+      return 3;
+  }
+}
 
 function observeTimelineRect(
   instance: Virtualizer<HTMLDivElement, Element>,
@@ -89,7 +112,20 @@ function observeTimelineRect(
   return () => window.removeEventListener("resize", update);
 }
 
-export type TimelineDisplayEntry =
+export type TimelineDisplayGroup = {
+  id: string;
+  label: string;
+  color: string;
+  showHeader: boolean;
+  items: TimelineItemSummary[];
+  collapsed: boolean;
+};
+
+type CompactLaneDisplayPlacement = CompactLanePlacement & {
+  item: TimelineItemSummary;
+};
+
+type TimelineDisplayEntry =
   | {
       kind: "group";
       id: string;
@@ -98,7 +134,12 @@ export type TimelineDisplayEntry =
       itemCount: number;
       collapsed: boolean;
     }
-  | { kind: "item"; item: TimelineItemSummary };
+  | { kind: "item"; item: TimelineItemSummary }
+  | {
+      kind: "lane";
+      id: string;
+      placements: CompactLaneDisplayPlacement[];
+    };
 
 function itemDateLabel(item: TimelineItemSummary) {
   if (item.temporalType === "point") {
@@ -123,6 +164,8 @@ function TimelineGlyph({
   visibleEnd,
   onOpen,
   onCancelOpen,
+  onEdit,
+  editOnDoubleClick = false,
 }: {
   item: TimelineItemSummary;
   currentDate: HistoricalDate;
@@ -133,6 +176,8 @@ function TimelineGlyph({
   visibleEnd: number;
   onOpen: () => void;
   onCancelOpen: () => void;
+  onEdit: () => void;
+  editOnDoubleClick?: boolean;
 }) {
   const date = item.temporalType === "point" ? item.point : item.start;
   if (!date) return null;
@@ -163,6 +208,13 @@ function TimelineGlyph({
           onClick={(event) => {
             event.stopPropagation();
             onOpen();
+          }}
+          onDoubleClick={(event) => {
+            onCancelOpen();
+            if (editOnDoubleClick) {
+              event.stopPropagation();
+              onEdit();
+            }
           }}
         />
       </TimelineEntityTooltip>
@@ -219,7 +271,13 @@ function TimelineGlyph({
           event.stopPropagation();
           onOpen();
         }}
-        onDoubleClick={() => onCancelOpen()}
+        onDoubleClick={(event) => {
+          onCancelOpen();
+          if (editOnDoubleClick) {
+            event.stopPropagation();
+            onEdit();
+          }
+        }}
       />
     </TimelineEntityTooltip>
   );
@@ -388,6 +446,7 @@ function TimelineItemRow({
           visibleEnd={visibleEnd}
           visibleStart={visibleStart}
           onCancelOpen={cancelItemOpen}
+          onEdit={onEdit}
           onOpen={scheduleItemOpen}
         />
         <TimelineEventMarkers
@@ -446,11 +505,152 @@ function TimelineItemRow({
   );
 }
 
+function CompactLaneItem({
+  placement,
+  currentDate,
+  defaultUncertaintyYears,
+  domainStart,
+  pixelsPerDay,
+  visibleStart,
+  visibleEnd,
+  events,
+  draftEvent,
+  onEdit,
+  onOpenEvent,
+  onOpenItem,
+}: {
+  placement: CompactLaneDisplayPlacement;
+  currentDate: HistoricalDate;
+  defaultUncertaintyYears: number;
+  domainStart: number;
+  pixelsPerDay: number;
+  visibleStart: number;
+  visibleEnd: number;
+  events: TimelineEventSummary[];
+  draftEvent: HistoricalDate | null;
+  onEdit: () => void;
+  onOpenEvent: (eventId: string, editing: boolean) => void;
+  onOpenItem: () => void;
+}) {
+  const item = placement.item;
+  const itemOpenTimerRef = useRef<number | null>(null);
+  const date = item.temporalType === "point" ? item.point : item.start;
+  const titleLeft = date
+    ? HORIZONTAL_PADDING +
+      (historicalDateOrdinal(date) - domainStart) * pixelsPerDay
+    : HORIZONTAL_PADDING;
+  const currentVisualBounds = timelineItemVisualBounds(
+    item,
+    currentDate,
+    defaultUncertaintyYears,
+  );
+  const eventSurfaceLeft =
+    HORIZONTAL_PADDING +
+    (currentVisualBounds.start - domainStart) * pixelsPerDay;
+  const eventSurfaceWidth = Math.max(
+    1,
+    (currentVisualBounds.end - currentVisualBounds.start) * pixelsPerDay,
+  );
+
+  useEffect(
+    () => () => {
+      if (itemOpenTimerRef.current !== null) {
+        window.clearTimeout(itemOpenTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  function cancelItemOpen() {
+    if (itemOpenTimerRef.current !== null) {
+      window.clearTimeout(itemOpenTimerRef.current);
+    }
+    itemOpenTimerRef.current = null;
+  }
+
+  function scheduleItemOpen() {
+    cancelItemOpen();
+    itemOpenTimerRef.current = window.setTimeout(onOpenItem, 250);
+  }
+
+  return (
+    <>
+      <TimelineEntityTooltip date={itemDateLabel(item)} title={item.title}>
+        <button
+          aria-label={`${item.title}の詳細を表示`}
+          className="absolute top-1 z-20 max-w-none truncate rounded-sm px-1 text-left text-sm font-medium whitespace-nowrap transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          data-timeline-item-glyph="true"
+          style={{ left: titleLeft }}
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            scheduleItemOpen();
+          }}
+          onDoubleClick={(event) => {
+            event.stopPropagation();
+            cancelItemOpen();
+            onEdit();
+          }}
+        >
+          {item.title}
+        </button>
+      </TimelineEntityTooltip>
+      {item.temporalType === "range" ? (
+        <div
+          className="absolute bottom-0 z-0 h-7"
+          data-timeline-event-parent-id={item.id}
+          data-timeline-pan-surface="true"
+          style={{
+            left: eventSurfaceLeft,
+            width: eventSurfaceWidth,
+          }}
+        />
+      ) : null}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-7 [&_button]:pointer-events-auto">
+        <TimelineGlyph
+          currentDate={currentDate}
+          defaultUncertaintyYears={defaultUncertaintyYears}
+          domainStart={domainStart}
+          editOnDoubleClick
+          item={item}
+          pixelsPerDay={pixelsPerDay}
+          visibleEnd={visibleEnd}
+          visibleStart={visibleStart}
+          onCancelOpen={cancelItemOpen}
+          onEdit={onEdit}
+          onOpen={scheduleItemOpen}
+        />
+        <TimelineEventMarkers
+          domainStart={domainStart}
+          events={events}
+          horizontalPadding={HORIZONTAL_PADDING}
+          pixelsPerDay={pixelsPerDay}
+          visibleEnd={visibleEnd}
+          visibleStart={visibleStart}
+          onOpenEvent={onOpenEvent}
+        />
+        {draftEvent ? (
+          <span
+            aria-label={`仮マーカー ${formatHistoricalDate(draftEvent)}`}
+            className="absolute top-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-secondary bg-secondary/20"
+            style={{
+              left:
+                HORIZONTAL_PADDING +
+                eventX(draftEvent, domainStart, pixelsPerDay),
+            }}
+          />
+        ) : null}
+      </div>
+    </>
+  );
+}
+
 export function TimelineViewport({
   project,
-  entries,
+  groups,
   allItems,
   currentDate,
+  layoutMode,
   sortDisabled,
   onToggleGroup,
   onMove,
@@ -463,9 +663,10 @@ export function TimelineViewport({
   showItemType,
 }: {
   project: Project;
-  entries: TimelineDisplayEntry[];
+  groups: TimelineDisplayGroup[];
   allItems: TimelineItemSummary[];
   currentDate: HistoricalDate;
+  layoutMode: TimelineLayoutMode;
   sortDisabled: boolean;
   onToggleGroup: (typeId: string) => void;
   onMove: (itemId: string, offset: -1 | 1) => void;
@@ -478,7 +679,12 @@ export function TimelineViewport({
   showItemType: boolean;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const pointerRef = useRef<{ x: number; scrollLeft: number } | null>(null);
+  const pointerRef = useRef<{
+    x: number;
+    y: number;
+    scrollLeft: number;
+    scrollTop: number;
+  } | null>(null);
   const lastSurfacePressRef = useRef<{
     parentId: string;
     clientX: number;
@@ -492,6 +698,14 @@ export function TimelineViewport({
     | { fit: true }
     | null
   >({ fit: true });
+  const compactReferenceRef = useRef<{
+    items: TimelineItemSummary[];
+    events: TimelineEventSummary[];
+    initialZoomPreset: Project["settings"]["initialZoomPreset"];
+    initialStartYear: number;
+    initialEndYear: number;
+    pixelsPerDay: number;
+  } | null>(null);
   const [viewportWidth, setViewportWidth] = useState(1120);
   const [viewportMeasured, setViewportMeasured] = useState(false);
   const zoomLevel = useTimelineStore((state) => state.zoomLevel);
@@ -502,10 +716,9 @@ export function TimelineViewport({
   const setDensity = useTimelineStore((state) => state.setDensity);
   const isPanning = useTimelineStore((state) => state.isPanning);
   const setPanning = useTimelineStore((state) => state.setPanning);
-  const timelineViewportWidth = Math.max(
-    240,
-    viewportWidth - HANDLE_WIDTH - INFO_WIDTH - ACTION_WIDTH,
-  );
+  const rowChromeWidth =
+    layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH + ACTION_WIDTH : 0;
+  const timelineViewportWidth = Math.max(240, viewportWidth - rowChromeWidth);
   const eventsByParent = useMemo(() => {
     const grouped = new Map<string, TimelineEventSummary[]>();
     for (const timelineEvent of events) {
@@ -574,8 +787,17 @@ export function TimelineViewport({
         project.settings.defaultUncertaintyYears,
       ),
     );
-    const rawFitStart = Math.min(...itemBounds.map((bound) => bound.start));
-    const rawFitEnd = Math.max(...itemBounds.map((bound) => bound.end));
+    const eventOrdinals = events.map((timelineEvent) =>
+      historicalDateOrdinal(timelineEvent.date),
+    );
+    const rawFitStart = Math.min(
+      ...itemBounds.map((bound) => bound.start),
+      ...eventOrdinals,
+    );
+    const rawFitEnd = Math.max(
+      ...itemBounds.map((bound) => bound.end),
+      ...eventOrdinals,
+    );
     const { start: fitStart, end: fitEnd } = expandDegenerateFitRange(
       rawFitStart,
       rawFitEnd,
@@ -587,7 +809,7 @@ export function TimelineViewport({
       fitStart,
       fitEnd,
     };
-  }, [allItems, currentDate, project.settings]);
+  }, [allItems, currentDate, events, project.settings]);
 
   const fitScale = fitPixelsPerDay(
     historicalDateFromOrdinal(bounds.fitStart),
@@ -596,12 +818,140 @@ export function TimelineViewport({
     HORIZONTAL_PADDING,
   );
   const pixelsPerDay = scaleForZoomLevel(zoomLevel, fitScale);
-  const canvasWidth = Math.max(
+  const baseCanvasWidth = Math.max(
     timelineViewportWidth,
     HORIZONTAL_PADDING * 2 +
       (bounds.domainEnd - bounds.domainStart) * pixelsPerDay,
   );
   const rowHeight = density === "compact" ? 44 : 64;
+  const compactLaneHeight =
+    density === "compact"
+      ? COMPACT_LANE_DENSE_HEIGHT
+      : COMPACT_LANE_COMFORTABLE_HEIGHT;
+  const compactReferenceCandidate = scaleForZoomLevel(
+    zoomLevelForInitialPreset(project.settings.initialZoomPreset),
+    fitScale,
+  );
+  const compactReference = compactReferenceRef.current;
+  if (
+    viewportMeasured &&
+    (!compactReference ||
+      compactReference.items !== allItems ||
+      compactReference.events !== events ||
+      compactReference.initialZoomPreset !==
+        project.settings.initialZoomPreset ||
+      compactReference.initialStartYear !== project.settings.initialStartYear ||
+      compactReference.initialEndYear !== project.settings.initialEndYear)
+  ) {
+    compactReferenceRef.current = {
+      items: allItems,
+      events,
+      initialZoomPreset: project.settings.initialZoomPreset,
+      initialStartYear: project.settings.initialStartYear,
+      initialEndYear: project.settings.initialEndYear,
+      pixelsPerDay: compactReferenceCandidate,
+    };
+  }
+  const compactReferencePixelsPerDay =
+    compactReferenceRef.current?.pixelsPerDay ?? null;
+
+  const entries = useMemo<TimelineDisplayEntry[]>(() => {
+    if (layoutMode === "row") {
+      return groups.flatMap((group) => {
+        const header: TimelineDisplayEntry[] = group.showHeader
+          ? [
+              {
+                kind: "group",
+                id: group.id,
+                label: group.label,
+                color: group.color,
+                itemCount: group.items.length,
+                collapsed: group.collapsed,
+              },
+            ]
+          : [];
+        return group.collapsed
+          ? header
+          : [
+              ...header,
+              ...group.items.map((item): TimelineDisplayEntry => ({
+                kind: "item",
+                item,
+              })),
+            ];
+      });
+    }
+
+    if (compactReferencePixelsPerDay === null) return [];
+
+    return groups.flatMap((group) => {
+      const header: TimelineDisplayEntry[] = group.showHeader
+        ? [
+            {
+              kind: "group",
+              id: group.id,
+              label: group.label,
+              color: group.color,
+              itemCount: group.items.length,
+              collapsed: group.collapsed,
+            },
+          ]
+        : [];
+      if (group.collapsed) return header;
+
+      const itemById = new Map(group.items.map((item) => [item.id, item]));
+      const layout = calculateCompactLaneLayout({
+        items: group.items,
+        events: group.items.flatMap(
+          (item) => eventsByParent.get(item.id) ?? [],
+        ),
+        currentDate,
+        defaultUncertaintyYears: project.settings.defaultUncertaintyYears,
+        domainStart: bounds.domainStart,
+        pixelsPerDay: compactReferencePixelsPerDay,
+        titleWidth: (item) => measureCompactLaneTitle(item.title),
+      });
+      const placementsByLane = layout.lanes.map(
+        (): CompactLaneDisplayPlacement[] => [],
+      );
+      for (const placement of layout.placements) {
+        placementsByLane[placement.laneIndex]!.push({
+          ...placement,
+          item: itemById.get(placement.itemId)!,
+        });
+      }
+      return [
+        ...header,
+        ...layout.lanes.map((lane): TimelineDisplayEntry => ({
+          kind: "lane",
+          id: `${group.id}-${lane.index}`,
+          placements: placementsByLane[lane.index]!,
+        })),
+      ];
+    });
+  }, [
+    bounds.domainStart,
+    compactReferencePixelsPerDay,
+    currentDate,
+    eventsByParent,
+    groups,
+    layoutMode,
+    project.settings.defaultUncertaintyYears,
+  ]);
+  const compactContentEnd = entries.reduce(
+    (maximum, entry) =>
+      entry.kind === "lane"
+        ? Math.max(
+            maximum,
+            ...entry.placements.map((placement) => placement.endX),
+          )
+        : maximum,
+    0,
+  );
+  const canvasWidth = Math.max(
+    baseCanvasWidth,
+    HORIZONTAL_PADDING * 2 + compactContentEnd,
+  );
 
   useEffect(() => {
     const element = viewportRef.current;
@@ -671,7 +1021,9 @@ export function TimelineViewport({
       }
       pointerRef.current = {
         x: event.clientX,
+        y: event.clientY,
         scrollLeft: viewport.scrollLeft,
+        scrollTop: viewport.scrollTop,
       };
       viewport.setPointerCapture(event.pointerId);
       setPanning(true);
@@ -680,6 +1032,9 @@ export function TimelineViewport({
       const pointer = pointerRef.current;
       if (!pointer) return;
       viewport.scrollLeft = pointer.scrollLeft - (event.clientX - pointer.x);
+      if (layoutMode === "compact") {
+        viewport.scrollTop = pointer.scrollTop - (event.clientY - pointer.y);
+      }
     };
     const pointerEnd = (event: PointerEvent) => {
       if (!pointerRef.current) return;
@@ -704,6 +1059,7 @@ export function TimelineViewport({
   }, [
     bounds.domainStart,
     flushScrollSync,
+    layoutMode,
     onCreateEvent,
     pixelsPerDay,
     setPanning,
@@ -744,8 +1100,14 @@ export function TimelineViewport({
   const virtualizer = useVirtualizer({
     count: entries.length,
     getScrollElement: () => viewportRef.current,
-    estimateSize: (index) =>
-      entries[index]?.kind === "group" ? 40 : rowHeight,
+    estimateSize: (index) => {
+      const entry = entries[index];
+      return entry?.kind === "group"
+        ? 40
+        : entry?.kind === "lane"
+          ? compactLaneHeight
+          : rowHeight;
+    },
     overscan: 8,
     observeElementRect: observeTimelineRect,
     initialRect: { width: viewportWidth, height: 560 },
@@ -753,12 +1115,15 @@ export function TimelineViewport({
 
   useLayoutEffect(() => {
     virtualizer.measure();
-  }, [density, virtualizer]);
+  }, [density, entries.length, layoutMode, virtualizer]);
 
   const virtualItems = virtualizer.getVirtualItems();
-  const visibleItemCount = virtualItems.filter(
-    (virtualRow) => entries[virtualRow.index]?.kind === "item",
-  ).length;
+  const visibleItemCount = virtualItems.reduce((count, virtualRow) => {
+    const entry = entries[virtualRow.index];
+    if (entry?.kind === "item") return count + 1;
+    if (entry?.kind === "lane") return count + entry.placements.length;
+    return count;
+  }, 0);
 
   const visibleStart = scrollLeft;
   const visibleEnd = scrollLeft + timelineViewportWidth;
@@ -824,7 +1189,9 @@ export function TimelineViewport({
     const rect = event.currentTarget.getBoundingClientRect();
     const cursorX = Math.max(
       0,
-      event.clientX - rect.left - HANDLE_WIDTH - INFO_WIDTH,
+      event.clientX -
+        rect.left -
+        (layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0),
     );
     changeZoom(zoomLevel + (event.deltaY < 0 ? 1 : -1), cursorX);
   }
@@ -880,7 +1247,7 @@ export function TimelineViewport({
               }
             >
               <option value="comfortable">標準</option>
-              <option value="compact">コンパクト</option>
+              <option value="compact">高密度</option>
             </select>
           </label>
           <span className="text-xs text-muted-foreground">目盛り {unit}</span>
@@ -906,21 +1273,28 @@ export function TimelineViewport({
           <div
             className="relative transition-[width] duration-150"
             style={{
-              width: HANDLE_WIDTH + INFO_WIDTH + canvasWidth + ACTION_WIDTH,
+              width:
+                layoutMode === "row"
+                  ? HANDLE_WIDTH + INFO_WIDTH + canvasWidth + ACTION_WIDTH
+                  : canvasWidth,
               height: AXIS_HEIGHT + virtualizer.getTotalSize(),
             }}
           >
             <div className="sticky top-0 z-30 flex h-12 border-b bg-muted/95 text-xs font-medium text-muted-foreground backdrop-blur-sm">
-              <span
-                className="sticky left-0 z-40 shrink-0 border-r bg-muted"
-                style={{ width: HANDLE_WIDTH }}
-              />
-              <span
-                className="sticky z-40 shrink-0 border-r bg-muted px-3 py-4"
-                style={{ left: HANDLE_WIDTH, width: INFO_WIDTH }}
-              >
-                タイムライン
-              </span>
+              {layoutMode === "row" ? (
+                <>
+                  <span
+                    className="sticky left-0 z-40 shrink-0 border-r bg-muted"
+                    style={{ width: HANDLE_WIDTH }}
+                  />
+                  <span
+                    className="sticky z-40 shrink-0 border-r bg-muted px-3 py-4"
+                    style={{ left: HANDLE_WIDTH, width: INFO_WIDTH }}
+                  >
+                    タイムライン
+                  </span>
+                </>
+              ) : null}
               <div
                 className="relative shrink-0 overflow-hidden"
                 style={{ width: canvasWidth }}
@@ -948,10 +1322,12 @@ export function TimelineViewport({
                   );
                 })}
               </div>
-              <span
-                className="sticky right-0 z-40 shrink-0 border-l bg-muted"
-                style={{ width: ACTION_WIDTH }}
-              />
+              {layoutMode === "row" ? (
+                <span
+                  className="sticky right-0 z-40 shrink-0 border-l bg-muted"
+                  style={{ width: ACTION_WIDTH }}
+                />
+              ) : null}
             </div>
 
             <div
@@ -966,7 +1342,9 @@ export function TimelineViewport({
                     key={
                       entry.kind === "group"
                         ? `group-${entry.id}`
-                        : entry.item.id
+                        : entry.kind === "lane"
+                          ? `lane-${entry.id}`
+                          : entry.item.id
                     }
                     className="absolute top-0 left-0"
                     data-index={virtualRow.index}
@@ -977,17 +1355,24 @@ export function TimelineViewport({
                         className="h-10 border-b bg-muted"
                         style={{
                           width:
-                            HANDLE_WIDTH +
-                            INFO_WIDTH +
-                            canvasWidth +
-                            ACTION_WIDTH,
+                            layoutMode === "row"
+                              ? HANDLE_WIDTH +
+                                INFO_WIDTH +
+                                canvasWidth +
+                                ACTION_WIDTH
+                              : canvasWidth,
                         }}
                       >
                         <button
                           aria-expanded={!entry.collapsed}
                           aria-label={`${entry.label} ${entry.itemCount}件`}
                           className="sticky left-0 flex h-10 items-center gap-2 bg-muted px-3 text-left text-sm font-medium"
-                          style={{ width: HANDLE_WIDTH + INFO_WIDTH }}
+                          style={{
+                            width:
+                              layoutMode === "row"
+                                ? HANDLE_WIDTH + INFO_WIDTH
+                                : Math.min(360, canvasWidth),
+                          }}
                           type="button"
                           onClick={() => onToggleGroup(entry.id)}
                         >
@@ -1004,7 +1389,7 @@ export function TimelineViewport({
                           <Badge variant="outline">{entry.itemCount}</Badge>
                         </button>
                       </div>
-                    ) : (
+                    ) : entry.kind === "item" ? (
                       <TimelineItemRow
                         canMoveDown={
                           entry.item.manualOrder < allItems.length - 1
@@ -1039,6 +1424,45 @@ export function TimelineViewport({
                         onMoveDown={() => onMove(entry.item.id, 1)}
                         onMoveUp={() => onMove(entry.item.id, -1)}
                       />
+                    ) : (
+                      <div
+                        className={cn(
+                          "relative border-b bg-muted/15",
+                          isPanning
+                            ? "cursor-grabbing"
+                            : "cursor-grab active:cursor-grabbing",
+                        )}
+                        data-testid={`compact-lane-${entry.id}`}
+                        data-timeline-pan-surface="true"
+                        style={{
+                          width: canvasWidth,
+                          height: compactLaneHeight,
+                        }}
+                      >
+                        {entry.placements.map((placement) => (
+                          <CompactLaneItem
+                            key={placement.itemId}
+                            currentDate={currentDate}
+                            defaultUncertaintyYears={
+                              project.settings.defaultUncertaintyYears
+                            }
+                            domainStart={bounds.domainStart}
+                            draftEvent={
+                              draftEvent?.parentId === placement.itemId
+                                ? draftEvent.date
+                                : null
+                            }
+                            events={eventsByParent.get(placement.itemId) ?? []}
+                            pixelsPerDay={pixelsPerDay}
+                            placement={placement}
+                            visibleEnd={visibleEnd}
+                            visibleStart={visibleStart}
+                            onEdit={() => onEdit(placement.itemId)}
+                            onOpenEvent={onOpenEvent}
+                            onOpenItem={() => onOpenItem(placement.itemId)}
+                          />
+                        ))}
+                      </div>
                     )}
                   </div>
                 );
@@ -1047,8 +1471,11 @@ export function TimelineViewport({
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          横方向へドラッグ、スクロールバー、トラックパッドで移動できます。表示中{" "}
-          {visibleItemCount} / {allItems.length} 行
+          {layoutMode === "compact"
+            ? "上下左右へドラッグ、スクロールバー、トラックパッドで移動できます。"
+            : "横方向へドラッグ、スクロールバー、トラックパッドで移動できます。"}
+          表示中 {visibleItemCount} / {allItems.length}{" "}
+          {layoutMode === "compact" ? "項目" : "行"}
         </p>
       </div>
     </TooltipProvider>

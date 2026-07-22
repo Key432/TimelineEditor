@@ -612,4 +612,153 @@ describe("TimelineWorkspace", () => {
     expect(rows[0]).toHaveTextContent("作品項目");
     expect(rows[1]).toHaveTextContent("人物項目");
   });
+
+  it("switches to compact lanes, disables ordering, and keeps lanes across zoom", async () => {
+    const user = userEvent.setup();
+    const first = {
+      ...item("33333333-3333-4333-8333-333333333333", "人物A", "range", 0),
+      start: { year: 1800, month: 1, day: 1 },
+      end: { year: 1810, month: 1, day: 1 },
+    };
+    const later = {
+      ...item("44444444-4444-4444-8444-444444444444", "人物B", "range", 1),
+      start: { year: 1850, month: 1, day: 1 },
+      end: { year: 1860, month: 1, day: 1 },
+    };
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 22 }}
+          initialItems={[first, later]}
+          itemTypes={[type]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    await user.selectOptions(screen.getByLabelText("表示モード"), "compact");
+
+    await waitFor(() =>
+      expect(screen.getAllByTestId(/^compact-lane-/)).toHaveLength(1),
+    );
+    expect(screen.queryAllByTestId(/^timeline-row-/)).toHaveLength(0);
+    expect(screen.getByLabelText("並び順")).toBeDisabled();
+    expect(screen.getByLabelText("並び方向")).toBeDisabled();
+    expect(
+      screen.getByText("コンパクトレーン表示では自動配置されます。"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "人物Aの詳細を表示" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "人物Aを並べ替え" }),
+    ).toBeNull();
+
+    const laneIdsBeforeZoom = screen
+      .getAllByTestId(/^compact-lane-/)
+      .map((lane) => lane.dataset.testid);
+    await user.click(screen.getByRole("button", { name: "拡大" }));
+    expect(
+      screen
+        .getAllByTestId(/^compact-lane-/)
+        .map((lane) => lane.dataset.testid),
+    ).toEqual(laneIdsBeforeZoom);
+
+    await user.selectOptions(screen.getByLabelText("表示モード"), "row");
+    expect(screen.getByLabelText("並び順")).toBeEnabled();
+    expect(screen.getAllByTestId(/^timeline-row-/)).toHaveLength(2);
+  });
+
+  it("calculates compact lanes independently inside collapsible type groups", async () => {
+    const user = userEvent.setup();
+    const workType: TimelineItemType = {
+      ...type,
+      id: "55555555-5555-4555-8555-555555555555",
+      name: "作品",
+      defaultColor: "#FF3399",
+      sortOrder: 1,
+    };
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 22 }}
+          initialItems={[
+            item("33333333-3333-4333-8333-333333333333", "人物項目", "range"),
+            item(
+              "44444444-4444-4444-8444-444444444444",
+              "作品項目",
+              "range",
+              1,
+              workType,
+            ),
+          ]}
+          itemTypes={[type, workType]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    await user.click(screen.getByLabelText("対象種別でグループ化"));
+    await user.selectOptions(screen.getByLabelText("表示モード"), "compact");
+    await waitFor(() =>
+      expect(screen.getAllByTestId(/^compact-lane-/)).toHaveLength(2),
+    );
+
+    await user.click(screen.getByRole("button", { name: /人物 1件/ }));
+    expect(
+      screen.queryByRole("button", { name: "人物項目の詳細を表示" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "作品項目の詳細を表示" }),
+    ).toBeInTheDocument();
+  });
+
+  it("pans vertically as well as horizontally in compact mode", async () => {
+    Object.defineProperties(HTMLElement.prototype, {
+      setPointerCapture: { configurable: true, value: vi.fn() },
+      releasePointerCapture: { configurable: true, value: vi.fn() },
+      hasPointerCapture: {
+        configurable: true,
+        value: vi.fn(() => true),
+      },
+    });
+    const user = userEvent.setup();
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 22 }}
+          initialItems={[
+            item("33333333-3333-4333-8333-333333333333", "人物A", "range"),
+            item("44444444-4444-4444-8444-444444444444", "人物B", "range", 1),
+          ]}
+          itemTypes={[type]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+    await user.selectOptions(screen.getByLabelText("表示モード"), "compact");
+    const lane = (await screen.findAllByTestId(/compact-lane-/))[0]!;
+    const viewport = screen.getByTestId("timeline-viewport");
+    viewport.scrollLeft = 100;
+    viewport.scrollTop = 100;
+
+    fireEvent.pointerDown(lane, {
+      button: 0,
+      clientX: 400,
+      clientY: 300,
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(viewport, {
+      clientX: 350,
+      clientY: 250,
+      pointerId: 1,
+    });
+    expect(viewport.scrollLeft).toBe(150);
+    expect(viewport.scrollTop).toBe(150);
+    fireEvent.pointerUp(viewport, { pointerId: 1 });
+
+    Reflect.deleteProperty(HTMLElement.prototype, "setPointerCapture");
+    Reflect.deleteProperty(HTMLElement.prototype, "releasePointerCapture");
+    Reflect.deleteProperty(HTMLElement.prototype, "hasPointerCapture");
+  });
 });

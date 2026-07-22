@@ -8,10 +8,13 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function TimelinePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ layout?: string | string[] }>;
 }) {
   const { projectId } = await params;
+  const { layout } = await searchParams;
   let result;
 
   try {
@@ -38,6 +41,7 @@ export default async function TimelinePage({
       initialItems={result.items}
       initialEvents={result.events}
       itemTypes={result.itemTypes}
+      layoutMode={layout === "compact" ? "compact" : "row"}
       project={result.project}
     />
   );
