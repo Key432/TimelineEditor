@@ -30,6 +30,36 @@ export async function previewCsvImport(projectId: string, file: File) {
   });
 }
 
+export const previewNewJsonImport = (payload: unknown) =>
+  json<ImportPreview>("/api/projects/import/json/preview", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+export async function previewNewCsvImport(file: File) {
+  const body = new FormData();
+  body.set("file", file);
+  return json<ImportPreview>("/api/projects/import/csv/preview", {
+    method: "POST",
+    body,
+  });
+}
+
+export const commitNewImport = (payload: ProjectBackup) =>
+  json<{
+    projectId: string;
+    imported: {
+      itemTypes: number;
+      timelineItems: number;
+      timelineEvents: number;
+    };
+  }>("/api/projects/import/commit", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "create", payload }),
+  });
+
 export const commitImport = (
   projectId: string,
   format: "json" | "csv",

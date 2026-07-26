@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -84,10 +84,40 @@ describe("TimelineItemForm", () => {
     expect(form.getByLabelText("個別色カラーピッカー")).toHaveValue(
       itemType.defaultColor.toLowerCase(),
     );
+    fireEvent.change(form.getByLabelText("個別色カラーピッカー"), {
+      target: { value: "#ff3399" },
+    });
+    expect(form.getByLabelText("個別色")).toHaveValue("#FF3399");
     await user.click(form.getByRole("button", { name: "イベントを追加" }));
     expect(
       form.getByRole("group", { name: "同時追加するイベントアイテム" }),
     ).toBeVisible();
+  });
+
+  it("keeps visibility and color override controls in the shared checkbox style", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <QueryProvider>
+        <TimelineItemForm
+          itemTypes={[itemType]}
+          projectId={itemType.projectId}
+        />
+      </QueryProvider>,
+    );
+
+    const form = within(container);
+    const colorOverride = form.getByLabelText("対象種別の色を上書き");
+    const visibility = form.getByLabelText("タイムラインに表示");
+    expect(colorOverride).toHaveClass("size-4", "accent-primary");
+    expect(visibility).toHaveClass("size-4", "accent-primary");
+
+    await user.click(colorOverride);
+    const colorGroup = colorOverride.closest("[data-slot='color-override']");
+    expect(colorGroup).not.toBeNull();
+    expect(colorGroup).toContainElement(form.getByLabelText("個別色"));
+    expect(colorGroup).toContainElement(
+      form.getByLabelText("個別色カラーピッカー"),
+    );
   });
 
   it("places approximate date controls beside dates in the shared bordered style", () => {

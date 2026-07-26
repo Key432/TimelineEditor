@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Settings, Tags } from "lucide-react";
+import { FileArchive, Settings, Tags } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -16,8 +16,10 @@ import {
 } from "@/components/ui/sheet";
 import { itemTypeKeys } from "@/features/item-types/api";
 import { ItemTypeManager } from "@/features/item-types/item-type-manager";
+import { ImportExportManager } from "@/features/import-export/import-export-manager";
 import type { TimelineItemType } from "@/features/item-types/types";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
+import { timelineEventKeys } from "@/features/timeline-events/api";
 import { DeleteProjectDialog } from "@/features/projects/delete-project-dialog";
 import { ProjectForm } from "@/features/projects/project-form";
 import { ProjectSharing } from "@/features/projects/project-sharing";
@@ -33,9 +35,10 @@ import {
   writeTimelineFilters,
 } from "@/features/timeline-items/timeline-filters";
 import { TimelineWorkspace } from "@/features/timeline-items/timeline-workspace";
+import { timelineItemKeys } from "@/features/timeline-items/api";
 import { cn } from "@/lib/utils";
 
-type Panel = "settings" | "item-types" | null;
+type Panel = "settings" | "item-types" | "import-export" | null;
 
 export function TimelinePageClient({
   project,
@@ -91,7 +94,7 @@ export function TimelinePageClient({
             />
           ) : null}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <Button
             size="sm"
             variant="outline"
@@ -107,6 +110,14 @@ export function TimelinePageClient({
           >
             <Settings aria-hidden="true" className="size-4" />
             設定
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setPanel("import-export")}
+          >
+            <FileArchive aria-hidden="true" className="size-4" />
+            インポート／エクスポート
           </Button>
         </div>
       </header>
@@ -156,12 +167,18 @@ export function TimelinePageClient({
         >
           <SheetHeader>
             <SheetTitle>
-              {panel === "settings" ? "プロジェクト設定" : "対象種別"}
+              {panel === "settings"
+                ? "プロジェクト設定"
+                : panel === "item-types"
+                  ? "対象種別"
+                  : "インポート／エクスポート"}
             </SheetTitle>
             <SheetDescription>
               {panel === "settings"
                 ? "名前、説明、タイムラインの初期表示を変更します。"
-                : "分類、既定色、表示順、表示状態を管理します。"}
+                : panel === "item-types"
+                  ? "分類、既定色、表示順、表示状態を管理します。"
+                  : "プロジェクトデータを保存または取り込みます。"}
             </SheetDescription>
           </SheetHeader>
           <div className="space-y-8 px-4 pb-6">
@@ -199,6 +216,25 @@ export function TimelinePageClient({
               <ItemTypeManager
                 initialItemTypes={itemTypes}
                 projectId={project.id}
+              />
+            ) : panel === "import-export" ? (
+              <ImportExportManager
+                projectId={project.id}
+                onImported={() => {
+                  void Promise.all([
+                    queryClient.invalidateQueries({
+                      queryKey: itemTypeKeys.list(project.id),
+                    }),
+                    queryClient.invalidateQueries({
+                      queryKey: timelineItemKeys.list(project.id),
+                    }),
+                    queryClient.invalidateQueries({
+                      queryKey: timelineEventKeys.list(project.id),
+                    }),
+                  ]);
+                  setPanel(null);
+                  router.refresh();
+                }}
               />
             ) : null}
           </div>

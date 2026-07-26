@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ProjectForm } from "@/features/projects/project-form";
+import { NewProjectImport } from "@/features/import-export/new-project-import";
 
 export default function NewProjectPage() {
   const currentYear = new Date().getUTCFullYear();
@@ -33,6 +34,7 @@ export default function NewProjectPage() {
           <ProjectForm currentYear={currentYear} mode="create" />
         </CardContent>
       </Card>
+      <NewProjectImport />
     </div>
   );
 }

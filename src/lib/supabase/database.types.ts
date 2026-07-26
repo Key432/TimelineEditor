@@ -195,12 +195,6 @@ export type Database = {
           end_day: number | null;
           is_end_approximate: boolean;
           end_uncertainty_years: number | null;
-          last_confirmed_year: number | null;
-          last_confirmed_month: number | null;
-          last_confirmed_day: number | null;
-          point_year: number | null;
-          point_month: number | null;
-          point_day: number | null;
           is_point_approximate: boolean;
           created_at: string;
           updated_at: string;
@@ -228,12 +222,6 @@ export type Database = {
           end_day?: number | null;
           is_end_approximate?: boolean;
           end_uncertainty_years?: number | null;
-          last_confirmed_year?: number | null;
-          last_confirmed_month?: number | null;
-          last_confirmed_day?: number | null;
-          point_year?: number | null;
-          point_month?: number | null;
-          point_day?: number | null;
           is_point_approximate?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -261,12 +249,6 @@ export type Database = {
           end_day?: number | null;
           is_end_approximate?: boolean;
           end_uncertainty_years?: number | null;
-          last_confirmed_year?: number | null;
-          last_confirmed_month?: number | null;
-          last_confirmed_day?: number | null;
-          point_year?: number | null;
-          point_month?: number | null;
-          point_day?: number | null;
           is_point_approximate?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -364,7 +346,11 @@ export type Database = {
     Views: Record<string, never>;
     Functions: {
       import_project_data: {
-        Args: { p_target_project_id: string; p_mode: string; p_payload: Json };
+        Args: {
+          p_target_project_id: string | null;
+          p_mode: string;
+          p_payload: Json;
+        };
         Returns: string;
       };
       create_timeline_item_with_events: {

@@ -176,7 +176,7 @@ describe("timeline event persistence and RLS", () => {
           title: "point",
           temporal_type: "point",
           manual_order: 1,
-          point_year: 1905,
+          start_year: 1905,
         },
         {
           project_id: second,
@@ -224,8 +224,7 @@ describe("timeline event persistence and RLS", () => {
       .from("timeline_items")
       .update({
         temporal_type: "point",
-        point_year: 1905,
-        start_year: null,
+        start_year: 1905,
         end_date_status: null,
         end_year: null,
       })

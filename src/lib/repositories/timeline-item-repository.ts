@@ -21,8 +21,7 @@ const LIST_COLUMNS = `
   manual_order, is_visible, start_year, start_month, start_day,
   is_start_approximate, start_uncertainty_years, end_date_status, end_year,
   end_month, end_day, is_end_approximate, end_uncertainty_years,
-  last_confirmed_year, last_confirmed_month, last_confirmed_day, point_year,
-  point_month, point_day, is_point_approximate, created_at, updated_at,
+  is_point_approximate, created_at, updated_at,
   timeline_item_types (*)
 `;
 
@@ -50,6 +49,9 @@ function date(
 }
 
 function mapItem(row: JoinedRow): TimelineItem {
+  const storedStart = date(row.start_year, row.start_month, row.start_day);
+  const storedEnd = date(row.end_year, row.end_month, row.end_day);
+  const isRange = row.temporal_type === "range";
   return {
     id: row.id,
     projectId: row.project_id,
@@ -63,19 +65,15 @@ function mapItem(row: JoinedRow): TimelineItem {
     colorOverride: row.color_override,
     manualOrder: row.manual_order,
     isVisible: row.is_visible,
-    start: date(row.start_year, row.start_month, row.start_day),
+    start: isRange ? storedStart : null,
     isStartApproximate: row.is_start_approximate,
     startUncertaintyYears: row.start_uncertainty_years,
     endDateStatus: row.end_date_status,
-    end: date(row.end_year, row.end_month, row.end_day),
+    end: row.end_date_status === "specified" ? storedEnd : null,
     isEndApproximate: row.is_end_approximate,
     endUncertaintyYears: row.end_uncertainty_years,
-    lastConfirmed: date(
-      row.last_confirmed_year,
-      row.last_confirmed_month,
-      row.last_confirmed_day,
-    ),
-    point: date(row.point_year, row.point_month, row.point_day),
+    lastConfirmed: row.end_date_status === "unknown" ? storedEnd : null,
+    point: isRange ? null : storedStart,
     isPointApproximate: row.is_point_approximate,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -106,15 +104,16 @@ function persistenceValues(
     temporal_type: input.temporalType,
     color_override: input.colorOverride,
     is_visible: input.isVisible,
-    ...dateFields("start", isRange ? input.start : null),
+    ...dateFields("start", isRange ? input.start : input.point),
     is_start_approximate: isRange && input.isStartApproximate,
     start_uncertainty_years: null,
     end_date_status: isRange ? input.endDateStatus : null,
-    ...dateFields("end", isSpecified ? input.end : null),
+    ...dateFields(
+      "end",
+      isSpecified ? input.end : isUnknown ? input.lastConfirmed : null,
+    ),
     is_end_approximate: isSpecified && input.isEndApproximate,
     end_uncertainty_years: null,
-    ...dateFields("last_confirmed", isUnknown ? input.lastConfirmed : null),
-    ...dateFields("point", isRange ? null : input.point),
     is_point_approximate: !isRange && input.isPointApproximate,
   };
 }

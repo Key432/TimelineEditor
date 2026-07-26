@@ -398,10 +398,11 @@ export function TimelineItemForm({
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 font-normal">
+      <div className="rounded-lg border bg-muted/20" data-slot="color-override">
+        <Label className="flex h-9 items-center gap-2 px-3 text-sm font-normal">
           <input
             checked={colorOverride !== null}
+            className="size-4 accent-primary"
             type="checkbox"
             onChange={(event) =>
               setValue(
@@ -417,24 +418,44 @@ export function TimelineItemForm({
           対象種別の色を上書き
         </Label>
         {colorOverride ? (
-          <div className="flex items-center gap-3 rounded-lg border p-3">
+          <div className="flex items-center gap-3 border-t bg-background/60 p-3">
             <Input
               aria-label="個別色カラーピッカー"
               className="h-10 w-14 cursor-pointer p-1"
               type="color"
-              {...register("colorOverride")}
+              value={
+                /^#[0-9A-Fa-f]{6}$/.test(colorOverride)
+                  ? colorOverride
+                  : "#000000"
+              }
+              onChange={(event) =>
+                setValue("colorOverride", event.target.value.toUpperCase(), {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
             />
             <Input
               aria-label="個別色"
               className="font-mono uppercase"
-              {...register("colorOverride")}
+              value={colorOverride}
+              onChange={(event) =>
+                setValue("colorOverride", event.target.value.toUpperCase(), {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
             />
           </div>
         ) : null}
       </div>
 
-      <Label className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 font-normal">
-        <input type="checkbox" {...register("isVisible")} />
+      <Label className="flex h-9 items-center gap-2 rounded-lg border bg-muted/20 px-3 text-sm font-normal">
+        <input
+          className="size-4 accent-primary"
+          type="checkbox"
+          {...register("isVisible")}
+        />
         タイムラインに表示
       </Label>
 
@@ -448,9 +469,6 @@ export function TimelineItemForm({
               <h2 id={`${formId}-events`} className="font-medium">
                 同時に追加するイベント
               </h2>
-              <p className="text-sm text-muted-foreground">
-                親アイテムの作成後、登録できたイベントだけが保存されます。
-              </p>
             </div>
             <Button
               disabled={temporalType !== "range" || editingEvent !== null}

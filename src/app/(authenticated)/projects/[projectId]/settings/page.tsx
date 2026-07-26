@@ -1,4 +1,4 @@
-import { ArrowLeft, ChartNoAxesGantt, FileArchive, Tags } from "lucide-react";
+import { ArrowLeft, FileArchive, Tags } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -90,23 +90,6 @@ export default async function ProjectSettingsPage({
         </CardHeader>
         <CardContent>
           <ProjectSharing project={project} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">タイムライン</CardTitle>
-          <CardDescription>
-            期間型・時点型の項目を登録し、時間軸上で編集します。
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild>
-            <Link href={`/projects/${project.id}/timeline`}>
-              <ChartNoAxesGantt aria-hidden="true" className="size-4" />
-              タイムラインを開く
-            </Link>
-          </Button>
         </CardContent>
       </Card>
 

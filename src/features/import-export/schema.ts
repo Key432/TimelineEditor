@@ -4,6 +4,11 @@ import { timelineEventSchema } from "@/features/timeline-events/validation";
 import { timelineItemSchema } from "@/features/timeline-items/validation";
 
 export const IMPORT_SCHEMA_VERSION = 1 as const;
+export const importSectionSchema = z.enum([
+  "itemTypes",
+  "timelineItems",
+  "timelineEvents",
+]);
 
 const nullableString = z.string().nullable();
 const historicalDate = z
@@ -81,6 +86,7 @@ export const projectBackupSchema = z
     itemTypes: z.array(itemTypeSchema).max(1000),
     timelineItems: z.array(itemSchema).max(5000),
     timelineEvents: z.array(eventSchema).max(50000),
+    importSections: z.array(importSectionSchema).min(1).optional(),
   })
   .superRefine((backup, context) => {
     if (backup.settings.initialEndYear < backup.settings.initialStartYear) {
@@ -92,8 +98,12 @@ export const projectBackupSchema = z
     }
     const typeIds = new Set(backup.itemTypes.map((type) => type.id));
     const itemIds = new Set(backup.timelineItems.map((item) => item.id));
+    const validatesTypes =
+      !backup.importSections || backup.importSections.includes("itemTypes");
+    const validatesItems =
+      !backup.importSections || backup.importSections.includes("timelineItems");
     for (const [index, item] of backup.timelineItems.entries()) {
-      if (!typeIds.has(item.typeId))
+      if (validatesTypes && !typeIds.has(item.typeId))
         context.addIssue({
           code: "custom",
           path: ["timelineItems", index, "typeId"],
@@ -108,7 +118,7 @@ export const projectBackupSchema = z
         });
     }
     for (const [index, event] of backup.timelineEvents.entries()) {
-      if (!itemIds.has(event.timelineItemId))
+      if (validatesItems && !itemIds.has(event.timelineItemId))
         context.addIssue({
           code: "custom",
           path: ["timelineEvents", index, "timelineItemId"],
@@ -125,7 +135,7 @@ export const projectBackupSchema = z
   });
 
 export type ProjectBackup = z.output<typeof projectBackupSchema>;
-export type ImportMode = "duplicate" | "overwrite" | "append";
+export type ImportMode = "create" | "duplicate" | "overwrite" | "append";
 
 export type ImportPreview = {
   sourceProjectId: string | null;

@@ -358,6 +358,11 @@ describe("TimelineWorkspace", () => {
         name: /イベントアイテム 重なるイベント/,
       }),
     ).toHaveClass("z-30", "hover:z-40", "hover:ring-2");
+    expect(
+      screen
+        .getByTestId("timeline-row-33333333-3333-4333-8333-333333333333")
+        .querySelector("[data-timeline-pan-surface='true']"),
+    ).toHaveClass("isolate", "overflow-hidden");
   });
 
   it("groups and collapses rows by item type", async () => {

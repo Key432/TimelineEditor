@@ -6,7 +6,68 @@ import {
 import { createStoredZip, readStoredZip } from "@/features/import-export/zip";
 
 const BOM = "\uFEFF";
-const README = `Timeline Editor CSV backup\r\n\r\nUTF-8 BOM付きCSVです。IDを空欄にするとインポート時に新しいIDを生成します。\r\nイベントの親は timeline_item_id を優先し、空欄の場合は timeline_item_title で照合します。同名の親が複数ある場合はエラーです。\r\n日付は西暦1年以降で、月が空欄の場合は日も空欄にしてください。\r\n`;
+const README = `# Timeline Editor CSV
+
+## 各CSVのカラム項目
+
+### timeline-items.csv
+
+- id: タイムラインアイテムID。新規作成する場合は空欄にするとインポート時に採番される。
+- type_id: 対象種別。item-types.csv の id を指定する。
+- type_name: 対象種別名。IDがない場合は必須。
+- title: タイムラインアイテム名。必須。
+- description: 本文。任意。
+- source_text: 出典・参考文献。任意。
+- external_url: 外部URL。任意。
+- temporal_type: range（期間）または point（時点）。必須。
+- color_override: 上書き色のカラーコード。任意。
+- manual_order: 手動指定の表示順。必須。
+- is_visible: 表示状態を TRUE/FALSE で指定。必須。
+- start_year: 期間の開始年、または時点の日付の年。1以上。必須。
+- start_month: 期間の開始月、または時点の日付の月。任意。
+- start_day: 期間の開始日、または時点の日付の日。任意。月が空欄の場合は日も空欄。
+- is_start_approximate: 期間開始日のあいまいフラグ。TRUE/FALSE。
+- start_uncertainty_years: 期間開始日の不確かさ（年）。任意。
+- end_date_status: 期間の終了状態。specified/ongoing/unknown。
+- end_year: specified の終了年、または unknown の最終確認年。任意。
+- end_month: specified の終了月、または unknown の最終確認月。任意。
+- end_day: specified の終了日、または unknown の最終確認日。任意。月が空欄の場合は日も空欄。
+- is_end_approximate: 期間終了日のあいまいフラグ。TRUE/FALSE。
+- end_uncertainty_years: 期間終了日の不確かさ（年）。任意。
+- is_point_approximate: 時点の日付のあいまいフラグ。TRUE/FALSE。
+
+### timeline-events.csv
+
+- id: イベントID。新規作成する場合は空欄にするとインポート時に採番される。
+- timeline_item_id: 親タイムラインアイテムID。
+- timeline_item_title: 親タイムラインアイテムのタイトル。IDがない場合は必須。
+- title: イベントのタイトル。必須。
+- event_year: イベントの年。1以上。必須。
+- event_month: イベントの月。任意。
+- event_day: イベントの日。任意。月が空欄の場合は日も空欄。
+- is_approximate: 日付のあいまいフラグ。TRUE/FALSE。
+- description: 説明本文。任意。
+- source_text: 出典・参考文献。任意。
+- external_url: 外部URL。任意。
+
+### item-types.csv
+
+- id: 対象種別ID。新規作成する場合は空欄にするとインポート時に採番される。
+- name: 対象種別名。必須。
+- default_color: デフォルト色のカラーコード（例: #33CCBB）。
+- icon: アイコン。未指定、または user-round/brain/sparkles/newspaper/users-round/book-open/image/swords/landmark/gallery-horizontal/circle-dot。
+- sort_order: 対象種別の並び順。
+- is_visible: 表示状態を TRUE/FALSE で指定。
+`;
+
+export function csvArchiveFileName(projectName: string, date = new Date()) {
+  const safeName =
+    projectName
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_")
+      .replace(/[. ]+$/g, "")
+      .trim() || "project";
+  return `${safeName}_${date.toISOString().slice(0, 10)}.zip`;
+}
 
 function cell(value: unknown) {
   if (value === null || value === undefined) return "";
@@ -62,12 +123,6 @@ export function createCsvArchive(backup: ProjectBackup) {
       "end_day",
       "is_end_approximate",
       "end_uncertainty_years",
-      "last_confirmed_year",
-      "last_confirmed_month",
-      "last_confirmed_day",
-      "point_year",
-      "point_month",
-      "point_day",
       "is_point_approximate",
     ],
     backup.timelineItems.map((item) => [
@@ -82,15 +137,15 @@ export function createCsvArchive(backup: ProjectBackup) {
       item.colorOverride,
       item.manualOrder,
       item.isVisible,
-      ...dateCells(item.start),
+      ...dateCells(item.temporalType === "point" ? item.point : item.start),
       item.isStartApproximate,
       item.startUncertaintyYears,
       item.endDateStatus,
-      ...dateCells(item.end),
+      ...dateCells(
+        item.endDateStatus === "unknown" ? item.lastConfirmed : item.end,
+      ),
       item.isEndApproximate,
       item.endUncertaintyYears,
-      ...dateCells(item.lastConfirmed),
-      ...dateCells(item.point),
       item.isPointApproximate,
     ]),
   );
@@ -129,7 +184,7 @@ export function createCsvArchive(backup: ProjectBackup) {
     { name: "timeline-items.csv", content: items },
     { name: "timeline-events.csv", content: events },
     { name: "item-types.csv", content: types },
-    { name: "README.txt", content: BOM + README },
+    { name: "README.md", content: BOM + README.replaceAll("\n", "\r\n") },
   ]);
 }
 
@@ -190,16 +245,44 @@ const date = (row: Record<string, string>, prefix: string) => {
       };
 };
 
-export function parseCsvArchive(
+const CSV_NAMES = [
+  "item-types.csv",
+  "timeline-items.csv",
+  "timeline-events.csv",
+] as const;
+
+type CsvName = (typeof CSV_NAMES)[number];
+
+export function parseCsvImport(
   input: Uint8Array,
-  base: Pick<ProjectBackup, "project" | "settings" | "appVersion">,
+  fileName: string,
+  base: ProjectBackup,
 ): ImportPreview {
   const errors: string[] = [];
   const warnings: string[] = [];
   let files: Map<string, string>;
-  try {
-    files = readStoredZip(input);
-  } catch (error) {
+  const normalizedFileName = fileName.split(/[\\/]/).at(-1) ?? fileName;
+  if (normalizedFileName.endsWith(".zip")) {
+    try {
+      files = readStoredZip(input);
+    } catch (error) {
+      return {
+        sourceProjectId: null,
+        sourceProjectName: base.project.name,
+        itemTypeCount: 0,
+        timelineItemCount: 0,
+        timelineEventCount: 0,
+        errors: [
+          error instanceof Error ? error.message : "ZIPを読み取れません。",
+        ],
+        warnings: [],
+      };
+    }
+    for (const name of CSV_NAMES)
+      if (!files.has(name)) errors.push(`${name} がありません。`);
+  } else if ((CSV_NAMES as readonly string[]).includes(normalizedFileName)) {
+    files = new Map([[normalizedFileName, new TextDecoder().decode(input)]]);
+  } else {
     return {
       sourceProjectId: null,
       sourceProjectName: base.project.name,
@@ -207,18 +290,11 @@ export function parseCsvArchive(
       timelineItemCount: 0,
       timelineEventCount: 0,
       errors: [
-        error instanceof Error ? error.message : "ZIPを読み取れません。",
+        "ファイル名は item-types.csv、timeline-items.csv、timeline-events.csv のいずれかにしてください。",
       ],
       warnings: [],
     };
   }
-  const required = [
-    "item-types.csv",
-    "timeline-items.csv",
-    "timeline-events.csv",
-  ];
-  for (const name of required)
-    if (!files.has(name)) errors.push(`${name} がありません。`);
   if (errors.length)
     return {
       sourceProjectId: null,
@@ -230,11 +306,21 @@ export function parseCsvArchive(
       warnings,
     };
   try {
-    const rawTypes = parseCsv(files.get("item-types.csv")!);
-    const rawItems = parseCsv(files.get("timeline-items.csv")!);
-    const rawEvents = parseCsv(files.get("timeline-events.csv")!);
+    const sections = CSV_NAMES.filter((name) => files.has(name));
+    const rawTypes = files.has("item-types.csv")
+      ? parseCsv(files.get("item-types.csv")!)
+      : [];
+    const rawItems = files.has("timeline-items.csv")
+      ? parseCsv(files.get("timeline-items.csv")!)
+      : [];
+    const rawEvents = files.has("timeline-events.csv")
+      ? parseCsv(files.get("timeline-events.csv")!)
+      : [];
     const originalTypeIds = new Map<string, string>();
-    const typeIdsByName = new Map<string, string>();
+    const typeIdsByName = new Map(
+      base.itemTypes.map((type) => [type.name.trim().toLowerCase(), type.id]),
+    );
+    for (const type of base.itemTypes) originalTypeIds.set(type.id, type.id);
     const itemTypes = rawTypes.map((row, index) => {
       const id = row.id || crypto.randomUUID();
       if (!row.id)
@@ -252,12 +338,17 @@ export function parseCsvArchive(
     });
     const originalItemIds = new Map<string, string>();
     const titleIds = new Map<string, string[]>();
+    for (const item of base.timelineItems) {
+      originalItemIds.set(item.id, item.id);
+      titleIds.set(item.title, [...(titleIds.get(item.title) ?? []), item.id]);
+    }
     const timelineItems = rawItems.map((row, index) => {
       const id = row.id || crypto.randomUUID();
       if (!row.id)
         warnings.push(`timeline-items.csv ${index + 2}行: IDを生成しました。`);
       else originalItemIds.set(row.id, id);
-      titleIds.set(row.title, [...(titleIds.get(row.title) ?? []), id]);
+      if (!base.timelineItems.some((item) => item.id === id))
+        titleIds.set(row.title, [...(titleIds.get(row.title) ?? []), id]);
       return {
         id,
         typeId:
@@ -272,16 +363,17 @@ export function parseCsvArchive(
         colorOverride: nullable(row.color_override),
         manualOrder: number(row.manual_order) ?? index,
         isVisible: boolean(row.is_visible, true),
-        start: date(row, "start"),
+        start: row.temporal_type === "point" ? null : date(row, "start"),
         isStartApproximate: boolean(row.is_start_approximate),
         startUncertaintyYears: number(row.start_uncertainty_years),
         endDateStatus: nullable(row.end_date_status) as
           "specified" | "ongoing" | "unknown" | null,
-        end: date(row, "end"),
+        end: row.end_date_status === "specified" ? date(row, "end") : null,
         isEndApproximate: boolean(row.is_end_approximate),
         endUncertaintyYears: number(row.end_uncertainty_years),
-        lastConfirmed: date(row, "last_confirmed"),
-        point: date(row, "point"),
+        lastConfirmed:
+          row.end_date_status === "unknown" ? date(row, "end") : null,
+        point: row.temporal_type === "point" ? date(row, "start") : null,
         isPointApproximate: boolean(row.is_point_approximate),
       };
     });
@@ -332,6 +424,14 @@ export function parseCsvArchive(
       itemTypes,
       timelineItems,
       timelineEvents,
+      importSections: sections.map(
+        (name: CsvName) =>
+          ({
+            "item-types.csv": "itemTypes",
+            "timeline-items.csv": "timelineItems",
+            "timeline-events.csv": "timelineEvents",
+          })[name],
+      ),
     });
     return {
       ...preview,

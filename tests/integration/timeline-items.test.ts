@@ -134,10 +134,9 @@ describe("timeline item persistence and RLS", () => {
       {
         ...rangeRow(projectId, typeId, "unknown", 2),
         end_date_status: "unknown",
-        end_year: null,
+        end_year: 1910,
         end_month: null,
         end_day: null,
-        last_confirmed_year: 1910,
       },
       {
         project_id: projectId,
@@ -145,9 +144,9 @@ describe("timeline item persistence and RLS", () => {
         title: "point",
         temporal_type: "point",
         manual_order: 3,
-        point_year: 1905,
-        point_month: 1,
-        point_day: 1,
+        start_year: 1905,
+        start_month: 1,
+        start_day: 1,
         is_point_approximate: true,
         is_start_approximate: false,
         is_end_approximate: false,
@@ -157,7 +156,7 @@ describe("timeline item persistence and RLS", () => {
 
     const { data, error: readError } = await owner
       .from("timeline_items")
-      .select("title, temporal_type, end_date_status, last_confirmed_year")
+      .select("title, temporal_type, end_date_status, start_year, end_year")
       .eq("project_id", projectId)
       .order("manual_order");
     expect(readError).toBeNull();
@@ -271,7 +270,7 @@ describe("timeline item persistence and RLS", () => {
           title: "時点の親",
           temporal_type: "point",
           manual_order: 0,
-          point_year: 1905,
+          start_year: 1905,
           is_point_approximate: false,
           is_start_approximate: false,
           is_end_approximate: false,

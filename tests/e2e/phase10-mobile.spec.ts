@@ -118,13 +118,19 @@ test("keeps mobile editing available while touch gestures never create an event 
     page.getByRole("heading", { name: "イベントアイテムを追加" }),
   ).toHaveCount(0);
 
+  await page.getByRole("button", { name: "インポート／エクスポート" }).click();
+  await expect(
+    page.getByRole("heading", { name: "インポート／エクスポート" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+
   await page.goto(`/projects/${projectId}/settings`);
   await expect(
     page.getByRole("link", { name: "インポート／エクスポート" }),
   ).toBeVisible();
   await page.getByRole("link", { name: "インポート／エクスポート" }).click();
   await expect(page.getByLabel("JSONバックアップ")).toBeVisible();
-  await expect(page.getByLabel("CSV ZIP")).toBeVisible();
+  await expect(page.getByLabel("CSVまたはCSV ZIP")).toBeVisible();
   await expect(page.getByRole("link", { name: /JSONを保存/ })).toBeVisible();
 
   const [jsonExport, csvExport] = await Promise.all([
@@ -134,7 +140,7 @@ test("keeps mobile editing available while touch gestures never create an event 
   expect(jsonExport.ok()).toBe(true);
   expect(csvExport.ok()).toBe(true);
   expect(csvExport.headers()["content-type"]).toContain("application/zip");
-  await page.getByLabel("CSV ZIP").setInputFiles({
+  await page.getByLabel("CSVまたはCSV ZIP").setInputFiles({
     name: "project.zip",
     mimeType: "application/zip",
     buffer: await csvExport.body(),
@@ -148,12 +154,26 @@ test("keeps mobile editing available while touch gestures never create an event 
     buffer: await jsonExport.body(),
   });
   await expect(
-    page.getByRole("button", { name: "別プロジェクトとして複製" }),
+    page.getByRole("button", { name: "現在のプロジェクトを上書き" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "別プロジェクトとして複製" }).click();
-  await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+\/timeline$/);
-  expect(page.url()).not.toContain(projectId);
+  page.once("dialog", (dialog) => dialog.accept());
+  await page
+    .getByRole("button", { name: "現在のプロジェクトを上書き" })
+    .click();
+  await expect(page).toHaveURL(`/projects/${projectId}/timeline`);
   await expect(
     page.getByText("モバイル編集対象", { exact: true }),
   ).toBeVisible();
+
+  await page.goto("/projects/new");
+  await expect(page.getByLabel("JSONから新規作成")).toBeVisible();
+  await expect(page.getByLabel("CSV ZIPから新規作成")).toBeVisible();
+  await page.getByLabel("JSONから新規作成").setInputFiles({
+    name: "project.json",
+    mimeType: "application/json",
+    buffer: await jsonExport.body(),
+  });
+  await page.getByRole("button", { name: "このデータで作成" }).click();
+  await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+\/timeline$/);
+  expect(page.url()).not.toContain(projectId);
 });

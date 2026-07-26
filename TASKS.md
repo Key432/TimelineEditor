@@ -158,9 +158,9 @@ Next.js、Supabase、Google OAuth、テスト、デザイン基盤を構築す�
 
 - `timeline_items`
 - temporal_type
-- start／end／point
+- start／end（時点日はstartへ保存）
 - end_date_status
-- last_confirmed
+- 終了不明の最終確認日はendへ保存
 - 曖昧フラグ
 - 個別色
 - manual_order
@@ -650,17 +650,21 @@ JSON／CSV、スマートフォン操作、性能、アクセシビリティを�
 
 - エクスポート
 - プレビュー
-- 複製／上書き／中止
+- 新規プロジェクト作成／既存プロジェクト上書き／中止
 - スキーマバージョン
 
 ## CSV
 
-- 3CSV＋READMEのZIP
+- `[project name]_yyyy-mm-dd.zip` の3CSV＋`README.md`
+- 3CSVの個別インポート（指定ファイル名以外は拒否）
+- ID一致行の更新と未一致行の追加
 - UTF-8 BOM
 - ID空欄生成
 - 親照合
 - エラー・警告
 - トランザクション取り込み
+- `/projects/new` とタイムライン上部からの入出力導線
+- `timeline_items` の時点日を `start_*`、終了不明の最終確認日を `end_*` に統合
 
 ## モバイル
 

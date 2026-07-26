@@ -24,6 +24,10 @@ describe("ImportExportManager", () => {
       "type",
       "file",
     );
-    expect(screen.getByLabelText("CSV ZIP")).toHaveAttribute("type", "file");
+    expect(screen.getByLabelText("CSVまたはCSV ZIP")).toHaveAttribute(
+      "type",
+      "file",
+    );
+    expect(screen.queryByText(/既定は別プロジェクト/)).not.toBeInTheDocument();
   });
 });

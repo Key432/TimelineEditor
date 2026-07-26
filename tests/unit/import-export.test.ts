@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   createCsvArchive,
-  parseCsvArchive,
+  csvArchiveFileName,
+  parseCsvImport,
 } from "@/features/import-export/csv";
 import {
   previewBackup,
@@ -106,11 +107,15 @@ describe("project import and export formats", () => {
       "timeline-items.csv",
       "timeline-events.csv",
       "item-types.csv",
-      "README.txt",
+      "README.md",
     ]);
     expect(files.get("timeline-items.csv")).toContain('"夏目漱石, ""作家"""');
 
-    const preview = parseCsvArchive(archive, backup());
+    const preview = parseCsvImport(
+      archive,
+      "往復テスト_2026-07-26.zip",
+      backup(),
+    );
     expect(preview.errors).toEqual([]);
     expect(preview.payload?.timelineItems[0]?.title).toBe('夏目漱石, "作家"');
     expect(preview.payload?.timelineItems[0]?.description).toBe("改行\nを含む");
@@ -119,7 +124,30 @@ describe("project import and export formats", () => {
     const deflated = createDeflatedZip(
       [...files].map(([name, content]) => ({ name, content })),
     );
-    expect(parseCsvArchive(deflated, backup()).errors).toEqual([]);
+    expect(
+      parseCsvImport(deflated, "往復テスト_2026-07-26.zip", backup()).errors,
+    ).toEqual([]);
+  });
+
+  it("accepts only the three exact CSV filenames and imports each section independently", () => {
+    const files = readStoredZip(createCsvArchive(backup()));
+    const itemPreview = parseCsvImport(
+      new TextEncoder().encode(files.get("timeline-items.csv")!),
+      "timeline-items.csv",
+      backup(),
+    );
+    expect(itemPreview.errors).toEqual([]);
+    expect(itemPreview.payload?.importSections).toEqual(["timelineItems"]);
+    expect(itemPreview.timelineItemCount).toBe(1);
+    expect(
+      parseCsvImport(new Uint8Array(), "items.csv", backup()).errors.join(" "),
+    ).toContain("ファイル名");
+  });
+
+  it("builds a project-name and date based ZIP filename", () => {
+    expect(
+      csvArchiveFileName("文学史年表", new Date("2026-07-26T00:00:00Z")),
+    ).toBe("文学史年表_2026-07-26.zip");
   });
 
   it("serializes the 1,000 item and 10,000 event performance target", () => {

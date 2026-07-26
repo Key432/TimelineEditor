@@ -386,14 +386,6 @@ end_month integer
 end_day integer
 is_end_approximate boolean not null default false
 end_uncertainty_years integer
-
-last_confirmed_year integer
-last_confirmed_month integer
-last_confirmed_day integer
-
-point_year integer
-point_month integer
-point_day integer
 is_point_approximate boolean not null default false
 
 created_at timestamptz not null
@@ -403,11 +395,11 @@ updated_at timestamptz not null
 DB制約：
 
 - `temporal_type = range` の場合、開始日必須
-- `temporal_type = point` の場合、時点日必須
+- `temporal_type = point` の場合、時点日を `start_year/month/day` に保存する
 - `temporal_type = point` のタイムラインアイテムにはイベントアイテムを作成不可
 - `end_date_status = specified` の場合、終了日必須
 - `end_date_status = ongoing` の場合、終了日・最終確認日は使用しない
-- `end_date_status = unknown` の場合、最終確認日は任意
+- `end_date_status = unknown` の場合、任意の最終確認日を `end_year/month/day` に保存する
 - 個別曖昧幅がnullならプロジェクト既定値を使用する
 - 初期UIでは個別曖昧幅を編集させないが、将来拡張用列として保持してよい
 
@@ -1177,24 +1169,18 @@ URL連動オーバーレイには、閉じるボタンと競合しない位置�
 - アプリバージョン
 - エクスポート日時
 
-同一プロジェクトIDが存在する場合：
-
-- 別プロジェクトとして複製
-- 上書き
-- 中止
-
-既定は複製。
+`/projects/new` ではJSONから新しい非公開プロジェクトを作成する。既存プロジェクトのインポート画面とタイムライン上部の「インポート／エクスポート」では、確認後に現在のプロジェクト情報・設定・対象種別・タイムラインアイテム・イベントアイテムを上書きする。
 
 ### 21.2 CSV
 
 ZIP出力：
 
 ```text
-project_csv_YYYY-MM-DD.zip
+[project name]_YYYY-MM-DD.zip
 ├─ timeline-items.csv
 ├─ timeline-events.csv
 ├─ item-types.csv
-└─ README.txt
+└─ README.md
 ```
 
 - UTF-8 BOM付き
@@ -1203,6 +1189,7 @@ project_csv_YYYY-MM-DD.zip
 - イベントアイテムの親指定はID優先、空欄時はタイトル照合
 - タイムラインアイテムの対象種別はID優先、空欄時は対象種別名照合
 - タイトル照合は同名が複数ならエラー
+- `item-types.csv`、`timeline-items.csv`、`timeline-events.csv` は単体でもインポートできる。その他のCSVファイル名は拒否する
 
 ### 21.3 インポート
 
@@ -1212,6 +1199,8 @@ project_csv_YYYY-MM-DD.zip
 - 正常行のみ取り込み、または全体中止を選択
 - 確定時はトランザクション
 - 中途半端な登録を残さない
+- `/projects/new` のCSV ZIPインポートは新規プロジェクトを作成する
+- 既存プロジェクトへのCSV／CSV ZIPインポートは、ID一致行を更新し、未一致行を追加する
 
 ---
 
@@ -1225,7 +1214,7 @@ project_csv_YYYY-MM-DD.zip
 - プロジェクト名の下にプロジェクト説明を表示する。既定は1行省略表示とし、実際にあふれる場合だけ展開／折りたたみトグルを表示する
 - タイムライン上部：フィルター、並び順、グループ、密度、ズーム
 - 中央：固定情報列＋タイムライン
-- 右：項目編集、プロジェクト設定、対象種別管理を必要時のみサイドパネル表示
+- 右：項目編集、プロジェクト設定、対象種別管理、インポート／エクスポートを必要時のみサイドパネル表示
 - PCの対象種別管理パネルは、一覧の全列と操作が横に見切れない幅を確保する
 - 独立したプロジェクト設定画面はプロジェクト一覧へ戻り、独立した対象種別画面はプロジェクト設定へ戻る
 

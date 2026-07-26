@@ -21,9 +21,6 @@ type ParentRow = Pick<
   | "end_year"
   | "end_month"
   | "end_day"
-  | "last_confirmed_year"
-  | "last_confirmed_month"
-  | "last_confirmed_day"
 >;
 type JoinedRow = EventRow & { timeline_items: ParentRow };
 
@@ -46,11 +43,10 @@ function mapParent(row: ParentRow): TimelineEventParent {
     start,
     endDateStatus: row.end_date_status,
     end: parentDate(row.end_year, row.end_month, row.end_day),
-    lastConfirmed: parentDate(
-      row.last_confirmed_year,
-      row.last_confirmed_month,
-      row.last_confirmed_day,
-    ),
+    lastConfirmed:
+      row.end_date_status === "unknown"
+        ? parentDate(row.end_year, row.end_month, row.end_day)
+        : null,
   };
 }
 
@@ -88,8 +84,7 @@ function persistenceValues(input: TimelineEventValues) {
 const DETAIL_COLUMNS = `
   *, timeline_items (
     id, title, start_year, start_month, start_day, end_date_status,
-    end_year, end_month, end_day, last_confirmed_year,
-    last_confirmed_month, last_confirmed_day
+    end_year, end_month, end_day
   )
 `;
 

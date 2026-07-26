@@ -318,9 +318,10 @@ GET /api/projects/[projectId]/timeline/search
 
 ## Phase 10：入出力・モバイル・仕上げ
 
-- プロジェクト設定の「インポート／エクスポート」から、スキーマバージョン付き完全バックアップJSONと、UTF-8 BOM付きの3CSV＋README ZIPを保存できます。
-- JSONは保存前プレビュー後、既定では非公開の別プロジェクトとして複製します。同じプロジェクトIDのバックアップは、確認後に現在のプロジェクトへ上書きすることもできます。
-- CSVは空IDへ新しいUUIDを割り当てます。イベントの親はIDを優先し、空欄ならタイトルを照合します。対象種別もIDを優先し、`type_name` をフォールバックに使用します。同名候補が複数ある場合はエラーとして表示します。
+- プロジェクト設定またはタイムライン上部の「インポート／エクスポート」から、スキーマバージョン付き完全バックアップJSONと、UTF-8 BOM付きの3CSV＋`README.md` ZIPを保存できます。ZIP名は `[project name]_yyyy-mm-dd.zip` です。
+- JSONは保存前プレビュー後、現在のプロジェクトを上書きします。新規プロジェクト画面ではJSONまたはCSV ZIPから非公開プロジェクトを作成できます。
+- CSV ZIPに加え、`item-types.csv`、`timeline-items.csv`、`timeline-events.csv` を個別に取り込めます。ID一致行は更新、未一致行は追加します。イベントの親はIDを優先し、空欄ならタイトルを照合します。対象種別もIDを優先し、`type_name` をフォールバックに使用します。
+- DBでは時点日を `start_year/month/day`、終了不明の最終確認日を `end_year/month/day` に保存し、重複していた6列を廃止しました。
 - 確定インポートはRLSを通る `SECURITY INVOKER` RPCの単一トランザクションで実行し、制約違反時に途中データを残しません。
 - スマートフォンでもフォーム作成、編集、削除、対象種別、公開状態、入出力を利用できます。タイムラインフィールドからのイベント作成だけを無効にし、イベントは追加メニューまたはフォームから作成します。
 - タッチパンとピンチズームをPointer Eventsで実装しました。既存の行／レーン仮想化、表示範囲クリッピング、30fpsのスクロール状態同期、検索ページネーションを維持しています。
@@ -335,6 +336,9 @@ POST /api/projects/[projectId]/import/json/preview
 POST /api/projects/[projectId]/import/json/commit
 POST /api/projects/[projectId]/import/csv/preview
 POST /api/projects/[projectId]/import/csv/commit
+POST /api/projects/import/json/preview
+POST /api/projects/import/csv/preview
+POST /api/projects/import/commit
 ```
 
 ## 検証

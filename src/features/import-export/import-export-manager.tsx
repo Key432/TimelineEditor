@@ -64,7 +64,13 @@ function Preview({ preview }: { preview: ImportPreview }) {
   );
 }
 
-export function ImportExportManager({ projectId }: { projectId: string }) {
+export function ImportExportManager({
+  projectId,
+  onImported,
+}: {
+  projectId: string;
+  onImported?: () => void;
+}) {
   const router = useRouter();
   const [jsonPreview, setJsonPreview] = useState<ImportPreview | null>(null);
   const [csvPreview, setCsvPreview] = useState<ImportPreview | null>(null);
@@ -138,8 +144,11 @@ export function ImportExportManager({ projectId }: { projectId: string }) {
       );
       setJsonPreview(null);
       setCsvPreview(null);
-      router.push(`/projects/${result.projectId}/timeline`);
-      router.refresh();
+      if (onImported) onImported();
+      else {
+        router.push(`/projects/${result.projectId}/timeline`);
+        router.refresh();
+      }
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "インポートに失敗しました。",
@@ -178,9 +187,6 @@ export function ImportExportManager({ projectId }: { projectId: string }) {
       <Card>
         <CardHeader>
           <CardTitle>JSONをインポート</CardTitle>
-          <CardDescription>
-            保存前に内容を検証します。既定は別プロジェクトとして複製です。
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Input
@@ -195,20 +201,12 @@ export function ImportExportManager({ projectId }: { projectId: string }) {
             <div className="flex flex-wrap gap-2">
               <Button
                 disabled={busy}
-                onClick={() => void commit("json", "duplicate", jsonPreview)}
+                variant="destructive"
+                onClick={() => void commit("json", "overwrite", jsonPreview)}
               >
                 <Upload aria-hidden="true" />
-                別プロジェクトとして複製
+                現在のプロジェクトを上書き
               </Button>
-              {jsonPreview.sourceProjectId === projectId ? (
-                <Button
-                  disabled={busy}
-                  variant="destructive"
-                  onClick={() => void commit("json", "overwrite", jsonPreview)}
-                >
-                  現在のプロジェクトを上書き
-                </Button>
-              ) : null}
               <Button
                 disabled={busy}
                 variant="ghost"
@@ -222,15 +220,12 @@ export function ImportExportManager({ projectId }: { projectId: string }) {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>CSV ZIPをインポート</CardTitle>
-          <CardDescription>
-            親IDを優先して照合し、空IDには新しいIDを生成します。確定処理は1トランザクションです。
-          </CardDescription>
+          <CardTitle>CSVをインポート</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <Input
-            aria-label="CSV ZIP"
-            accept="application/zip,.zip"
+            aria-label="CSVまたはCSV ZIP"
+            accept="text/csv,application/zip,.csv,.zip"
             disabled={busy}
             type="file"
             onChange={(event) => void previewCsv(event.target.files?.[0])}

@@ -190,6 +190,24 @@ describe("transactional project import", () => {
     ]).toEqual([1, 1, 1]);
   });
 
+  it("creates a new private project without a target project ID", async () => {
+    const result = await owner.rpc("import_project_data", {
+      p_target_project_id: null,
+      p_mode: "create",
+      p_payload: payload("新規取り込み"),
+    });
+    expect(result.error).toBeNull();
+    const project = await owner
+      .from("projects")
+      .select("name, visibility")
+      .eq("id", result.data!)
+      .single();
+    expect(project.data).toEqual({
+      name: "新規取り込み",
+      visibility: "private",
+    });
+  });
+
   it("overwrites atomically and rolls back an invalid append", async () => {
     const overwrite = await owner.rpc("import_project_data", {
       p_target_project_id: targetId,
@@ -231,5 +249,34 @@ describe("transactional project import", () => {
     ]);
     expect(otherResult.error).not.toBeNull();
     expect(anonymousResult.error).not.toBeNull();
+  });
+
+  it("updates an ID-matched item when importing only timeline-items.csv", async () => {
+    const current = await owner
+      .from("timeline_items")
+      .select("id, type_id")
+      .eq("project_id", targetId)
+      .single();
+    if (current.error) throw current.error;
+    const partial = payload();
+    partial.timelineItems[0]!.id = current.data.id;
+    partial.timelineItems[0]!.typeId = current.data.type_id;
+    partial.timelineItems[0]!.title = "CSV更新後";
+    const result = await owner.rpc("import_project_data", {
+      p_target_project_id: targetId,
+      p_mode: "append",
+      p_payload: {
+        ...partial,
+        itemTypes: [],
+        timelineEvents: [],
+        importSections: ["timelineItems"],
+      },
+    });
+    expect(result.error).toBeNull();
+    const items = await owner
+      .from("timeline_items")
+      .select("title")
+      .eq("project_id", targetId);
+    expect(items.data).toEqual([{ title: "CSV更新後" }]);
   });
 });

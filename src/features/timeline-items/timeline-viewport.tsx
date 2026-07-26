@@ -455,7 +455,7 @@ function TimelineItemRow({
       </div>
       <div
         className={cn(
-          "relative shrink-0 cursor-grab overflow-hidden bg-muted/15 active:cursor-grabbing",
+          "relative isolate shrink-0 cursor-grab overflow-hidden bg-muted/15 active:cursor-grabbing",
           isPanning && "cursor-grabbing",
         )}
         data-timeline-pan-surface="true"

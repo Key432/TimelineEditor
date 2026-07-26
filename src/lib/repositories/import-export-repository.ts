@@ -132,12 +132,14 @@ export class ImportExportRepository {
         end: date(item.end_year, item.end_month, item.end_day),
         isEndApproximate: item.is_end_approximate,
         endUncertaintyYears: item.end_uncertainty_years,
-        lastConfirmed: date(
-          item.last_confirmed_year,
-          item.last_confirmed_month,
-          item.last_confirmed_day,
-        ),
-        point: date(item.point_year, item.point_month, item.point_day),
+        lastConfirmed:
+          item.end_date_status === "unknown"
+            ? date(item.end_year, item.end_month, item.end_day)
+            : null,
+        point:
+          item.temporal_type === "point"
+            ? date(item.start_year, item.start_month, item.start_day)
+            : null,
         isPointApproximate: item.is_point_approximate,
       })),
       timelineEvents: events.map((event) => ({
@@ -157,7 +159,11 @@ export class ImportExportRepository {
     };
   }
 
-  async import(projectId: string, mode: ImportMode, payload: ProjectBackup) {
+  async import(
+    projectId: string | null,
+    mode: ImportMode,
+    payload: ProjectBackup,
+  ) {
     const { data, error } = await this.client.rpc("import_project_data", {
       p_target_project_id: projectId,
       p_mode: mode,

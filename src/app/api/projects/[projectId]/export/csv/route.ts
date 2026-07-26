@@ -8,13 +8,13 @@ export async function GET(
 ) {
   try {
     const { projectId } = await params;
-    const archive = await new ImportExportService(
+    const { archive, fileName } = await new ImportExportService(
       await createClient(),
     ).exportCsv(projectId);
     return new Response(archive, {
       headers: {
         "content-type": "application/zip",
-        "content-disposition": `attachment; filename="project_csv_${new Date().toISOString().slice(0, 10)}.zip"`,
+        "content-disposition": `attachment; filename="timeline_${new Date().toISOString().slice(0, 10)}.zip"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
       },
     });
   } catch (error) {
