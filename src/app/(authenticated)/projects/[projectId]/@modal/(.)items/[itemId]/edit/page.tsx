@@ -60,6 +60,7 @@ export default async function TimelineItemEditModalPage({
             childEventCount={
               events.filter((event) => event.timelineItemId === itemId).length
             }
+            closeOverlayAfterDelete
             redirectAfterDelete
             itemId={itemId}
             projectId={projectId}

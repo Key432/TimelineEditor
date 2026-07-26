@@ -74,6 +74,7 @@ export function TimelineItemDetail({
   readOnly = false,
   eventBasePath,
   hardEventNavigation = false,
+  closeOverlayAfterDelete = false,
 }: {
   projectId: string;
   item: TimelineItem;
@@ -81,6 +82,7 @@ export function TimelineItemDetail({
   readOnly?: boolean;
   eventBasePath?: string;
   hardEventNavigation?: boolean;
+  closeOverlayAfterDelete?: boolean;
 }) {
   const { data: currentItem } = useQuery({
     queryKey: timelineItemKeys.detail(projectId, item.id),
@@ -147,6 +149,7 @@ export function TimelineItemDetail({
           </Button>
           <DeleteTimelineItemDialog
             childEventCount={events.length}
+            closeOverlayAfterDelete={closeOverlayAfterDelete}
             redirectAfterDelete
             itemId={currentItem.id}
             projectId={projectId}

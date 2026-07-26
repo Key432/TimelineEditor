@@ -284,4 +284,5 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   finishDelete?.();
   await expect(page).toHaveURL(`/projects/${project.id}/timeline`);
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByText("クラスタ候補A", { exact: true })).toHaveCount(0);
 });

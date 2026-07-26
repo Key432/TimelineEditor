@@ -24,7 +24,11 @@ export default async function TimelineEventModalPage({
   }
   return (
     <TimelineEventOverlay title={event.title}>
-      <TimelineEventDetail event={event} projectId={projectId} />
+      <TimelineEventDetail
+        closeOverlayAfterDelete
+        event={event}
+        projectId={projectId}
+      />
     </TimelineEventOverlay>
   );
 }

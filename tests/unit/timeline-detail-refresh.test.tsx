@@ -22,10 +22,16 @@ const mocks = vi.hoisted(() => ({
   getTimelineEvent: vi.fn<typeof getTimelineEvent>(),
   getTimelineItem: vi.fn<typeof getTimelineItem>(),
   replace: vi.fn(),
+  refresh: vi.fn(),
+  back: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: mocks.replace, refresh: vi.fn() }),
+  useRouter: () => ({
+    back: mocks.back,
+    replace: mocks.replace,
+    refresh: mocks.refresh,
+  }),
 }));
 
 vi.mock("@/features/timeline-events/api", async (importOriginal) => ({
@@ -189,7 +195,11 @@ describe("timeline detail refresh", () => {
     const user = userEvent.setup();
     render(
       <Wrapper>
-        <TimelineEventDetail event={event} projectId={event.projectId} />
+        <TimelineEventDetail
+          closeOverlayAfterDelete
+          event={event}
+          projectId={event.projectId}
+        />
       </Wrapper>,
     );
 
@@ -200,10 +210,8 @@ describe("timeline detail refresh", () => {
     expect(mocks.replace).not.toHaveBeenCalled();
 
     completeDeletion?.();
-    await waitFor(() =>
-      expect(mocks.replace).toHaveBeenCalledWith(
-        `/projects/${event.projectId}/timeline`,
-      ),
-    );
+    await waitFor(() => expect(mocks.back).toHaveBeenCalledOnce());
+    expect(mocks.replace).not.toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
   });
 });

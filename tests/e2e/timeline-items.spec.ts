@@ -431,10 +431,18 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(page.getByText("夏目漱石", { exact: true })).toBeHidden();
   await expect(page.getByText(/表示中 1 \/ 2 行/)).toBeVisible();
   await hiddenGroup.click();
-  await page.getByRole("button", { name: "夏目漱石を編集" }).click();
-  await page.getByRole("button", { name: "完全削除" }).click();
-  await page.getByRole("button", { name: "完全削除" }).last().click();
-  await expect(page.getByText("夏目漱石", { exact: true })).toBeHidden();
+  await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
+  const deleteDetail = page.getByRole("dialog");
+  await deleteDetail.getByRole("button", { name: "完全削除" }).click();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "完全削除" })
+    .click();
+  await expect(page).toHaveURL(
+    new RegExp(`/projects/${projectId}/timeline(?:\\?.*)?$`),
+  );
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByText("夏目漱石", { exact: true })).toHaveCount(0);
   await page.reload();
   await expect(page.getByLabel(/時点型マーカー/)).toBeVisible();
   await expect(page.getByText(/目盛り year/)).toBeVisible();

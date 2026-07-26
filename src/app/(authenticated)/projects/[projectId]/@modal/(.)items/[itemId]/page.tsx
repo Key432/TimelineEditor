@@ -30,6 +30,7 @@ export default async function TimelineItemModalPage({
   return (
     <TimelineEventOverlay title={item.title}>
       <TimelineItemDetail
+        closeOverlayAfterDelete
         events={relatedEvents}
         item={item}
         projectId={projectId}

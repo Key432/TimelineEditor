@@ -58,10 +58,12 @@ export function TimelineEventDetail({
   projectId,
   event,
   readOnly = false,
+  closeOverlayAfterDelete = false,
 }: {
   projectId: string;
   event: TimelineEvent;
   readOnly?: boolean;
+  closeOverlayAfterDelete?: boolean;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -78,8 +80,11 @@ export function TimelineEventDetail({
         queryKey: timelineEventKeys.list(projectId),
         exact: true,
       });
-      router.replace(`/projects/${projectId}/timeline`);
-      router.refresh();
+      if (closeOverlayAfterDelete) {
+        router.back();
+      } else {
+        router.replace(`/projects/${projectId}/timeline`);
+      }
     },
   });
   return (

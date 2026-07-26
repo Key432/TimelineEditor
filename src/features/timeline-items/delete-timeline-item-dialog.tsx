@@ -29,12 +29,14 @@ export function DeleteTimelineItemDialog({
   title,
   childEventCount = 0,
   redirectAfterDelete = false,
+  closeOverlayAfterDelete = false,
 }: {
   projectId: string;
   itemId: string;
   title: string;
   childEventCount?: number;
   redirectAfterDelete?: boolean;
+  closeOverlayAfterDelete?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
@@ -42,16 +44,23 @@ export function DeleteTimelineItemDialog({
   const mutation = useMutation({
     mutationFn: () => deleteTimelineItem(projectId, itemId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: timelineItemKeys.list(projectId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: timelineEventKeys.list(projectId),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: timelineItemKeys.list(projectId),
+          exact: true,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: timelineEventKeys.list(projectId),
+          exact: true,
+        }),
+      ]);
       setOpen(false);
       if (redirectAfterDelete) {
-        router.push(`/projects/${projectId}/timeline`);
-        router.refresh();
+        if (closeOverlayAfterDelete) {
+          router.back();
+        } else {
+          router.replace(`/projects/${projectId}/timeline`);
+        }
       }
     },
   });
