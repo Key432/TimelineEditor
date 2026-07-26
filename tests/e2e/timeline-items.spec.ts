@@ -344,6 +344,26 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   );
   await page.getByRole("button", { name: "全体に合わせる" }).click();
   await expect(zoomSlider).toHaveValue("0");
+  await expect(page.getByTestId("timeline-minimap")).toBeVisible();
+  await expect(page.getByLabel("表示年代スライサー")).toBeVisible();
+  await viewport.hover({ position: { x: 620, y: 100 } });
+  await expect(page.getByTestId("timeline-pointer-guide")).toBeVisible();
+
+  await page.getByRole("button", { name: "最大化", exact: true }).click();
+  await expect(page.getByRole("button", { name: "元の大きさ" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "最大化", exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "保存済みビュー" }).click();
+  await page.getByLabel("保存済みビュー名").fill("明治期ビュー");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await page.getByRole("button", { name: "保存済みビュー" }).click();
+  await expect(
+    page.getByRole("menuitem", { name: "明治期ビュー" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
 
   const moveUp = page.getByRole("button", {
     name: "『吾輩は猫である』刊行を上へ移動",

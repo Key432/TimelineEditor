@@ -25,7 +25,13 @@ import {
   Rows3,
   SlidersHorizontal,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -88,6 +94,8 @@ import {
   type TimelineSortMode,
 } from "@/features/timeline-items/types";
 import type { Project } from "@/features/projects/types";
+import { TimelineViewControls } from "@/features/timeline-views/timeline-view-controls";
+import { cn } from "@/lib/utils";
 
 const HIDDEN_ITEMS_GROUP_ID = "hidden-items";
 
@@ -247,6 +255,13 @@ function TimelineWorkspaceContent({
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
   const [groupByType, setGroupByType] = useState(false);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const fullscreenSupported = useSyncExternalStore(
+    () => () => undefined,
+    () => document.fullscreenEnabled,
+    () => false,
+  );
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const [debouncedQuery, setDebouncedQuery] = useState(filters.query.trim());
   const [collapsed, setCollapsed] = useState<Set<string>>(
     () => new Set([HIDDEN_ITEMS_GROUP_ID]),
@@ -273,6 +288,14 @@ function TimelineWorkspaceContent({
     );
     return () => window.clearTimeout(timer);
   }, [filters.query]);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isMaximized && !document.fullscreenElement)
+        setIsMaximized(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isMaximized]);
   const searchMatches = useQuery({
     queryKey: ["projects", project.id, "timeline-search", debouncedQuery],
     queryFn: ({ signal }) => searchTimeline(project.id, debouncedQuery, signal),
@@ -437,7 +460,13 @@ function TimelineWorkspaceContent({
   }
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+    <div
+      ref={workspaceRef}
+      className={cn(
+        "flex min-h-0 min-w-0 flex-1 flex-col gap-3",
+        isMaximized && "fixed inset-0 z-50 bg-background p-3",
+      )}
+    >
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2 shadow-xs">
         {!readOnly ? (
           <DropdownMenu>
@@ -577,6 +606,31 @@ function TimelineWorkspaceContent({
             </Badge>
           ) : null}
         </Button>
+        <TimelineViewControls
+          canSaveViews={!readOnly}
+          filters={filters}
+          fullscreenSupported={fullscreenSupported}
+          groupByType={groupByType}
+          isMaximized={isMaximized}
+          layoutMode={layoutMode}
+          projectId={project.id}
+          sortDirection={direction}
+          sortMode={sortMode}
+          onFiltersChange={onFiltersChange}
+          onGroupByTypeChange={setGroupByType}
+          onLayoutModeChange={onLayoutModeChange}
+          onSortChange={(mode, nextDirection) => {
+            setSortMode(mode);
+            setDirection(nextDirection);
+          }}
+          onToggleFullscreen={() => {
+            const element = workspaceRef.current;
+            if (!element) return;
+            if (document.fullscreenElement) void document.exitFullscreen();
+            else void element.requestFullscreen();
+          }}
+          onToggleMaximized={() => setIsMaximized((value) => !value)}
+        />
         <Badge className="ml-auto" variant="outline">
           {activeFilters
             ? `${filterResult.matchedIds.size} / ${items.length}項目`

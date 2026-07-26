@@ -494,6 +494,24 @@ updated_at timestamptz
 - 削除・更新時に検索インデックスを同期する
 - 検索RPCはRLSを適用し、所有者のデータまたは公開プロジェクトのデータだけを返す
 
+### 8.9 timeline_saved_views
+
+```text
+id uuid primary key
+project_id uuid not null references projects on delete cascade
+name text not null
+configuration jsonb not null
+created_at timestamptz not null
+updated_at timestamptz not null
+unique(project_id, name)
+```
+
+- 所有者だけが作成、閲覧、更新、削除できる
+- `configuration` は表示年代、ズーム、スクロール、フィルター、並び順、グループ、レイアウトと後続Phase用の表示条件だけを保持する
+- タイムラインのデータ本体や描画結果は複製しない
+- 設定JSONは32 KiB以下に制限する
+- 保存済みビューは1プロジェクト50件までとし、設定データが無制限に増えないようにする
+
 ---
 
 ## 9. プロジェクト管理

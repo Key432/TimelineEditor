@@ -783,6 +783,10 @@ export function TimelineViewport({
   } | null>(null);
   const [viewportWidth, setViewportWidth] = useState(1120);
   const [viewportMeasured, setViewportMeasured] = useState(false);
+  const [pointerGuide, setPointerGuide] = useState<{
+    left: number;
+    label: string;
+  } | null>(null);
   const zoomLevel = useTimelineStore((state) => state.zoomLevel);
   const setZoomLevel = useTimelineStore((state) => state.setZoomLevel);
   const scrollLeft = useTimelineStore((state) => state.scrollLeft);
@@ -791,6 +795,10 @@ export function TimelineViewport({
   const setDensity = useTimelineStore((state) => state.setDensity);
   const isPanning = useTimelineStore((state) => state.isPanning);
   const setPanning = useTimelineStore((state) => state.setPanning);
+  const setViewport = useTimelineStore((state) => state.setViewport);
+  const navigationRequest = useTimelineStore(
+    (state) => state.navigationRequest,
+  );
   const rowChromeWidth =
     layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH + ACTION_WIDTH : 0;
   const timelineViewportWidth = Math.max(240, viewportWidth - rowChromeWidth);
@@ -1260,6 +1268,41 @@ export function TimelineViewport({
     bounds.domainEnd,
     bounds.domainStart + (visibleEnd - HORIZONTAL_PADDING) / pixelsPerDay,
   );
+  useEffect(() => {
+    setViewport({
+      visibleStartOrdinal,
+      visibleEndOrdinal,
+      domainStartOrdinal: bounds.domainStart,
+      domainEndOrdinal: bounds.domainEnd,
+    });
+  }, [
+    bounds.domainEnd,
+    bounds.domainStart,
+    setViewport,
+    visibleEndOrdinal,
+    visibleStartOrdinal,
+  ]);
+
+  useEffect(() => {
+    const element = viewportRef.current;
+    if (!element || !navigationRequest) return;
+    const canvasOffset = layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0;
+    const target =
+      HORIZONTAL_PADDING +
+      (navigationRequest.ordinal - bounds.domainStart) * pixelsPerDay;
+    element.scrollLeft = Math.max(
+      0,
+      target - timelineViewportWidth / 2 + canvasOffset,
+    );
+    flushScrollSync(element.scrollLeft);
+  }, [
+    bounds.domainStart,
+    flushScrollSync,
+    layoutMode,
+    navigationRequest,
+    pixelsPerDay,
+    timelineViewportWidth,
+  ]);
   const { unit, ticks } = useMemo(
     () =>
       generateTimelineTicks(
@@ -1319,6 +1362,43 @@ export function TimelineViewport({
         (layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0),
     );
     changeZoom(zoomLevel + (event.deltaY < 0 ? 1 : -1), cursorX);
+  }
+
+  function updatePointerGuide(event: React.MouseEvent<HTMLDivElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const canvasOffset = layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0;
+    const viewportX = event.clientX - rect.left - canvasOffset;
+    if (viewportX < 0 || viewportX > timelineViewportWidth) {
+      setPointerGuide(null);
+      return;
+    }
+    const left = event.currentTarget.scrollLeft + canvasOffset + viewportX;
+    const ordinal =
+      bounds.domainStart +
+      (left - canvasOffset - HORIZONTAL_PADDING) / pixelsPerDay;
+    setPointerGuide({
+      left,
+      label: formatHistoricalDate(historicalDateFromOrdinal(ordinal)),
+    });
+
+    for (const marker of event.currentTarget.querySelectorAll<HTMLElement>(
+      "[data-timeline-event-marker='true']",
+    )) {
+      const markerRect = marker.getBoundingClientRect();
+      marker.dataset.pointerOverlap =
+        Math.abs(markerRect.left + markerRect.width / 2 - event.clientX) <=
+        Math.max(8, markerRect.width / 2)
+          ? "true"
+          : "false";
+    }
+  }
+
+  function clearPointerGuide(event: React.MouseEvent<HTMLDivElement>) {
+    setPointerGuide(null);
+    for (const marker of event.currentTarget.querySelectorAll<HTMLElement>(
+      "[data-timeline-event-marker='true']",
+    ))
+      delete marker.dataset.pointerOverlap;
   }
 
   return (
@@ -1410,6 +1490,8 @@ export function TimelineViewport({
           onScroll={(event) =>
             scheduleScrollSync(event.currentTarget.scrollLeft)
           }
+          onMouseMove={updatePointerGuide}
+          onMouseLeave={clearPointerGuide}
           onWheel={handleWheel}
         >
           <div
@@ -1422,6 +1504,18 @@ export function TimelineViewport({
               height: AXIS_HEIGHT + virtualizer.getTotalSize(),
             }}
           >
+            {pointerGuide ? (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute top-0 bottom-0 z-50 border-l-2 border-primary"
+                data-testid="timeline-pointer-guide"
+                style={{ left: pointerGuide.left }}
+              >
+                <span className="sticky top-1 ml-1 inline-block rounded bg-primary px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-primary-foreground shadow-sm">
+                  {pointerGuide.label}
+                </span>
+              </div>
+            ) : null}
             <div className="sticky top-0 z-30 flex h-12 border-b bg-muted/95 text-xs font-medium text-muted-foreground backdrop-blur-sm">
               {layoutMode === "row" ? (
                 <>
@@ -1617,6 +1711,47 @@ export function TimelineViewport({
               })}
             </div>
           </div>
+        </div>
+        <div
+          className="space-y-1 rounded-md border bg-card px-3 py-2"
+          data-testid="timeline-minimap"
+        >
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>全期間ミニマップ・時間スライサー</span>
+            <span>
+              {formatHistoricalDate(
+                historicalDateFromOrdinal(visibleStartOrdinal),
+              )}{" "}
+              —{" "}
+              {formatHistoricalDate(
+                historicalDateFromOrdinal(visibleEndOrdinal),
+              )}
+            </span>
+          </div>
+          <input
+            aria-label="表示年代スライサー"
+            className="w-full accent-primary"
+            min={Math.ceil(bounds.domainStart)}
+            max={Math.floor(bounds.domainEnd)}
+            step={1}
+            type="range"
+            value={Math.round((visibleStartOrdinal + visibleEndOrdinal) / 2)}
+            onChange={(event) => {
+              const center = Number(event.target.value);
+              const element = viewportRef.current;
+              if (!element) return;
+              const canvasOffset =
+                layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0;
+              element.scrollLeft = Math.max(
+                0,
+                HORIZONTAL_PADDING +
+                  (center - bounds.domainStart) * pixelsPerDay -
+                  timelineViewportWidth / 2 +
+                  canvasOffset,
+              );
+              flushScrollSync(element.scrollLeft);
+            }}
+          />
         </div>
         <p className="text-xs text-muted-foreground">
           {layoutMode === "compact"

@@ -203,7 +203,7 @@ function SingleEventMarker({
     >
       <button
         aria-label={`イベントアイテム ${marker.event.title} ${formatHistoricalDate(marker.event.date)}`}
-        className={`focus-visible:ring-focus absolute top-1/2 z-30 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-secondary shadow-sm transition-[box-shadow,transform] hover:z-40 hover:scale-125 hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-40 focus-visible:scale-125 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${highlighted ? "ring-4 ring-secondary ring-offset-2 ring-offset-background" : ""}`}
+        className={`focus-visible:ring-focus absolute top-1/2 z-30 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-secondary shadow-sm transition-[box-shadow,transform] hover:z-40 hover:scale-125 hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-40 focus-visible:scale-125 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none data-[pointer-overlap=true]:z-40 data-[pointer-overlap=true]:scale-125 data-[pointer-overlap=true]:ring-4 data-[pointer-overlap=true]:ring-primary ${highlighted ? "ring-4 ring-secondary ring-offset-2 ring-offset-background" : ""}`}
         data-timeline-event-marker="true"
         data-search-match={highlighted ? "true" : undefined}
         style={{ left: marker.x }}
@@ -240,7 +240,7 @@ function EventClusterMarker({
       <TooltipTrigger asChild>
         <button
           aria-label={`${events.length}件のイベントアイテムを選択`}
-          className={`absolute top-1/2 z-30 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-secondary text-[10px] font-bold text-secondary-foreground shadow-sm transition-[box-shadow,transform] hover:z-40 hover:scale-110 hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-40 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${highlighted ? "ring-4 ring-secondary ring-offset-2 ring-offset-background" : ""}`}
+          className={`absolute top-1/2 z-30 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-secondary text-[10px] font-bold text-secondary-foreground shadow-sm transition-[box-shadow,transform] hover:z-40 hover:scale-110 hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-40 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none data-[pointer-overlap=true]:z-40 data-[pointer-overlap=true]:scale-110 data-[pointer-overlap=true]:ring-4 data-[pointer-overlap=true]:ring-primary ${highlighted ? "ring-4 ring-secondary ring-offset-2 ring-offset-background" : ""}`}
           data-timeline-event-marker="true"
           data-search-match={highlighted ? "true" : undefined}
           data-testid="timeline-event-cluster"

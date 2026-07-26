@@ -11,10 +11,19 @@ type TimelineState = {
   scrollLeft: number;
   density: ProjectSettings["timelineDensity"];
   isPanning: boolean;
+  viewport: {
+    visibleStartOrdinal: number;
+    visibleEndOrdinal: number;
+    domainStartOrdinal: number;
+    domainEndOrdinal: number;
+  } | null;
+  navigationRequest: { ordinal: number; nonce: number } | null;
   setZoomLevel: (zoomLevel: number) => void;
   setScrollLeft: (scrollLeft: number) => void;
   setDensity: (density: ProjectSettings["timelineDensity"]) => void;
   setPanning: (isPanning: boolean) => void;
+  setViewport: (viewport: NonNullable<TimelineState["viewport"]>) => void;
+  navigateTo: (ordinal: number) => void;
 };
 
 function zoomLevelForPreset(preset: ProjectSettings["initialZoomPreset"]) {
@@ -36,6 +45,8 @@ function createTimelineStore(settings: ProjectSettings) {
     scrollLeft: 0,
     density: settings.timelineDensity,
     isPanning: false,
+    viewport: null,
+    navigationRequest: null,
     setZoomLevel: (zoomLevel) => set({ zoomLevel }),
     setScrollLeft: (scrollLeft) =>
       set((state) =>
@@ -43,6 +54,14 @@ function createTimelineStore(settings: ProjectSettings) {
       ),
     setDensity: (density) => set({ density }),
     setPanning: (isPanning) => set({ isPanning }),
+    setViewport: (viewport) => set({ viewport }),
+    navigateTo: (ordinal) =>
+      set((state) => ({
+        navigationRequest: {
+          ordinal,
+          nonce: (state.navigationRequest?.nonce ?? 0) + 1,
+        },
+      })),
   }));
 }
 

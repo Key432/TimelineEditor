@@ -67,10 +67,10 @@ export function HistoricalDateFields({
         className={cn(
           "grid gap-2",
           showsDay
-            ? "sm:grid-cols-[7rem_8rem_minmax(7.5rem,10rem)_4.5rem_4.5rem_auto]"
+            ? "sm:grid-cols-[7rem_8rem_7.5rem_4.5rem_4.5rem_auto]"
             : showsMonth
-              ? "sm:grid-cols-[7rem_8rem_minmax(7.5rem,10rem)_4.5rem_auto]"
-              : "sm:grid-cols-[7rem_8rem_minmax(7.5rem,10rem)_auto]",
+              ? "sm:grid-cols-[7rem_8rem_7.5rem_4.5rem_auto]"
+              : "sm:grid-cols-[7rem_8rem_7.5rem_auto]",
         )}
         data-slot="historical-date-input-row"
       >

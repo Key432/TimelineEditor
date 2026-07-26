@@ -81,6 +81,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      timeline_saved_views: {
+        Row: {
+          id: string;
+          project_id: string;
+          name: string;
+          configuration: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          name: string;
+          configuration: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          name?: string;
+          configuration?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       timeline_item_types: {
         Row: {
           id: string;

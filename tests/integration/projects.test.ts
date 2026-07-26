@@ -161,4 +161,82 @@ describe("project ownership RLS", () => {
     expect(settingsError).toBeNull();
     expect(settings).toEqual([]);
   });
+
+  it("lets only the owner manage saved timeline view configuration", async () => {
+    const projectId = await createOwnedProject("保存済みビュー");
+    const configuration = {
+      version: 1,
+      visibleStartOrdinal: 100,
+      visibleEndOrdinal: 200,
+      zoomLevel: 2,
+      scrollLeft: 120,
+      filters: {
+        query: "",
+        typeIds: [],
+        fromYear: null,
+        toYear: null,
+        hasEvents: "all",
+        approximate: "all",
+        hasCustomColor: "all",
+        visibility: "all",
+        mode: "hide",
+      },
+      sortMode: "manual",
+      sortDirection: "asc",
+      groupByType: false,
+      layoutMode: "row",
+      density: "comfortable",
+      tags: [],
+      backgroundLayerIds: [],
+      showRelationships: false,
+      visibleColumns: [],
+    };
+    const { data: created, error: createError } = await owner
+      .from("timeline_saved_views")
+      .insert({ project_id: projectId, name: "明治期", configuration })
+      .select("id, name, configuration")
+      .single();
+    expect(createError).toBeNull();
+    expect(created?.name).toBe("明治期");
+    expect(created?.configuration).toEqual(configuration);
+
+    const [otherRead, anonymousRead, otherWrite] = await Promise.all([
+      otherUser
+        .from("timeline_saved_views")
+        .select("id")
+        .eq("project_id", projectId),
+      anonymous
+        .from("timeline_saved_views")
+        .select("id")
+        .eq("project_id", projectId),
+      otherUser
+        .from("timeline_saved_views")
+        .insert({ project_id: projectId, name: "不正", configuration }),
+    ]);
+    expect(otherRead.error).toBeNull();
+    expect(otherRead.data).toEqual([]);
+    expect(anonymousRead.error).not.toBeNull();
+    expect(otherWrite.error).not.toBeNull();
+
+    const { error: fillError } = await owner
+      .from("timeline_saved_views")
+      .insert(
+        Array.from({ length: 49 }, (_, index) => ({
+          project_id: projectId,
+          name: `保存位置${index + 1}`,
+          configuration,
+        })),
+      );
+    expect(fillError).toBeNull();
+    const { error: overflowError } = await owner
+      .from("timeline_saved_views")
+      .insert({ project_id: projectId, name: "51件目", configuration });
+    expect(overflowError?.message).toContain("limit exceeded");
+
+    const { error: deleteError } = await owner
+      .from("timeline_saved_views")
+      .delete()
+      .eq("id", created!.id);
+    expect(deleteError).toBeNull();
+  });
 });

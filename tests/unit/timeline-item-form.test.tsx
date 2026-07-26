@@ -136,6 +136,10 @@ describe("TimelineItemForm", () => {
     expect(
       approximate.closest('[data-slot="historical-date-input-row"]'),
     ).not.toBeNull();
+    expect(
+      approximate.closest('[data-slot="historical-date-input-row"]'),
+    ).toHaveClass("sm:grid-cols-[7rem_8rem_7.5rem_auto]");
+    expect(approximate.parentElement).toHaveClass("whitespace-nowrap");
     expect(form.getAllByLabelText("日付表記の手動入力")[0]).toHaveAttribute(
       "placeholder",
       "日付表記の手動入力（任意・例：平成10年）",
