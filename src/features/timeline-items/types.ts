@@ -20,10 +20,29 @@ export type TimelineSortMode = (typeof TIMELINE_SORT_MODES)[number];
 export const TIMELINE_LAYOUT_MODES = ["row", "compact"] as const;
 export type TimelineLayoutMode = (typeof TIMELINE_LAYOUT_MODES)[number];
 
+export const HISTORICAL_ERAS = ["ce", "bce"] as const;
+export type HistoricalEra = (typeof HISTORICAL_ERAS)[number];
+
+export const HISTORICAL_DATE_PRECISIONS = [
+  "day",
+  "month",
+  "year",
+  "decade",
+  "century",
+] as const;
+export type HistoricalDatePrecision =
+  (typeof HISTORICAL_DATE_PRECISIONS)[number];
+
 export type HistoricalDate = {
+  /** Omitted only by legacy in-memory callers; persistence always writes it. */
+  era?: HistoricalEra;
+  /** Omitted only by legacy in-memory callers and inferred from month/day. */
+  precision?: HistoricalDatePrecision;
   year: number;
   month: number | null;
   day: number | null;
+  originalText?: string | null;
+  calendar?: string;
 };
 
 export type TimelineItem = {

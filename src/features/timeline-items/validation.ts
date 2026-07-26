@@ -1,9 +1,11 @@
 import { z } from "zod";
 
 import {
+  DEFAULT_CALENDAR,
   historicalDateOrdinal,
   isValidHistoricalDate,
 } from "@/features/timeline-items/historical-date";
+import type { HistoricalDate } from "@/features/timeline-items/types";
 
 const nullableText = (max: number, message: string) =>
   z
@@ -21,11 +23,21 @@ const optionalDatePart = z
     return Number.isFinite(parsed) ? parsed : Number.NaN;
   });
 
-const historicalDateSchema = z
+export const historicalDateSchema = z
   .object({
+    era: z.enum(["ce", "bce"]).default("ce"),
+    precision: z.enum(["day", "month", "year", "decade", "century"]).optional(),
     year: optionalDatePart,
     month: optionalDatePart,
     day: optionalDatePart,
+    originalText: z
+      .string()
+      .trim()
+      .max(200, "原表記は200文字以内で入力してください。")
+      .transform((value) => value || null)
+      .nullable()
+      .default(null),
+    calendar: z.string().trim().min(1).max(50).default(DEFAULT_CALENDAR),
   })
   .superRefine((date, context) => {
     if (date.year === null) {
@@ -36,26 +48,42 @@ const historicalDateSchema = z
       });
       return;
     }
-    if (
-      !isValidHistoricalDate(
-        date as { year: number; month: number | null; day: number | null },
-      )
-    ) {
+    if (!isValidHistoricalDate(date as HistoricalDate)) {
       context.addIssue({
         code: "custom",
-        message: "実在する西暦1年以降の日付を入力してください。",
+        message: "時代・精度に合う歴史日付を入力してください。",
       });
     }
   })
   .transform((date) => ({
+    era: date.era,
+    precision:
+      date.precision ??
+      (date.day !== null ? "day" : date.month !== null ? "month" : "year"),
     year: date.year as number,
-    month: date.month,
-    day: date.day,
+    month:
+      date.precision === undefined || ["day", "month"].includes(date.precision)
+        ? date.month
+        : null,
+    day:
+      date.precision === undefined || date.precision === "day"
+        ? date.day
+        : null,
+    originalText: date.originalText,
+    calendar: date.calendar,
   }));
 
 const blankDatePart = z.union([z.literal(""), z.null(), z.undefined()]);
 const blankHistoricalDateSchema = z
-  .object({ year: blankDatePart, month: blankDatePart, day: blankDatePart })
+  .object({
+    era: z.enum(["ce", "bce"]).optional(),
+    precision: z.enum(["day", "month", "year", "decade", "century"]).optional(),
+    year: blankDatePart,
+    month: blankDatePart,
+    day: blankDatePart,
+    originalText: z.string().optional().nullable(),
+    calendar: z.string().optional(),
+  })
   .transform(() => null);
 const nullableHistoricalDateSchema = z
   .union([
@@ -197,10 +225,26 @@ export function emptyTimelineItemValues(typeId = ""): TimelineItemInput {
     temporalType: "range",
     colorOverride: null,
     isVisible: true,
-    start: { year: "", month: "", day: "" },
+    start: {
+      era: "ce",
+      precision: "year",
+      year: "",
+      month: "",
+      day: "",
+      originalText: "",
+      calendar: DEFAULT_CALENDAR,
+    },
     isStartApproximate: false,
     endDateStatus: "specified",
-    end: { year: "", month: "", day: "" },
+    end: {
+      era: "ce",
+      precision: "year",
+      year: "",
+      month: "",
+      day: "",
+      originalText: "",
+      calendar: DEFAULT_CALENDAR,
+    },
     isEndApproximate: false,
     lastConfirmed: null,
     point: null,

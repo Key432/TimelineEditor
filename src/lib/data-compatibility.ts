@@ -1,10 +1,10 @@
 export const DATA_COMPATIBILITY_BASELINE = {
   database: {
-    version: 1,
-    migration: "20260726112629_optimize_timeline_item_dates.sql",
+    version: 2,
+    migration: "20260726151016_phase_l1_historical_dates.sql",
   },
-  json: { version: 1 },
-  csv: { version: 1 },
+  json: { version: 2 },
+  csv: { version: 2 },
 } as const;
 
 export const LEGACY_UNVERSIONED_SCHEMA_VERSION = 0 as const;

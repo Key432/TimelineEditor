@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   daysInMonth,
   formatHistoricalDate,
+  historicalDateOrdinal,
+  historicalDateRange,
   isLeapYear,
   isValidHistoricalDate,
 } from "@/features/timeline-items/historical-date";
@@ -53,6 +55,48 @@ describe("historical dates", () => {
     expect(formatHistoricalDate({ year: 1867, month: 2, day: 9 })).toBe(
       "1867/02/09",
     );
+  });
+
+  it("normalizes BCE centuries and CE decades to independent boundaries", () => {
+    const bce = historicalDateRange({
+      era: "bce",
+      precision: "century",
+      year: 5,
+      month: null,
+      day: null,
+    });
+    expect(bce.start.astronomicalYear).toBe(-499);
+    expect(bce.end.astronomicalYear).toBe(-400);
+    const decade = historicalDateRange({
+      era: "ce",
+      precision: "decade",
+      year: 1860,
+      month: null,
+      day: null,
+    });
+    expect(decade.start.astronomicalYear).toBe(1860);
+    expect(decade.end.astronomicalYear).toBe(1869);
+  });
+
+  it("keeps BCE 1 and CE 1 continuous without exposing year zero", () => {
+    const bceEnd = historicalDateOrdinal({
+      era: "bce",
+      precision: "day",
+      year: 1,
+      month: 12,
+      day: 31,
+    });
+    const ceStart = historicalDateOrdinal({ year: 1, month: 1, day: 1 });
+    expect(ceStart - bceEnd).toBe(1);
+    expect(
+      formatHistoricalDate({
+        era: "bce",
+        precision: "century",
+        year: 5,
+        month: null,
+        day: null,
+      }),
+    ).toBe("紀元前5世紀");
   });
 });
 
@@ -114,7 +158,15 @@ describe("timeline item validation", () => {
       point: { year: "1905", month: "", day: "" },
     });
     expect(result.end).toBeNull();
-    expect(result.point).toEqual({ year: 1905, month: null, day: null });
+    expect(result.point).toEqual({
+      era: "ce",
+      precision: "year",
+      year: 1905,
+      month: null,
+      day: null,
+      originalText: null,
+      calendar: "proleptic_gregorian",
+    });
   });
 
   it("rejects reversed, impossible, and incomplete dates", () => {
@@ -151,5 +203,31 @@ describe("timeline item validation", () => {
         externalUrl: "javascript:alert(1)",
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts a BCE century independently from its approximate flag", () => {
+    const result = timelineItemSchema.safeParse({
+      ...rangeInput(),
+      start: {
+        era: "bce",
+        precision: "century",
+        year: 5,
+        month: null,
+        day: null,
+        originalText: "第五世紀頃",
+        calendar: "proleptic_gregorian",
+      },
+      end: {
+        era: "ce",
+        precision: "year",
+        year: 1,
+        month: null,
+        day: null,
+        originalText: null,
+        calendar: "proleptic_gregorian",
+      },
+      isStartApproximate: true,
+    });
+    expect(result.success).toBe(true);
   });
 });

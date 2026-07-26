@@ -39,6 +39,17 @@ describe("timeline date coordinates", () => {
     ).toBe(1);
   });
 
+  it("round-trips BCE dates and crosses directly into CE 1", () => {
+    const bce = { era: "bce" as const, year: 1, month: 12, day: 31 };
+    const ordinal = historicalDateOrdinal(bce);
+    expect(historicalDateFromOrdinal(ordinal)).toEqual(bce);
+    expect(historicalDateFromOrdinal(ordinal + 1)).toEqual({
+      year: 1,
+      month: 1,
+      day: 1,
+    });
+  });
+
   it("converts between dates and x coordinates", () => {
     const origin = historicalDateOrdinal({ year: 1900, month: 1, day: 1 });
     const date = { year: 1901, month: 1, day: 1 };
@@ -98,6 +109,21 @@ describe("timeline ticks and uncertainty", () => {
         (labels[index]!.ordinal - labels[index - 1]!.ordinal) * scale,
       ).toBeGreaterThanOrEqual(79);
     }
+  });
+
+  it("generates BCE and CE labels on one continuous axis", () => {
+    const start = historicalDateOrdinal({
+      era: "bce",
+      year: 20,
+      month: 1,
+      day: 1,
+    });
+    const end = historicalDateOrdinal({ year: 20, month: 12, day: 31 });
+    const labels = generateTimelineTicks(start, end, 0.1)
+      .ticks.map((tick) => tick.label)
+      .filter(Boolean);
+    expect(labels.some((label) => label.startsWith("紀元前"))).toBe(true);
+    expect(labels.some((label) => /^\d+年$/.test(label))).toBe(true);
   });
 
   it("converts uncertainty years to a clipped gradient width", () => {

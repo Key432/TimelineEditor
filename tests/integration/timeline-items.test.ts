@@ -200,6 +200,73 @@ describe("timeline item persistence and RLS", () => {
     expect(crossProjectType.error?.code).toBe("23503");
   });
 
+  it("stores BCE centuries and normalized ranges without weakening RLS", async () => {
+    const projectId = await createProject("BCE normalized ranges");
+    const typeId = await firstType(projectId);
+    const created = await owner
+      .from("timeline_items")
+      .insert({
+        ...rangeRow(projectId, typeId, "紀元前から西暦"),
+        start_era: "bce",
+        start_precision: "century",
+        start_year: 5,
+        start_month: null,
+        start_day: null,
+        start_original_text: "第五世紀頃",
+        end_era: "ce",
+        end_precision: "decade",
+        end_year: 10,
+        end_month: null,
+        end_day: null,
+      })
+      .select(
+        "id, start_normalized_min, start_normalized_max, end_normalized_max",
+      )
+      .single();
+    expect(created.error).toBeNull();
+    expect(created.data!.start_normalized_min).toBeLessThan(
+      created.data!.start_normalized_max!,
+    );
+    expect(created.data!.start_normalized_max).toBeLessThan(
+      created.data!.end_normalized_max!,
+    );
+    const invalidDecade = await owner.from("timeline_items").insert({
+      ...rangeRow(projectId, typeId, "invalid decade", 1),
+      start_precision: "decade",
+      start_year: 1861,
+      start_month: null,
+      start_day: null,
+    });
+    expect(invalidDecade.error?.code).toBe("23514");
+
+    const bceLeapDay = await owner.from("timeline_items").insert({
+      ...rangeRow(projectId, typeId, "BCE leap day", 2),
+      start_era: "bce",
+      start_precision: "day",
+      start_year: 1,
+      start_month: 2,
+      start_day: 29,
+    });
+    expect(bceLeapDay.error).toBeNull();
+
+    const invalidBceLeapDay = await owner.from("timeline_items").insert({
+      ...rangeRow(projectId, typeId, "invalid BCE leap day", 3),
+      start_era: "bce",
+      start_precision: "day",
+      start_year: 2,
+      start_month: 2,
+      start_day: 29,
+    });
+    expect(invalidBceLeapDay.error?.code).toBe("23514");
+
+    const [otherRead, anonymousRead] = await Promise.all([
+      otherUser.from("timeline_items").select("id").eq("id", created.data!.id),
+      anonymous.from("timeline_items").select("id").eq("id", created.data!.id),
+    ]);
+    expect(otherRead.data).toEqual([]);
+    expect(anonymousRead.data).toEqual([]);
+  });
+
   it("keeps the parent and successful siblings when individual event inserts fail", async () => {
     const projectId = await createProject("partial child events");
     const typeId = await firstType(projectId);

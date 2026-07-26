@@ -38,12 +38,15 @@ CSVスキーマバージョン: ${IMPORT_SCHEMA_VERSION}
 - start_year: 期間の開始年、または時点の日付の年。1以上。必須。
 - start_month: 期間の開始月、または時点の日付の月。任意。
 - start_day: 期間の開始日、または時点の日付の日。任意。月が空欄の場合は日も空欄。
+- start_era/start_precision: ce/bce と day/month/year/decade/century。
+- start_original_text/start_calendar: 原資料表記と暦法識別子。
 - is_start_approximate: 期間開始日のあいまいフラグ。TRUE/FALSE。
 - start_uncertainty_years: 期間開始日の不確かさ（年）。任意。
 - end_date_status: 期間の終了状態。specified/ongoing/unknown。
 - end_year: specified の終了年、または unknown の最終確認年。任意。
 - end_month: specified の終了月、または unknown の最終確認月。任意。
 - end_day: specified の終了日、または unknown の最終確認日。任意。月が空欄の場合は日も空欄。
+- end_era/end_precision/end_original_text/end_calendar: 終了側の日付属性。
 - is_end_approximate: 期間終了日のあいまいフラグ。TRUE/FALSE。
 - end_uncertainty_years: 期間終了日の不確かさ（年）。任意。
 - is_point_approximate: 時点の日付のあいまいフラグ。TRUE/FALSE。
@@ -57,6 +60,7 @@ CSVスキーマバージョン: ${IMPORT_SCHEMA_VERSION}
 - event_year: イベントの年。1以上。必須。
 - event_month: イベントの月。任意。
 - event_day: イベントの日。任意。月が空欄の場合は日も空欄。
+- event_era/event_precision/event_original_text/event_calendar: イベント日付属性。
 - is_approximate: 日付のあいまいフラグ。TRUE/FALSE。
 - description: 説明本文。任意。
 - source_text: 出典・参考文献。任意。
@@ -109,8 +113,16 @@ function csv(headers: string[], rows: unknown[][]) {
 }
 
 const dateCells = (
-  date: { year: number; month: number | null; day: number | null } | null,
-) => [date?.year ?? "", date?.month ?? "", date?.day ?? ""];
+  date: ProjectBackup["timelineEvents"][number]["date"] | null,
+) => [
+  date?.year ?? "",
+  date?.month ?? "",
+  date?.day ?? "",
+  date?.era ?? "",
+  date?.precision ?? "",
+  date?.originalText ?? "",
+  date?.calendar ?? "",
+];
 
 export function createCsvArchive(backup: ProjectBackup) {
   const types = csv(
@@ -140,12 +152,20 @@ export function createCsvArchive(backup: ProjectBackup) {
       "start_year",
       "start_month",
       "start_day",
+      "start_era",
+      "start_precision",
+      "start_original_text",
+      "start_calendar",
       "is_start_approximate",
       "start_uncertainty_years",
       "end_date_status",
       "end_year",
       "end_month",
       "end_day",
+      "end_era",
+      "end_precision",
+      "end_original_text",
+      "end_calendar",
       "is_end_approximate",
       "end_uncertainty_years",
       "is_point_approximate",
@@ -186,6 +206,10 @@ export function createCsvArchive(backup: ProjectBackup) {
       "event_year",
       "event_month",
       "event_day",
+      "event_era",
+      "event_precision",
+      "event_original_text",
+      "event_calendar",
       "is_approximate",
       "description",
       "source_text",
@@ -196,9 +220,7 @@ export function createCsvArchive(backup: ProjectBackup) {
       event.timelineItemId,
       titleById.get(event.timelineItemId),
       event.title,
-      event.date.year,
-      event.date.month,
-      event.date.day,
+      ...dateCells(event.date),
       event.isApproximate,
       event.description,
       event.sourceText,
@@ -295,9 +317,19 @@ const date = (row: Record<string, string>, prefix: string) => {
   return year === null
     ? null
     : {
+        era:
+          row[`${prefix}_era`] === "bce" ? ("bce" as const) : ("ce" as const),
+        precision: (row[`${prefix}_precision`] ||
+          (row[`${prefix}_day`]
+            ? "day"
+            : row[`${prefix}_month`]
+              ? "month"
+              : "year")) as "day" | "month" | "year" | "decade" | "century",
         year,
         month: number(row[`${prefix}_month`]),
         day: number(row[`${prefix}_day`]),
+        originalText: nullable(row[`${prefix}_original_text`]),
+        calendar: row[`${prefix}_calendar`] || "proleptic_gregorian",
       };
 };
 
@@ -402,7 +434,9 @@ export function parseCsvImport(
       throw new Error("CSVスキーマバージョンが不正です。");
     }
     if (schemaVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION) {
-      warnings.push("旧CSV形式をスキーマバージョン1へ移行しました。");
+      warnings.push("旧CSV形式をスキーマバージョン2へ移行しました。");
+    } else if (schemaVersion === 1) {
+      warnings.push("CSVスキーマバージョン1をバージョン2へ移行しました。");
     } else if (schemaVersion !== IMPORT_SCHEMA_VERSION) {
       throw new Error(
         `CSVスキーマバージョン${schemaVersion}の移行処理がありません。`,
@@ -516,9 +550,15 @@ export function parseCsvImport(
           timelineItemId: parent,
           title: row.title,
           date: {
+            era: row.event_era === "bce" ? "bce" : "ce",
+            precision: (row.event_precision ||
+              (row.event_day ? "day" : row.event_month ? "month" : "year")) as
+              "day" | "month" | "year" | "decade" | "century",
             year: number(row.event_year) ?? 0,
             month: number(row.event_month),
             day: number(row.event_day),
+            originalText: nullable(row.event_original_text),
+            calendar: row.event_calendar || "proleptic_gregorian",
           },
           isApproximate: boolean(row.is_approximate),
           description: nullable(row.description),

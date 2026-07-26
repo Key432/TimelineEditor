@@ -17,10 +17,18 @@ type ParentRow = Pick<
   | "start_year"
   | "start_month"
   | "start_day"
+  | "start_era"
+  | "start_precision"
+  | "start_original_text"
+  | "start_calendar"
   | "end_date_status"
   | "end_year"
   | "end_month"
   | "end_day"
+  | "end_era"
+  | "end_precision"
+  | "end_original_text"
+  | "end_calendar"
 >;
 type JoinedRow = EventRow & { timeline_items: ParentRow };
 
@@ -28,12 +36,26 @@ function parentDate(
   year: number | null,
   month: number | null,
   day: number | null,
+  era: "ce" | "bce",
+  precision: "day" | "month" | "year" | "decade" | "century",
+  originalText: string | null,
+  calendar: string,
 ) {
-  return year === null ? null : { year, month, day };
+  return year === null
+    ? null
+    : { era, precision, year, month, day, originalText, calendar };
 }
 
 function mapParent(row: ParentRow): TimelineEventParent {
-  const start = parentDate(row.start_year, row.start_month, row.start_day);
+  const start = parentDate(
+    row.start_year,
+    row.start_month,
+    row.start_day,
+    row.start_era,
+    row.start_precision,
+    row.start_original_text,
+    row.start_calendar,
+  );
   if (!start || !row.end_date_status) {
     throw new Error("Timeline event parent must be a range item.");
   }
@@ -42,10 +64,26 @@ function mapParent(row: ParentRow): TimelineEventParent {
     title: row.title,
     start,
     endDateStatus: row.end_date_status,
-    end: parentDate(row.end_year, row.end_month, row.end_day),
+    end: parentDate(
+      row.end_year,
+      row.end_month,
+      row.end_day,
+      row.end_era,
+      row.end_precision,
+      row.end_original_text,
+      row.end_calendar,
+    ),
     lastConfirmed:
       row.end_date_status === "unknown"
-        ? parentDate(row.end_year, row.end_month, row.end_day)
+        ? parentDate(
+            row.end_year,
+            row.end_month,
+            row.end_day,
+            row.end_era,
+            row.end_precision,
+            row.end_original_text,
+            row.end_calendar,
+          )
         : null,
   };
 }
@@ -56,7 +94,15 @@ function mapEvent(row: JoinedRow): TimelineEvent {
     projectId: row.project_id,
     timelineItemId: row.timeline_item_id,
     title: row.title,
-    date: { year: row.event_year, month: row.event_month, day: row.event_day },
+    date: {
+      era: row.event_era,
+      precision: row.event_precision,
+      year: row.event_year,
+      month: row.event_month,
+      day: row.event_day,
+      originalText: row.event_original_text,
+      calendar: row.event_calendar,
+    },
     isApproximate: row.is_approximate,
     description: row.description,
     sourceText: row.source_text,
@@ -74,6 +120,10 @@ function persistenceValues(input: TimelineEventValues) {
     event_year: input.date.year,
     event_month: input.date.month,
     event_day: input.date.day,
+    event_era: input.date.era,
+    event_precision: input.date.precision,
+    event_original_text: input.date.originalText,
+    event_calendar: input.date.calendar,
     is_approximate: input.isApproximate,
     description: input.description,
     source_text: input.sourceText,
@@ -84,7 +134,9 @@ function persistenceValues(input: TimelineEventValues) {
 const DETAIL_COLUMNS = `
   *, timeline_items (
     id, title, start_year, start_month, start_day, end_date_status,
-    end_year, end_month, end_day
+    start_era, start_precision, start_original_text, start_calendar,
+    end_year, end_month, end_day, end_era, end_precision,
+    end_original_text, end_calendar
   )
 `;
 
@@ -95,7 +147,7 @@ export class TimelineEventRepository {
     const { data, error } = await this.client
       .from("timeline_events")
       .select(
-        "id, project_id, timeline_item_id, title, event_year, event_month, event_day, is_approximate, created_at, updated_at",
+        "id, project_id, timeline_item_id, title, event_year, event_month, event_day, event_era, event_precision, event_original_text, event_calendar, is_approximate, created_at, updated_at",
       )
       .eq("project_id", projectId)
       .order("event_year")
@@ -109,9 +161,13 @@ export class TimelineEventRepository {
       timelineItemId: row.timeline_item_id,
       title: row.title,
       date: {
+        era: row.event_era,
+        precision: row.event_precision,
         year: row.event_year,
         month: row.event_month,
         day: row.event_day,
+        originalText: row.event_original_text,
+        calendar: row.event_calendar,
       },
       isApproximate: row.is_approximate,
       createdAt: row.created_at,

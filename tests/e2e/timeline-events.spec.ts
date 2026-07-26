@@ -119,9 +119,12 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
     item.id,
   );
   await createForm.getByLabel("タイトル").fill("代表作刊行");
+  await createForm.getByLabel("イベント日付精度").selectOption("day");
   await createForm.getByLabel("イベント年").fill("1905");
   await createForm.getByLabel("イベント月").fill("1");
-  await createForm.getByLabel("イベント日").fill("15");
+  await createForm
+    .getByRole("spinbutton", { name: "イベント日", exact: true })
+    .fill("15");
   await expect(page.getByLabel(/仮マーカー/)).toBeVisible();
   await createForm
     .getByRole("button", { name: "イベントアイテムを作成" })

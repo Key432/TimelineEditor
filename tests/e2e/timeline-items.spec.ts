@@ -448,3 +448,48 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(page.getByText(/目盛り year/)).toBeVisible();
   expect(hydrationWarnings).toEqual([]);
 });
+
+test("creates a BCE century and draws it on the continuous historical axis", async ({
+  page,
+}) => {
+  const authResponse = await page.request.post("/api/test-auth", {
+    data: { email, password },
+    headers: { "x-test-auth-secret": authSecret },
+  });
+  expect(authResponse.status()).toBe(204);
+  const projectResponse = await page.request.post("/api/projects", {
+    data: {
+      name: "古代史",
+      description: null,
+      template: "general",
+      settings: {
+        defaultUncertaintyYears: 5,
+        initialStartYear: 1,
+        initialEndYear: 2026,
+        initialZoomPreset: "fit-range",
+        timelineDensity: "comfortable",
+        minimumTimeUnit: "day",
+      },
+    },
+  });
+  expect(projectResponse.status()).toBe(201);
+  const body = (await projectResponse.json()) as { project: { id: string } };
+  await page.goto(`/projects/${body.project.id}/timeline`);
+  await page.getByRole("button", { name: "最初のタイムラインを作成" }).click();
+  const form = page.getByRole("form", { name: "タイムラインアイテム作成" });
+  await form.getByLabel("名称").fill("古代ギリシア");
+  await form.getByLabel("時代").first().selectOption("bce");
+  await form.getByLabel("日付精度").first().selectOption("century");
+  await form.getByLabel("世紀").fill("5");
+  await form.getByLabel("原資料上の日付表記").first().fill("古典期");
+  await form.getByLabel("年").fill("1");
+  await expect(form.getByText("表記プレビュー: 古典期")).toBeVisible();
+  await form
+    .getByRole("button", { name: "タイムラインアイテムを作成" })
+    .click();
+  const glyph = page.getByLabel(/古代ギリシア.*期間型バー/);
+  await expect(glyph).toBeVisible();
+  await glyph.hover();
+  await expect(page.getByRole("tooltip").last()).toContainText("古典期 — 1");
+  await expect(page.getByText(/紀元前/).first()).toBeVisible();
+});

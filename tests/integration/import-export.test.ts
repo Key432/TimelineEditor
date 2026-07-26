@@ -31,7 +31,7 @@ const sourceItemId = "22222222-2222-4222-8222-222222222222";
 
 function payload(name = "取り込み元") {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     appVersion: "0.1.0",
     exportedAt: new Date().toISOString(),
     project: {
@@ -72,11 +72,27 @@ function payload(name = "取り込み元") {
         colorOverride: null,
         manualOrder: 0,
         isVisible: true,
-        start: { year: 1900, month: null, day: null },
+        start: {
+          era: "bce",
+          precision: "century",
+          year: 5,
+          month: null,
+          day: null,
+          originalText: "第五世紀頃",
+          calendar: "proleptic_gregorian",
+        },
         isStartApproximate: false,
         startUncertaintyYears: null,
         endDateStatus: "specified",
-        end: { year: 1950, month: null, day: null },
+        end: {
+          era: "ce",
+          precision: "year",
+          year: 1950,
+          month: null,
+          day: null,
+          originalText: null,
+          calendar: "proleptic_gregorian",
+        },
         isEndApproximate: false,
         endUncertaintyYears: null,
         lastConfirmed: null,
@@ -89,7 +105,15 @@ function payload(name = "取り込み元") {
         id: "33333333-3333-4333-8333-333333333333",
         timelineItemId: sourceItemId,
         title: "取り込みイベント",
-        date: { year: 1920, month: null, day: null },
+        date: {
+          era: "ce",
+          precision: "decade",
+          year: 1920,
+          month: null,
+          day: null,
+          originalText: "the twenties",
+          calendar: "proleptic_gregorian",
+        },
         isApproximate: false,
         description: null,
         sourceText: null,
@@ -176,8 +200,14 @@ describe("transactional project import", () => {
         .from("timeline_item_types")
         .select("id")
         .eq("project_id", duplicateId!),
-      owner.from("timeline_items").select("id").eq("project_id", duplicateId!),
-      owner.from("timeline_events").select("id").eq("project_id", duplicateId!),
+      owner
+        .from("timeline_items")
+        .select("id, start_era, start_precision, start_original_text")
+        .eq("project_id", duplicateId!),
+      owner
+        .from("timeline_events")
+        .select("id, event_precision, event_original_text")
+        .eq("project_id", duplicateId!),
     ]);
     expect(projects.data).toEqual({
       name: "取り込み元 (コピー)",
@@ -188,6 +218,15 @@ describe("transactional project import", () => {
       items.data?.length,
       events.data?.length,
     ]).toEqual([1, 1, 1]);
+    expect(items.data?.[0]).toMatchObject({
+      start_era: "bce",
+      start_precision: "century",
+      start_original_text: "第五世紀頃",
+    });
+    expect(events.data?.[0]).toMatchObject({
+      event_precision: "decade",
+      event_original_text: "the twenties",
+    });
   });
 
   it("creates a new private project without a target project ID", async () => {

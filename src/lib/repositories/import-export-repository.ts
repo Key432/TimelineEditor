@@ -9,8 +9,18 @@ import type { Database, Json } from "@/lib/supabase/database.types";
 
 type Client = SupabaseClient<Database>;
 
-const date = (year: number | null, month: number | null, day: number | null) =>
-  year === null ? null : { year, month, day };
+const date = (
+  year: number | null,
+  month: number | null,
+  day: number | null,
+  era: "ce" | "bce",
+  precision: "day" | "month" | "year" | "decade" | "century",
+  originalText: string | null,
+  calendar: string,
+) =>
+  year === null
+    ? null
+    : { year, month, day, era, precision, originalText, calendar };
 
 export class ImportExportRepository {
   constructor(private readonly client: Client) {}
@@ -126,20 +136,52 @@ export class ImportExportRepository {
         colorOverride: item.color_override,
         manualOrder: item.manual_order,
         isVisible: item.is_visible,
-        start: date(item.start_year, item.start_month, item.start_day),
+        start: date(
+          item.start_year,
+          item.start_month,
+          item.start_day,
+          item.start_era,
+          item.start_precision,
+          item.start_original_text,
+          item.start_calendar,
+        ),
         isStartApproximate: item.is_start_approximate,
         startUncertaintyYears: item.start_uncertainty_years,
         endDateStatus: item.end_date_status,
-        end: date(item.end_year, item.end_month, item.end_day),
+        end: date(
+          item.end_year,
+          item.end_month,
+          item.end_day,
+          item.end_era,
+          item.end_precision,
+          item.end_original_text,
+          item.end_calendar,
+        ),
         isEndApproximate: item.is_end_approximate,
         endUncertaintyYears: item.end_uncertainty_years,
         lastConfirmed:
           item.end_date_status === "unknown"
-            ? date(item.end_year, item.end_month, item.end_day)
+            ? date(
+                item.end_year,
+                item.end_month,
+                item.end_day,
+                item.end_era,
+                item.end_precision,
+                item.end_original_text,
+                item.end_calendar,
+              )
             : null,
         point:
           item.temporal_type === "point"
-            ? date(item.start_year, item.start_month, item.start_day)
+            ? date(
+                item.start_year,
+                item.start_month,
+                item.start_day,
+                item.start_era,
+                item.start_precision,
+                item.start_original_text,
+                item.start_calendar,
+              )
             : null,
         isPointApproximate: item.is_point_approximate,
       })),
@@ -148,9 +190,13 @@ export class ImportExportRepository {
         timelineItemId: event.timeline_item_id,
         title: event.title,
         date: {
+          era: event.event_era,
+          precision: event.event_precision,
           year: event.event_year,
           month: event.event_month,
           day: event.event_day,
+          originalText: event.event_original_text,
+          calendar: event.event_calendar,
         },
         isApproximate: event.is_approximate,
         description: event.description,

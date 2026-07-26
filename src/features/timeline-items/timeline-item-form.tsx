@@ -16,6 +16,8 @@ import { timelineEventKeys } from "@/features/timeline-events/api";
 import { TimelineEventDraftEditor } from "@/features/timeline-events/timeline-event-draft-editor";
 import type { TimelineEventDraftValues } from "@/features/timeline-events/validation";
 import { ApproximateDateCheckbox } from "@/features/timeline-items/approximate-date-checkbox";
+import { HistoricalDateFields } from "@/features/timeline-items/historical-date-fields";
+import { formatHistoricalDate } from "@/features/timeline-items/historical-date";
 import {
   createTimelineItem,
   timelineItemKeys,
@@ -82,6 +84,7 @@ function DateFields({
   prefix,
   formId,
   register,
+  control,
   error,
   approximateLabel,
   approximateRegistration,
@@ -91,6 +94,9 @@ function DateFields({
   register: ReturnType<
     typeof useForm<TimelineItemInput, undefined, TimelineItemValues>
   >["register"];
+  control: ReturnType<
+    typeof useForm<TimelineItemInput, undefined, TimelineItemValues>
+  >["control"];
   error?: string;
   approximateLabel?: string;
   approximateRegistration?: ReturnType<
@@ -99,41 +105,25 @@ function DateFields({
     >["register"]
   >;
 }) {
+  const date = useWatch({ control, name: prefix });
+  const precision = date?.precision ?? "year";
   return (
     <div className="space-y-2">
       <div
         className="flex flex-col gap-2 sm:flex-row sm:items-center"
         data-slot="date-approximate-row"
       >
-        <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-2 sm:grid-cols-[minmax(7.5rem,10rem)_4.5rem_4.5rem]">
-          <Input
-            id={`${formId}-${prefix}-year`}
-            aria-label="年"
-            inputMode="numeric"
-            min={1}
-            placeholder="年"
-            type="number"
-            {...register(`${prefix}.year`)}
-          />
-          <Input
-            aria-label="月"
-            inputMode="numeric"
-            max={12}
-            min={1}
-            placeholder="月"
-            type="number"
-            {...register(`${prefix}.month`)}
-          />
-          <Input
-            aria-label="日"
-            inputMode="numeric"
-            max={31}
-            min={1}
-            placeholder="日"
-            type="number"
-            {...register(`${prefix}.day`)}
-          />
-        </div>
+        <HistoricalDateFields
+          id={`${formId}-${prefix}-year`}
+          precision={precision}
+          value={date ?? undefined}
+          eraRegistration={register(`${prefix}.era`)}
+          precisionRegistration={register(`${prefix}.precision`)}
+          yearRegistration={register(`${prefix}.year`)}
+          monthRegistration={register(`${prefix}.month`)}
+          dayRegistration={register(`${prefix}.day`)}
+          originalTextRegistration={register(`${prefix}.originalText`)}
+        />
         {approximateLabel && approximateRegistration ? (
           <ApproximateDateCheckbox
             label={approximateLabel}
@@ -340,6 +330,7 @@ export function TimelineItemForm({
               formId={formId}
               prefix="start"
               register={register}
+              control={control}
             />
           </div>
           <div className="space-y-2">
@@ -364,6 +355,7 @@ export function TimelineItemForm({
                 formId={formId}
                 prefix="end"
                 register={register}
+                control={control}
               />
             </div>
           ) : null}
@@ -380,6 +372,7 @@ export function TimelineItemForm({
                 formId={formId}
                 prefix="lastConfirmed"
                 register={register}
+                control={control}
               />
             </div>
           ) : null}
@@ -394,6 +387,7 @@ export function TimelineItemForm({
             formId={formId}
             prefix="point"
             register={register}
+            control={control}
           />
         </div>
       )}
@@ -498,9 +492,7 @@ export function TimelineItemForm({
                       {draft.title}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {draft.date.year}年
-                      {draft.date.month ? `${draft.date.month}月` : ""}
-                      {draft.date.day ? `${draft.date.day}日` : ""}
+                      {formatHistoricalDate(draft.date)}
                     </p>
                   </div>
                   <Button

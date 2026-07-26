@@ -17,9 +17,24 @@ const typeId = "11111111-1111-4111-8111-111111111111";
 const itemId = "22222222-2222-4222-8222-222222222222";
 const eventId = "33333333-3333-4333-8333-333333333333";
 
+const date = (year: number, month: number | null, day: number | null) => ({
+  era: "ce" as const,
+  precision:
+    day !== null
+      ? ("day" as const)
+      : month !== null
+        ? ("month" as const)
+        : ("year" as const),
+  year,
+  month,
+  day,
+  originalText: null,
+  calendar: "proleptic_gregorian",
+});
+
 function backup(): ProjectBackup {
   return {
-    schemaVersion: 1,
+    schemaVersion: IMPORT_SCHEMA_VERSION,
     appVersion: "0.1.0",
     exportedAt: "2026-07-26T00:00:00.000Z",
     project: {
@@ -60,11 +75,11 @@ function backup(): ProjectBackup {
         colorOverride: null,
         manualOrder: 0,
         isVisible: true,
-        start: { year: 1867, month: 2, day: 9 },
+        start: date(1867, 2, 9),
         isStartApproximate: false,
         startUncertaintyYears: null,
         endDateStatus: "specified",
-        end: { year: 1916, month: 12, day: 9 },
+        end: date(1916, 12, 9),
         isEndApproximate: false,
         endUncertaintyYears: null,
         lastConfirmed: null,
@@ -77,7 +92,7 @@ function backup(): ProjectBackup {
         id: eventId,
         timelineItemId: itemId,
         title: "吾輩は猫である",
-        date: { year: 1905, month: 1, day: null },
+        date: date(1905, 1, null),
         isApproximate: false,
         description: null,
         sourceText: null,
@@ -110,7 +125,7 @@ describe("project import and export formats", () => {
 
     expect(preview.errors).toEqual([]);
     expect(preview.warnings).toContain(
-      "旧JSON形式をスキーマバージョン1へ移行しました。",
+      "旧JSON形式をスキーマバージョン2へ移行しました。",
     );
     expect(preview.payload?.schemaVersion).toBe(IMPORT_SCHEMA_VERSION);
   });
@@ -130,7 +145,7 @@ describe("project import and export formats", () => {
       schemaVersion: IMPORT_SCHEMA_VERSION,
     });
     expect(files.get("timeline-items.csv")).toContain(
-      "# timeline-editor-schema-version=1",
+      `# timeline-editor-schema-version=${IMPORT_SCHEMA_VERSION}`,
     );
     expect(files.get("timeline-items.csv")).toContain('"夏目漱石, ""作家"""');
 
@@ -159,7 +174,7 @@ describe("project import and export formats", () => {
       .map(([name, content]) => ({
         name,
         content: content.replace(
-          /^\uFEFF?# timeline-editor-schema-version=1\r?\n/,
+          /^\uFEFF?# timeline-editor-schema-version=2\r?\n/,
           "\uFEFF",
         ),
       }));
@@ -172,7 +187,7 @@ describe("project import and export formats", () => {
 
     expect(preview.errors).toEqual([]);
     expect(preview.warnings).toContain(
-      "旧CSV形式をスキーマバージョン1へ移行しました。",
+      "旧CSV形式をスキーマバージョン2へ移行しました。",
     );
     expect(preview.payload?.schemaVersion).toBe(IMPORT_SCHEMA_VERSION);
   });
@@ -183,7 +198,7 @@ describe("project import and export formats", () => {
       files
         .get("timeline-items.csv")!
         .replace(
-          "# timeline-editor-schema-version=1",
+          "# timeline-editor-schema-version=2",
           "# timeline-editor-schema-version=99",
         ),
     );
@@ -197,7 +212,7 @@ describe("project import and export formats", () => {
         content:
           name === "timeline-events.csv"
             ? content.replace(
-                /^\uFEFF?# timeline-editor-schema-version=1\r?\n/,
+                /^\uFEFF?# timeline-editor-schema-version=2\r?\n/,
                 "\uFEFF",
               )
             : content,

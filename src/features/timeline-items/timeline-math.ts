@@ -1,7 +1,9 @@
 import {
-  daysInMonth,
+  astronomicalYear,
+  formatHistoricalDate,
   historicalDateFromOrdinal,
   historicalDateOrdinal,
+  historicalYear,
 } from "@/features/timeline-items/historical-date";
 import type {
   HistoricalDate,
@@ -55,9 +57,7 @@ export function timelineItemVisualBounds(
   const startYears = item.startUncertaintyYears ?? defaultUncertaintyYears;
   const endYears = item.endUncertaintyYears ?? defaultUncertaintyYears;
   return {
-    start: item.isStartApproximate
-      ? Math.max(0, start - startYears * DAYS_PER_YEAR)
-      : start,
+    start: item.isStartApproximate ? start - startYears * DAYS_PER_YEAR : start,
     end:
       item.endDateStatus === "unknown" || item.isEndApproximate
         ? end + endYears * DAYS_PER_YEAR
@@ -98,7 +98,7 @@ export function fitPixelsPerDay(
 export function expandDegenerateFitRange(start: number, end: number) {
   if (end > start) return { start, end };
   const halfSpan = 183;
-  const expandedStart = Math.max(0, start - halfSpan);
+  const expandedStart = start - halfSpan;
   return {
     start: expandedStart,
     end: Math.max(start + halfSpan, expandedStart + halfSpan * 2),
@@ -136,7 +136,21 @@ export function chooseTickUnit(pixelsPerDay: number): TickUnit {
 }
 
 function firstYearForStep(year: number, step: number) {
-  return Math.max(1, Math.ceil(year / step) * step);
+  return Math.ceil(year / step) * step;
+}
+
+function dateAtAstronomicalYear(year: number, month = 1, day = 1) {
+  return {
+    ...historicalYear(year),
+    precision: "day" as const,
+    month,
+    day,
+  };
+}
+
+function yearLabel(year: number) {
+  const value = historicalYear(year);
+  return `${value.era === "bce" ? "紀元前" : ""}${value.year}年`;
 }
 
 function pushYearTicks(
@@ -153,8 +167,8 @@ function pushYearTicks(
   ) {
     const major = year % majorStep === 0;
     ticks.push({
-      ordinal: historicalDateOrdinal({ year, month: 1, day: 1 }),
-      label: major ? `${year}年` : "",
+      ordinal: historicalDateOrdinal(dateAtAstronomicalYear(year)),
+      label: major ? yearLabel(year) : "",
       major,
     });
   }
@@ -189,8 +203,10 @@ export function generateTimelineTicks(
   pixelsPerDay: number,
   minimumTimeUnit: "year" | "month" | "day" = "day",
 ): { unit: TickUnit; ticks: TimelineTick[] } {
-  const start = historicalDateFromOrdinal(Math.max(0, visibleStartOrdinal));
-  const end = historicalDateFromOrdinal(Math.max(0, visibleEndOrdinal));
+  const start = historicalDateFromOrdinal(visibleStartOrdinal);
+  const end = historicalDateFromOrdinal(visibleEndOrdinal);
+  const startYear = astronomicalYear(start.era ?? "ce", start.year);
+  const endYear = astronomicalYear(end.era ?? "ce", end.year);
   const unit = clampTickUnit(chooseTickUnit(pixelsPerDay), minimumTimeUnit);
   const ticks: TimelineTick[] = [];
 
@@ -198,31 +214,28 @@ export function generateTimelineTicks(
     const yearPixels = pixelsPerDay * DAYS_PER_YEAR;
     const majorStep = spacingStep(yearPixels, [100, 200, 500, 1000]);
     const minorStep = spacingStep(yearPixels * 5, [20, 50, 100, 200]);
-    pushYearTicks(ticks, start.year, end.year, minorStep, majorStep);
+    pushYearTicks(ticks, startYear, endYear, minorStep, majorStep);
   } else if (unit === "decade") {
     const yearPixels = pixelsPerDay * DAYS_PER_YEAR;
     const majorStep = spacingStep(yearPixels, [2, 5, 10, 20, 50]);
     const minorStep = spacingStep(yearPixels * 5, [1, 2, 5, 10]);
     pushYearTicks(
       ticks,
-      start.year,
-      end.year,
+      startYear,
+      endYear,
       Math.min(majorStep, minorStep),
       majorStep,
     );
   } else if (unit === "year") {
     const labelEvery = spacingStep(pixelsPerDay * 30.436875, [1, 3, 6, 12]);
-    let year = start.year;
+    let year = startYear;
     let month = start.month ?? 1;
-    while (
-      year < end.year ||
-      (year === end.year && month <= (end.month ?? 12))
-    ) {
+    while (year < endYear || (year === endYear && month <= (end.month ?? 12))) {
       const major = month === 1;
       ticks.push({
-        ordinal: historicalDateOrdinal({ year, month, day: 1 }),
+        ordinal: historicalDateOrdinal(dateAtAstronomicalYear(year, month)),
         label: major
-          ? `${year}年`
+          ? yearLabel(year)
           : (month - 1) % labelEvery === 0
             ? `${month}月`
             : "",
@@ -235,15 +248,12 @@ export function generateTimelineTicks(
       }
     }
   } else if (unit === "month") {
-    let year = start.year;
+    let year = startYear;
     let month = start.month ?? 1;
-    while (
-      year < end.year ||
-      (year === end.year && month <= (end.month ?? 12))
-    ) {
+    while (year < endYear || (year === endYear && month <= (end.month ?? 12))) {
       ticks.push({
-        ordinal: historicalDateOrdinal({ year, month, day: 1 }),
-        label: month === 1 ? `${year}年` : `${month}月`,
+        ordinal: historicalDateOrdinal(dateAtAstronomicalYear(year, month)),
+        label: month === 1 ? yearLabel(year) : `${month}月`,
         major: month === 1,
       });
       month += 1;
@@ -253,23 +263,15 @@ export function generateTimelineTicks(
       }
     }
   } else {
-    let ordinal = historicalDateOrdinal({
-      year: start.year,
-      month: start.month ?? 1,
-      day: start.day ?? 1,
-    });
-    const last = historicalDateOrdinal({
-      year: end.year,
-      month: end.month ?? 12,
-      day: end.day ?? daysInMonth(end.year, end.month ?? 12),
-    });
+    let ordinal = historicalDateOrdinal(start);
+    const last = historicalDateOrdinal(end, "end");
     while (ordinal <= last) {
       const date = historicalDateFromOrdinal(ordinal);
       const major = date.day === 1;
       ticks.push({
         ordinal,
         label: major
-          ? `${date.year}/${date.month}`
+          ? formatHistoricalDate({ ...date, precision: "month", day: null })
           : date.day === 5 ||
               date.day === 10 ||
               date.day === 15 ||

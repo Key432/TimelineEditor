@@ -1,49 +1,13 @@
 import { z } from "zod";
 
-import {
-  historicalDateOrdinal,
-  isValidHistoricalDate,
-} from "@/features/timeline-items/historical-date";
+import { historicalDateOrdinal } from "@/features/timeline-items/historical-date";
+import { historicalDateSchema } from "@/features/timeline-items/validation";
 import type {
   HistoricalDate,
   TimelineItem,
 } from "@/features/timeline-items/types";
 
-const optionalDatePart = z
-  .union([z.number(), z.string(), z.null(), z.undefined()])
-  .transform((value) => {
-    if (value === "" || value === null || value === undefined) return null;
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : Number.NaN;
-  });
-
-const eventDateSchema = z
-  .object({
-    year: optionalDatePart,
-    month: optionalDatePart,
-    day: optionalDatePart,
-  })
-  .superRefine((date, context) => {
-    if (date.year === null) {
-      context.addIssue({
-        code: "custom",
-        path: ["year"],
-        message: "年を入力してください。",
-      });
-      return;
-    }
-    if (!isValidHistoricalDate(date as HistoricalDate)) {
-      context.addIssue({
-        code: "custom",
-        message: "実在する西暦1年以降の日付を入力してください。",
-      });
-    }
-  })
-  .transform((date) => ({
-    year: date.year as number,
-    month: date.month,
-    day: date.day,
-  }));
+const eventDateSchema = historicalDateSchema;
 
 const nullableText = (max: number, message: string) =>
   z
@@ -98,7 +62,15 @@ export function emptyTimelineEventValues(
   return {
     timelineItemId,
     title: "",
-    date: date ?? { year: "", month: "", day: "" },
+    date: date ?? {
+      era: "ce",
+      precision: "year",
+      year: "",
+      month: "",
+      day: "",
+      originalText: "",
+      calendar: "proleptic_gregorian",
+    },
     isApproximate: false,
     description: "",
     sourceText: "",
@@ -109,7 +81,15 @@ export function emptyTimelineEventValues(
 export function emptyTimelineEventDraftValues(): TimelineEventDraftInput {
   return {
     title: "",
-    date: { year: "", month: "", day: "" },
+    date: {
+      era: "ce",
+      precision: "year",
+      year: "",
+      month: "",
+      day: "",
+      originalText: "",
+      calendar: "proleptic_gregorian",
+    },
     isApproximate: false,
     description: "",
     sourceText: "",

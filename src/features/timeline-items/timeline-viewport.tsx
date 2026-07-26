@@ -878,7 +878,7 @@ export function TimelineViewport({
     );
     const margin = Math.max(366, (fitEnd - fitStart) * 0.05);
     return {
-      domainStart: Math.max(0, Math.min(configuredStart, fitStart) - margin),
+      domainStart: Math.min(configuredStart, fitStart) - margin,
       domainEnd: Math.max(configuredEnd, fitEnd) + margin,
       fitStart,
       fitEnd,

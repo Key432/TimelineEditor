@@ -3,13 +3,14 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { Save } from "lucide-react";
 import { useEffect, useId } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApproximateDateCheckbox } from "@/features/timeline-items/approximate-date-checkbox";
+import { HistoricalDateFields } from "@/features/timeline-items/historical-date-fields";
 import {
   emptyTimelineEventDraftValues,
   timelineEventDraftSchema,
@@ -29,6 +30,7 @@ export function TimelineEventDraftEditor({
   const id = useId();
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors },
@@ -36,6 +38,7 @@ export function TimelineEventDraftEditor({
     resolver: standardSchemaResolver(timelineEventDraftSchema),
     defaultValues: value ?? emptyTimelineEventDraftValues(),
   });
+  const date = useWatch({ control, name: "date" });
 
   useEffect(
     () => reset(value ?? emptyTimelineEventDraftValues()),
@@ -63,26 +66,18 @@ export function TimelineEventDraftEditor({
           className="flex flex-col gap-2 sm:flex-row sm:items-center"
           data-slot="date-approximate-row"
         >
-          <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-2 sm:grid-cols-[minmax(7.5rem,10rem)_4.5rem_4.5rem]">
-            <Input
-              aria-label="イベント年"
-              inputMode="numeric"
-              placeholder="年"
-              {...register("date.year")}
-            />
-            <Input
-              aria-label="イベント月"
-              inputMode="numeric"
-              placeholder="月"
-              {...register("date.month")}
-            />
-            <Input
-              aria-label="イベント日"
-              inputMode="numeric"
-              placeholder="日"
-              {...register("date.day")}
-            />
-          </div>
+          <HistoricalDateFields
+            id={`${id}-event-year`}
+            labelPrefix="イベント"
+            precision={date?.precision ?? "year"}
+            value={date ?? undefined}
+            eraRegistration={register("date.era")}
+            precisionRegistration={register("date.precision")}
+            yearRegistration={register("date.year")}
+            monthRegistration={register("date.month")}
+            dayRegistration={register("date.day")}
+            originalTextRegistration={register("date.originalText")}
+          />
           <ApproximateDateCheckbox
             label="日付はおおよそ"
             {...register("isApproximate")}

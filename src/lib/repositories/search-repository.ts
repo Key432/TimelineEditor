@@ -11,8 +11,26 @@ type Client = SupabaseClient<Database>;
 type GlobalRow =
   Database["public"]["Functions"]["search_global_documents"]["Returns"][number];
 
-function date(year: number | null, month: number | null, day: number | null) {
-  return year === null ? null : { year, month, day };
+function date(
+  year: number | null,
+  month: number | null,
+  day: number | null,
+  era: "ce" | "bce" | null,
+  precision: "day" | "month" | "year" | "decade" | "century" | null,
+  originalText: string | null,
+  calendar: string | null,
+) {
+  return year === null
+    ? null
+    : {
+        year,
+        month,
+        day,
+        era: era ?? "ce",
+        precision: precision ?? (day ? "day" : month ? "month" : "year"),
+        originalText,
+        calendar: calendar ?? "proleptic_gregorian",
+      };
 }
 
 export function searchExcerpt(content: string, query: string) {
@@ -41,8 +59,24 @@ function mapResult(row: GlobalRow, query: string): SearchResult {
     projectName: row.project_name,
     excerpt: searchExcerpt(row.content, query),
     detailPath: row.detail_path,
-    start: date(row.start_year, row.start_month, row.start_day),
-    end: date(row.end_year, row.end_month, row.end_day),
+    start: date(
+      row.start_year,
+      row.start_month,
+      row.start_day,
+      row.start_era,
+      row.start_precision,
+      row.start_original_text,
+      row.start_calendar,
+    ),
+    end: date(
+      row.end_year,
+      row.end_month,
+      row.end_day,
+      row.end_era,
+      row.end_precision,
+      row.end_original_text,
+      row.end_calendar,
+    ),
     endDateStatus: row.end_date_status,
     isStartApproximate: row.is_start_approximate,
     isEndApproximate: row.is_end_approximate,

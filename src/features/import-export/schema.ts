@@ -18,9 +18,13 @@ export const importSectionSchema = z.enum([
 const nullableString = z.string().nullable();
 const historicalDate = z
   .object({
+    era: z.enum(["ce", "bce"]),
+    precision: z.enum(["day", "month", "year", "decade", "century"]),
     year: z.number().int(),
     month: z.number().int().nullable(),
     day: z.number().int().nullable(),
+    originalText: z.string().max(200).nullable(),
+    calendar: z.string().min(1).max(50),
   })
   .nullable();
 
@@ -157,11 +161,54 @@ type ImportMigration = (
   input: Record<string, unknown>,
 ) => Record<string, unknown>;
 
+function migrateHistoricalDate(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const date = value as Record<string, unknown>;
+  const month = date.month;
+  const day = date.day;
+  return {
+    ...date,
+    era: "ce",
+    precision: day != null ? "day" : month != null ? "month" : "year",
+    originalText: null,
+    calendar: "proleptic_gregorian",
+  };
+}
+
+function migrateVersionOne(input: Record<string, unknown>) {
+  const timelineItems = Array.isArray(input.timelineItems)
+    ? input.timelineItems.map((value) => {
+        if (!value || typeof value !== "object" || Array.isArray(value)) {
+          return value;
+        }
+        const item = value as Record<string, unknown>;
+        return {
+          ...item,
+          start: migrateHistoricalDate(item.start),
+          end: migrateHistoricalDate(item.end),
+          lastConfirmed: migrateHistoricalDate(item.lastConfirmed),
+          point: migrateHistoricalDate(item.point),
+        };
+      })
+    : input.timelineItems;
+  const timelineEvents = Array.isArray(input.timelineEvents)
+    ? input.timelineEvents.map((value) => {
+        if (!value || typeof value !== "object" || Array.isArray(value)) {
+          return value;
+        }
+        const event = value as Record<string, unknown>;
+        return { ...event, date: migrateHistoricalDate(event.date) };
+      })
+    : input.timelineEvents;
+  return { ...input, schemaVersion: 2, timelineItems, timelineEvents };
+}
+
 const importMigrations: Record<number, ImportMigration> = {
   [LEGACY_UNVERSIONED_SCHEMA_VERSION]: (input) => ({
     ...input,
-    schemaVersion: IMPORT_SCHEMA_VERSION,
+    schemaVersion: 1,
   }),
+  1: migrateVersionOne,
 };
 
 export type ImportMigrationResult = {
@@ -222,8 +269,10 @@ export function migrateProjectBackup(input: unknown): ImportMigrationResult {
     errors: [],
     warnings:
       inputVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION
-        ? ["旧JSON形式をスキーマバージョン1へ移行しました。"]
-        : [],
+        ? ["旧JSON形式をスキーマバージョン2へ移行しました。"]
+        : inputVersion === 1
+          ? ["JSONスキーマバージョン1をバージョン2へ移行しました。"]
+          : [],
   };
 }
 

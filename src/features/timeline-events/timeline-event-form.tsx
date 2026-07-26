@@ -28,6 +28,7 @@ import type {
   TimelineItemSummary,
 } from "@/features/timeline-items/types";
 import { ApproximateDateCheckbox } from "@/features/timeline-items/approximate-date-checkbox";
+import { HistoricalDateFields } from "@/features/timeline-items/historical-date-fields";
 
 export function TimelineEventForm({
   projectId,
@@ -93,10 +94,14 @@ export function TimelineEventForm({
   const parent = rangeItems.find((item) => item.id === parentId);
   const parsedDate = date
     ? {
+        era: date.era ?? "ce",
+        precision: date.precision ?? "year",
         year: Number(date.year),
         month:
           date.month === "" || date.month == null ? null : Number(date.month),
         day: date.day === "" || date.day == null ? null : Number(date.day),
+        originalText: date.originalText || null,
+        calendar: date.calendar || "proleptic_gregorian",
       }
     : null;
   const outside =
@@ -146,26 +151,18 @@ export function TimelineEventForm({
           className="flex flex-col gap-2 sm:flex-row sm:items-center"
           data-slot="date-approximate-row"
         >
-          <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-2 sm:grid-cols-[minmax(7.5rem,10rem)_4.5rem_4.5rem]">
-            <Input
-              aria-label="イベント年"
-              inputMode="numeric"
-              placeholder="年"
-              {...register("date.year")}
-            />
-            <Input
-              aria-label="イベント月"
-              inputMode="numeric"
-              placeholder="月"
-              {...register("date.month")}
-            />
-            <Input
-              aria-label="イベント日"
-              inputMode="numeric"
-              placeholder="日"
-              {...register("date.day")}
-            />
-          </div>
+          <HistoricalDateFields
+            id="event-year"
+            labelPrefix="イベント"
+            precision={date?.precision ?? "year"}
+            value={date ?? undefined}
+            eraRegistration={register("date.era")}
+            precisionRegistration={register("date.precision")}
+            yearRegistration={register("date.year")}
+            monthRegistration={register("date.month")}
+            dayRegistration={register("date.day")}
+            originalTextRegistration={register("date.originalText")}
+          />
           <ApproximateDateCheckbox
             label="日付はおおよそ"
             {...register("isApproximate")}

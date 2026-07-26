@@ -19,8 +19,10 @@ type JoinedRow = ItemRow & { timeline_item_types: ItemTypeRow };
 const LIST_COLUMNS = `
   id, project_id, type_id, title, temporal_type, color_override,
   manual_order, is_visible, start_year, start_month, start_day,
+  start_era, start_precision, start_original_text, start_calendar,
   is_start_approximate, start_uncertainty_years, end_date_status, end_year,
   end_month, end_day, is_end_approximate, end_uncertainty_years,
+  end_era, end_precision, end_original_text, end_calendar,
   is_point_approximate, created_at, updated_at,
   timeline_item_types (*)
 `;
@@ -44,13 +46,35 @@ function date(
   year: number | null,
   month: number | null,
   day: number | null,
+  era: "ce" | "bce",
+  precision: "day" | "month" | "year" | "decade" | "century",
+  originalText: string | null,
+  calendar: string,
 ): HistoricalDate | null {
-  return year === null ? null : { year, month, day };
+  return year === null
+    ? null
+    : { era, precision, year, month, day, originalText, calendar };
 }
 
 function mapItem(row: JoinedRow): TimelineItem {
-  const storedStart = date(row.start_year, row.start_month, row.start_day);
-  const storedEnd = date(row.end_year, row.end_month, row.end_day);
+  const storedStart = date(
+    row.start_year,
+    row.start_month,
+    row.start_day,
+    row.start_era,
+    row.start_precision,
+    row.start_original_text,
+    row.start_calendar,
+  );
+  const storedEnd = date(
+    row.end_year,
+    row.end_month,
+    row.end_day,
+    row.end_era,
+    row.end_precision,
+    row.end_original_text,
+    row.end_calendar,
+  );
   const isRange = row.temporal_type === "range";
   return {
     id: row.id,
@@ -85,6 +109,10 @@ function dateFields(prefix: string, value: HistoricalDate | null) {
     [`${prefix}_year`]: value?.year ?? null,
     [`${prefix}_month`]: value?.month ?? null,
     [`${prefix}_day`]: value?.day ?? null,
+    [`${prefix}_era`]: value?.era ?? "ce",
+    [`${prefix}_precision`]: value?.precision ?? "year",
+    [`${prefix}_original_text`]: value?.originalText ?? null,
+    [`${prefix}_calendar`]: value?.calendar ?? "proleptic_gregorian",
   };
 }
 
@@ -124,6 +152,10 @@ function eventPersistenceValues(input: TimelineEventDraftValues) {
     event_year: input.date.year,
     event_month: input.date.month,
     event_day: input.date.day,
+    event_era: input.date.era,
+    event_precision: input.date.precision,
+    event_original_text: input.date.originalText,
+    event_calendar: input.date.calendar,
     is_approximate: input.isApproximate,
     description: input.description,
     source_text: input.sourceText,

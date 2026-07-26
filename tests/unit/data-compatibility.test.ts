@@ -26,15 +26,15 @@ const itemReference = {
   id: "11111111-1111-4111-8111-111111111111",
 };
 
-describe("Phase L0 data compatibility foundations", () => {
+describe("data compatibility foundations", () => {
   it("pins the database and import/export baseline versions", () => {
     expect(DATA_COMPATIBILITY_BASELINE).toEqual({
       database: {
-        version: 1,
-        migration: "20260726112629_optimize_timeline_item_dates.sql",
+        version: 2,
+        migration: "20260726151016_phase_l1_historical_dates.sql",
       },
-      json: { version: 1 },
-      csv: { version: 1 },
+      json: { version: 2 },
+      csv: { version: 2 },
     });
 
     const migrations = join(process.cwd(), "supabase", "migrations");
@@ -43,7 +43,7 @@ describe("Phase L0 data compatibility foundations", () => {
         join(migrations, DATA_COMPATIBILITY_BASELINE.database.migration),
         "utf8",
       ),
-    ).toContain("create or replace function public.import_project_data");
+    ).toContain("create function public.import_project_data(");
     expect(
       readFileSync(
         join(migrations, "20260726142840_phase_l0_data_compatibility.sql"),
