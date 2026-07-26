@@ -1,13 +1,24 @@
 import type { ProjectBackup } from "@/features/import-export/schema";
 import {
+  IMPORT_SCHEMA_VERSION,
   previewBackup,
   type ImportPreview,
 } from "@/features/import-export/schema";
 import { createStoredZip, readStoredZip } from "@/features/import-export/zip";
+import {
+  LEGACY_UNVERSIONED_SCHEMA_VERSION,
+  unsupportedSchemaVersionMessage,
+} from "@/lib/data-compatibility";
 
 const BOM = "\uFEFF";
 const PRIMARY_COLOR = "#00B0B0";
+const CSV_VERSION_PREFIX = "# timeline-editor-schema-version=";
+const CSV_MANIFEST_NAME = "manifest.json";
 const README = `# Timeline Editor CSV
+
+CSVスキーマバージョン: ${IMPORT_SCHEMA_VERSION}
+
+各CSVの先頭行に \`${CSV_VERSION_PREFIX}${IMPORT_SCHEMA_VERSION}\` を記録する。旧形式はこの行がなくてもバージョン0として移行できる。
 
 ## 各CSVのカラム項目
 
@@ -91,6 +102,7 @@ function cell(value: unknown) {
 function csv(headers: string[], rows: unknown[][]) {
   return (
     BOM +
+    `${CSV_VERSION_PREFIX}${IMPORT_SCHEMA_VERSION}\r\n` +
     [headers, ...rows].map((row) => row.map(cell).join(",")).join("\r\n") +
     "\r\n"
   );
@@ -194,6 +206,19 @@ export function createCsvArchive(backup: ProjectBackup) {
     ]),
   );
   return createStoredZip([
+    {
+      name: CSV_MANIFEST_NAME,
+      content: JSON.stringify(
+        {
+          format: "timeline-editor-csv",
+          schemaVersion: IMPORT_SCHEMA_VERSION,
+          appVersion: backup.appVersion,
+          exportedAt: backup.exportedAt,
+        },
+        null,
+        2,
+      ),
+    },
     { name: "timeline-items.csv", content: items },
     { name: "timeline-events.csv", content: events },
     { name: "item-types.csv", content: types },
@@ -202,14 +227,30 @@ export function createCsvArchive(backup: ProjectBackup) {
 }
 
 function parseCsv(text: string) {
+  const normalizedText = text.replace(/^\uFEFF/, "");
+  const firstLineEnd = normalizedText.search(/\r?\n/);
+  const firstLine =
+    firstLineEnd === -1
+      ? normalizedText
+      : normalizedText.slice(0, firstLineEnd);
+  let schemaVersion: number = LEGACY_UNVERSIONED_SCHEMA_VERSION;
+  let csvText = normalizedText;
+  if (firstLine.startsWith(CSV_VERSION_PREFIX)) {
+    const rawVersion = firstLine.slice(CSV_VERSION_PREFIX.length);
+    schemaVersion = Number(rawVersion);
+    if (!Number.isInteger(schemaVersion) || schemaVersion < 0) {
+      throw new Error("CSVスキーマバージョンが不正です。");
+    }
+    csvText = firstLineEnd === -1 ? "" : normalizedText.slice(firstLineEnd + 1);
+  }
   const rows: string[][] = [];
   let row: string[] = [];
   let value = "";
   let quoted = false;
-  for (let index = 0; index < text.length; index += 1) {
-    const character = text[index];
+  for (let index = 0; index < csvText.length; index += 1) {
+    const character = csvText[index];
     if (quoted) {
-      if (character === '"' && text[index + 1] === '"') {
+      if (character === '"' && csvText[index + 1] === '"') {
         value += '"';
         index += 1;
       } else if (character === '"') quoted = false;
@@ -231,15 +272,15 @@ function parseCsv(text: string) {
     rows.push(row);
   }
   const [headers, ...data] = rows.filter((entry) => entry.some(Boolean));
-  if (!headers) return [];
-  return data.map((values) =>
-    Object.fromEntries(
-      headers.map((header, index) => [
-        header.replace(/^\uFEFF/, ""),
-        values[index] ?? "",
-      ]),
+  if (!headers) return { rows: [], schemaVersion };
+  return {
+    schemaVersion,
+    rows: data.map((values) =>
+      Object.fromEntries(
+        headers.map((header, index) => [header, values[index] ?? ""]),
+      ),
     ),
-  );
+  };
 }
 
 const nullable = (value: string | undefined) => value?.trim() || null;
@@ -322,15 +363,54 @@ export function parseCsvImport(
     };
   try {
     const sections = CSV_NAMES.filter((name) => files.has(name));
-    const rawTypes = files.has("item-types.csv")
-      ? parseCsv(files.get("item-types.csv")!)
-      : [];
-    const rawItems = files.has("timeline-items.csv")
-      ? parseCsv(files.get("timeline-items.csv")!)
-      : [];
-    const rawEvents = files.has("timeline-events.csv")
-      ? parseCsv(files.get("timeline-events.csv")!)
-      : [];
+    const documents = new Map(
+      sections.map((name) => [name, parseCsv(files.get(name)!)]),
+    );
+    let manifestVersion: number | null = null;
+    if (files.has(CSV_MANIFEST_NAME)) {
+      const manifest = JSON.parse(files.get(CSV_MANIFEST_NAME)!) as {
+        format?: unknown;
+        schemaVersion?: unknown;
+      };
+      if (
+        manifest.format !== "timeline-editor-csv" ||
+        !Number.isInteger(manifest.schemaVersion)
+      ) {
+        throw new Error("CSV manifestが不正です。");
+      }
+      manifestVersion = manifest.schemaVersion as number;
+    }
+    const declaredVersions = new Set(
+      [...documents.values()].map((document) => document.schemaVersion),
+    );
+    if (declaredVersions.size > 1) {
+      throw new Error("CSVファイル間でスキーマバージョンが一致しません。");
+    }
+    const fileVersion =
+      declaredVersions.values().next().value ??
+      LEGACY_UNVERSIONED_SCHEMA_VERSION;
+    if (manifestVersion !== null && manifestVersion !== fileVersion) {
+      throw new Error(
+        "CSV manifestとCSVファイルのスキーマバージョンが一致しません。",
+      );
+    }
+    const schemaVersion = manifestVersion ?? fileVersion;
+    if (schemaVersion > IMPORT_SCHEMA_VERSION) {
+      throw new Error(unsupportedSchemaVersionMessage("csv", schemaVersion));
+    }
+    if (schemaVersion < LEGACY_UNVERSIONED_SCHEMA_VERSION) {
+      throw new Error("CSVスキーマバージョンが不正です。");
+    }
+    if (schemaVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION) {
+      warnings.push("旧CSV形式をスキーマバージョン1へ移行しました。");
+    } else if (schemaVersion !== IMPORT_SCHEMA_VERSION) {
+      throw new Error(
+        `CSVスキーマバージョン${schemaVersion}の移行処理がありません。`,
+      );
+    }
+    const rawTypes = documents.get("item-types.csv")?.rows ?? [];
+    const rawItems = documents.get("timeline-items.csv")?.rows ?? [];
+    const rawEvents = documents.get("timeline-events.csv")?.rows ?? [];
     const originalTypeIds = new Map<string, string>();
     const typeIdsByName = new Map(
       base.itemTypes.map((type) => [normalizedName(type.name), type.id]),
@@ -464,7 +544,7 @@ export function parseCsvImport(
     if (createdItemTypeCount > 0 && !importSections.includes("itemTypes"))
       importSections.unshift("itemTypes");
     const preview = previewBackup({
-      schemaVersion: 1,
+      schemaVersion: IMPORT_SCHEMA_VERSION,
       appVersion: base.appVersion,
       exportedAt: new Date().toISOString(),
       project: base.project,

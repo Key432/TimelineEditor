@@ -7,6 +7,7 @@ import {
   parseCsvImport,
 } from "@/features/import-export/csv";
 import {
+  IMPORT_SCHEMA_VERSION,
   previewBackup,
   type ProjectBackup,
 } from "@/features/import-export/schema";
@@ -98,18 +99,39 @@ describe("project import and export formats", () => {
     expect(previewBackup(invalid).errors.join(" ")).toContain("親項目");
     expect(
       previewBackup({ ...backup(), schemaVersion: 99 }).errors.join(" "),
-    ).toContain("Invalid input");
+    ).toContain("対応していません");
+  });
+
+  it("migrates an unversioned legacy JSON backup to the baseline", () => {
+    const legacy = structuredClone(backup()) as Record<string, unknown>;
+    delete legacy.schemaVersion;
+
+    const preview = previewBackup(legacy);
+
+    expect(preview.errors).toEqual([]);
+    expect(preview.warnings).toContain(
+      "旧JSON形式をスキーマバージョン1へ移行しました。",
+    );
+    expect(preview.payload?.schemaVersion).toBe(IMPORT_SCHEMA_VERSION);
   });
 
   it("round-trips quoted UTF-8 CSV files in the documented ZIP", () => {
     const archive = createCsvArchive(backup());
     const files = readStoredZip(archive);
     expect([...files.keys()]).toEqual([
+      "manifest.json",
       "timeline-items.csv",
       "timeline-events.csv",
       "item-types.csv",
       "README.md",
     ]);
+    expect(JSON.parse(files.get("manifest.json")!)).toMatchObject({
+      format: "timeline-editor-csv",
+      schemaVersion: IMPORT_SCHEMA_VERSION,
+    });
+    expect(files.get("timeline-items.csv")).toContain(
+      "# timeline-editor-schema-version=1",
+    );
     expect(files.get("timeline-items.csv")).toContain('"夏目漱石, ""作家"""');
 
     const preview = parseCsvImport(
@@ -128,6 +150,62 @@ describe("project import and export formats", () => {
     expect(
       parseCsvImport(deflated, "往復テスト_2026-07-26.zip", backup()).errors,
     ).toEqual([]);
+  });
+
+  it("migrates a legacy CSV archive without version metadata", () => {
+    const currentFiles = readStoredZip(createCsvArchive(backup()));
+    const legacyFiles = [...currentFiles]
+      .filter(([name]) => name !== "manifest.json")
+      .map(([name, content]) => ({
+        name,
+        content: content.replace(
+          /^\uFEFF?# timeline-editor-schema-version=1\r?\n/,
+          "\uFEFF",
+        ),
+      }));
+
+    const preview = parseCsvImport(
+      createDeflatedZip(legacyFiles),
+      "legacy.zip",
+      backup(),
+    );
+
+    expect(preview.errors).toEqual([]);
+    expect(preview.warnings).toContain(
+      "旧CSV形式をスキーマバージョン1へ移行しました。",
+    );
+    expect(preview.payload?.schemaVersion).toBe(IMPORT_SCHEMA_VERSION);
+  });
+
+  it("rejects future and mixed CSV schema versions", () => {
+    const files = readStoredZip(createCsvArchive(backup()));
+    const future = new TextEncoder().encode(
+      files
+        .get("timeline-items.csv")!
+        .replace(
+          "# timeline-editor-schema-version=1",
+          "# timeline-editor-schema-version=99",
+        ),
+    );
+    expect(
+      parseCsvImport(future, "timeline-items.csv", backup()).errors.join(" "),
+    ).toContain("対応していません");
+
+    const mixed = createDeflatedZip(
+      [...files].map(([name, content]) => ({
+        name,
+        content:
+          name === "timeline-events.csv"
+            ? content.replace(
+                /^\uFEFF?# timeline-editor-schema-version=1\r?\n/,
+                "\uFEFF",
+              )
+            : content,
+      })),
+    );
+    expect(
+      parseCsvImport(mixed, "mixed.zip", backup()).errors.join(" "),
+    ).toContain("一致しません");
   });
 
   it("accepts only the three exact CSV filenames and imports each section independently", () => {
@@ -162,10 +240,10 @@ describe("project import and export formats", () => {
     const exported = readStoredZip(createCsvArchive(base)).get(
       "timeline-items.csv",
     )!;
-    const [headers, row] = exported.trim().split("\r\n");
+    const [versionHeader, headers, row] = exported.trim().split("\r\n");
     const itemRow = row!.replace(`${itemId},${typeId},人物`, `,,新しい種別`);
     const input = new TextEncoder().encode(
-      `${headers}\r\n${itemRow}\r\n${itemRow}\r\n`,
+      `${versionHeader}\r\n${headers}\r\n${itemRow}\r\n${itemRow}\r\n`,
     );
 
     const preview = parseCsvImport(input, "timeline-items.csv", base);

@@ -20,6 +20,8 @@
 - プロジェクト内フィルター、日本語全文検索、アプリ全体検索
 - 公開URL、匿名閲覧、公開URL再発行、`noindex`
 - JSONバックアップ、CSV／ZIP入出力、インポートプレビュー
+- DB・JSON・CSVの基準版v1、旧JSON／CSVの自動移行、未知版の安全な拒否
+- タイムラインアイテム／イベントアイテムの共通参照、Feature Flag、保持上限の共通基盤
 - PCとスマートフォンでの閲覧・編集、キーボード操作
 
 ## 今後追加する機能
@@ -74,6 +76,13 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 E2E_TEST_AUTH=false
 E2E_TEST_AUTH_SECRET=
 SUPABASE_SERVICE_ROLE_KEY=
+FEATURE_FLAGS=
+```
+
+`FEATURE_FLAGS` は後続機能の段階導入用です。カンマ区切りで有効化し、先頭に `-` を付けると明示的に無効化します。既定ではすべて無効です。
+
+```env
+FEATURE_FLAGS=historicalDateModelV2,autosave
 ```
 
 通常開発では `E2E_TEST_AUTH=false` とします。テストスクリプトはローカルSupabaseの値をプロセス環境へ一時設定し、コミット可能なファイルへ秘密値を保存しません。

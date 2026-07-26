@@ -4,6 +4,7 @@ import type {
   ProjectBackup,
   ImportMode,
 } from "@/features/import-export/schema";
+import { IMPORT_SCHEMA_VERSION } from "@/features/import-export/schema";
 import type { Database, Json } from "@/lib/supabase/database.types";
 
 type Client = SupabaseClient<Database>;
@@ -87,7 +88,7 @@ export class ImportExportRepository {
     const settings = settingsResult.data;
     if (!project || !settings) return null;
     return {
-      schemaVersion: 1,
+      schemaVersion: IMPORT_SCHEMA_VERSION,
       appVersion: "0.1.0",
       exportedAt: new Date().toISOString(),
       project: {

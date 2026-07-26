@@ -2,8 +2,13 @@ import { z } from "zod";
 
 import { timelineEventSchema } from "@/features/timeline-events/validation";
 import { timelineItemSchema } from "@/features/timeline-items/validation";
+import {
+  DATA_COMPATIBILITY_BASELINE,
+  LEGACY_UNVERSIONED_SCHEMA_VERSION,
+  unsupportedSchemaVersionMessage,
+} from "@/lib/data-compatibility";
 
-export const IMPORT_SCHEMA_VERSION = 1 as const;
+export const IMPORT_SCHEMA_VERSION = DATA_COMPATIBILITY_BASELINE.json.version;
 export const importSectionSchema = z.enum([
   "itemTypes",
   "timelineItems",
@@ -148,8 +153,94 @@ export type ImportPreview = {
   payload?: ProjectBackup;
 };
 
+type ImportMigration = (
+  input: Record<string, unknown>,
+) => Record<string, unknown>;
+
+const importMigrations: Record<number, ImportMigration> = {
+  [LEGACY_UNVERSIONED_SCHEMA_VERSION]: (input) => ({
+    ...input,
+    schemaVersion: IMPORT_SCHEMA_VERSION,
+  }),
+};
+
+export type ImportMigrationResult = {
+  inputVersion: number | null;
+  output?: unknown;
+  errors: string[];
+  warnings: string[];
+};
+
+export function migrateProjectBackup(input: unknown): ImportMigrationResult {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return {
+      inputVersion: null,
+      errors: ["JSONのルートはオブジェクトにしてください。"],
+      warnings: [],
+    };
+  }
+
+  const raw = input as Record<string, unknown>;
+  const declaredVersion = raw.schemaVersion;
+  const inputVersion =
+    declaredVersion === undefined
+      ? LEGACY_UNVERSIONED_SCHEMA_VERSION
+      : declaredVersion;
+  if (!Number.isInteger(inputVersion) || (inputVersion as number) < 0) {
+    return {
+      inputVersion: null,
+      errors: ["schemaVersionは0以上の整数にしてください。"],
+      warnings: [],
+    };
+  }
+  if ((inputVersion as number) > IMPORT_SCHEMA_VERSION) {
+    return {
+      inputVersion: inputVersion as number,
+      errors: [unsupportedSchemaVersionMessage("json", inputVersion as number)],
+      warnings: [],
+    };
+  }
+
+  let version = inputVersion as number;
+  let output = { ...raw };
+  while (version < IMPORT_SCHEMA_VERSION) {
+    const migration = importMigrations[version];
+    if (!migration) {
+      return {
+        inputVersion: version,
+        errors: [`JSONスキーマバージョン${version}の移行処理がありません。`],
+        warnings: [],
+      };
+    }
+    output = migration(output);
+    version += 1;
+  }
+
+  return {
+    inputVersion: inputVersion as number,
+    output,
+    errors: [],
+    warnings:
+      inputVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION
+        ? ["旧JSON形式をスキーマバージョン1へ移行しました。"]
+        : [],
+  };
+}
+
 export function previewBackup(input: unknown): ImportPreview {
-  const parsed = projectBackupSchema.safeParse(input);
+  const migrated = migrateProjectBackup(input);
+  if (migrated.errors.length > 0) {
+    return {
+      sourceProjectId: null,
+      sourceProjectName: "読み取り不可",
+      itemTypeCount: 0,
+      timelineItemCount: 0,
+      timelineEventCount: 0,
+      errors: migrated.errors,
+      warnings: migrated.warnings,
+    };
+  }
+  const parsed = projectBackupSchema.safeParse(migrated.output);
   if (!parsed.success) {
     return {
       sourceProjectId: null,
@@ -162,7 +253,7 @@ export function previewBackup(input: unknown): ImportPreview {
         .map(
           (issue) => `${issue.path.join(".") || "ファイル"}: ${issue.message}`,
         ),
-      warnings: [],
+      warnings: migrated.warnings,
     };
   }
   const backup = parsed.data;
@@ -173,12 +264,14 @@ export function previewBackup(input: unknown): ImportPreview {
     timelineItemCount: backup.timelineItems.length,
     timelineEventCount: backup.timelineEvents.length,
     errors: [],
-    warnings:
-      backup.project.visibility === "public"
+    warnings: [
+      ...migrated.warnings,
+      ...(backup.project.visibility === "public"
         ? [
             "上書きでは公開状態と共有URLも復元されます。複製は非公開で作成されます。",
           ]
-        : [],
+        : []),
+    ],
     payload: backup,
   };
 }

@@ -36,6 +36,9 @@ test("keeps mobile editing available while touch gestures never create an event 
   });
   expect(auth.status()).toBe(204);
   await page.goto("/projects/new");
+  // Firefox can receive the server-rendered form before React hydration. Wait
+  // before typing so hydration cannot restore the empty initial form value.
+  await page.waitForLoadState("networkidle");
   await page.getByLabel("プロジェクト名").fill("モバイル最終確認");
   await page.getByRole("button", { name: "プロジェクトを作成" }).click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+\/timeline$/);
@@ -154,8 +157,19 @@ test("keeps mobile editing available while touch gestures never create an event 
   await page.getByLabel("JSONバックアップ").setInputFiles({
     name: "project.json",
     mimeType: "application/json",
-    buffer: await jsonExport.body(),
+    buffer: Buffer.from(
+      JSON.stringify(
+        Object.fromEntries(
+          Object.entries(
+            JSON.parse((await jsonExport.body()).toString()),
+          ).filter(([key]) => key !== "schemaVersion"),
+        ),
+      ),
+    ),
   });
+  await expect(
+    page.getByText("旧JSON形式をスキーマバージョン1へ移行しました。"),
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "現在のプロジェクトを上書き" }),
   ).toBeVisible();

@@ -7,6 +7,7 @@ import {
   parseCsvImport,
 } from "@/features/import-export/csv";
 import {
+  IMPORT_SCHEMA_VERSION,
   previewBackup,
   projectBackupSchema,
 } from "@/features/import-export/schema";
@@ -77,7 +78,7 @@ export class ImportExportService {
       "インポートしたプロジェクト";
     const currentYear = new Date().getUTCFullYear();
     return parseCsvImport(input, fileName, {
-      schemaVersion: 1,
+      schemaVersion: IMPORT_SCHEMA_VERSION,
       appVersion: "0.1.0",
       exportedAt: new Date().toISOString(),
       project: {
