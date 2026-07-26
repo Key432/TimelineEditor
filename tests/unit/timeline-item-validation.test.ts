@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   daysInMonth,
+  formatApproximateHistoricalDate,
   formatHistoricalDate,
   historicalDateOrdinal,
   historicalDateRange,
@@ -55,6 +56,12 @@ describe("historical dates", () => {
     expect(formatHistoricalDate({ year: 1867, month: 2, day: 9 })).toBe(
       "1867/02/09",
     );
+    expect(
+      formatApproximateHistoricalDate(
+        { year: 1580, month: null, day: null },
+        true,
+      ),
+    ).toBe("1580 頃");
   });
 
   it("normalizes BCE centuries and CE decades to independent boundaries", () => {

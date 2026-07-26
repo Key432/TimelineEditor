@@ -191,7 +191,7 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     .getByRole("tooltip")
     .filter({ hasText: "夏目漱石" })
     .last();
-  await expect(itemTooltip).toContainText("約 1867 — 1916");
+  await expect(itemTooltip).toContainText("1867 頃 — 1916");
   await expect(itemTooltip).not.toContainText("登録日付");
   await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
   await expect(page).toHaveURL(
@@ -481,7 +481,7 @@ test("creates a BCE century and draws it on the continuous historical axis", asy
   await form.getByLabel("時代").first().selectOption("bce");
   await form.getByLabel("日付精度").first().selectOption("century");
   await form.getByLabel("世紀").fill("5");
-  await form.getByLabel("原資料上の日付表記").first().fill("古典期");
+  await form.getByLabel("日付表記の手動入力").first().fill("古典期");
   await form.getByLabel("年").fill("1");
   await expect(form.getByText("表記プレビュー: 古典期")).toBeVisible();
   await form

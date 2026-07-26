@@ -46,6 +46,7 @@ import { eventX, snapTimelineDate } from "@/features/timeline-events/snap";
 import { TimelineEventMarkers } from "@/features/timeline-events/timeline-event-markers";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import {
+  formatApproximateHistoricalDate,
   formatHistoricalDate,
   historicalDateFromOrdinal,
   historicalDateOrdinal,
@@ -170,15 +171,15 @@ type TimelineDisplayEntry =
 
 function itemDateLabel(item: TimelineItemSummary) {
   if (item.temporalType === "point") {
-    return `${item.isPointApproximate ? "約 " : ""}${formatHistoricalDate(item.point)}`;
+    return formatApproximateHistoricalDate(item.point, item.isPointApproximate);
   }
   const end =
     item.endDateStatus === "ongoing"
       ? "継続中"
       : item.endDateStatus === "unknown"
         ? `終了不明${item.lastConfirmed ? `（最終確認 ${formatHistoricalDate(item.lastConfirmed)}）` : ""}`
-        : `${item.isEndApproximate ? "約 " : ""}${formatHistoricalDate(item.end)}`;
-  return `${item.isStartApproximate ? "約 " : ""}${formatHistoricalDate(item.start)} — ${end}`;
+        : formatApproximateHistoricalDate(item.end, item.isEndApproximate);
+  return `${formatApproximateHistoricalDate(item.start, item.isStartApproximate)} — ${end}`;
 }
 
 function TimelineGlyph({

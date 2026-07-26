@@ -194,6 +194,14 @@ export function formatHistoricalDate(date: HistoricalDate | null) {
   return `${era}${date.year}${month}${day}`;
 }
 
+export function formatApproximateHistoricalDate(
+  date: HistoricalDate | null,
+  isApproximate: boolean,
+) {
+  const formatted = formatHistoricalDate(date);
+  return isApproximate && date ? `${formatted} 頃` : formatted;
+}
+
 export function historicalDatePrecision(
   date: Pick<HistoricalDate, "precision" | "month" | "day">,
 ): HistoricalDatePrecision {

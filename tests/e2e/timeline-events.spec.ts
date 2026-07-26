@@ -118,6 +118,15 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await expect(createForm.getByLabel("親タイムラインアイテム")).toHaveValue(
     item.id,
   );
+  await expect(createForm.getByLabel("イベント時代")).toContainText("紀元後");
+  await expect(
+    createForm.getByLabel("イベント日付表記の手動入力"),
+  ).toHaveAttribute("placeholder", "日付表記の手動入力（任意・例：平成10年）");
+  await expect(
+    createForm
+      .locator('[data-slot="historical-date-input-row"]')
+      .getByLabel("日付はおおよそ"),
+  ).toBeVisible();
   await createForm.getByLabel("タイトル").fill("代表作刊行");
   await createForm.getByLabel("イベント日付精度").selectOption("day");
   await createForm.getByLabel("イベント年").fill("1905");

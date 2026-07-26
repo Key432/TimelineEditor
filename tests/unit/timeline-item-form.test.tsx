@@ -134,7 +134,15 @@ describe("TimelineItemForm", () => {
     const approximate = form.getByLabelText("開始日はおおよそ");
     expect(approximate.parentElement).toHaveClass("rounded-lg", "border");
     expect(
-      approximate.closest('[data-slot="date-approximate-row"]'),
+      approximate.closest('[data-slot="historical-date-input-row"]'),
     ).not.toBeNull();
+    expect(form.getAllByLabelText("日付表記の手動入力")[0]).toHaveAttribute(
+      "placeholder",
+      "日付表記の手動入力（任意・例：平成10年）",
+    );
+    expect(form.getAllByLabelText("時代")[0]).toHaveDisplayValue("紀元後");
+    expect(form.getAllByLabelText("時代")[0]).toContainHTML(
+      '<option value="bce">紀元前</option>',
+    );
   });
 });

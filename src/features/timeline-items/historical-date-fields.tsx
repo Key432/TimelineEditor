@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import {
   HISTORICAL_PRECISION_LABELS,
 } from "@/features/timeline-items/historical-date";
 import type { HistoricalDatePrecision } from "@/features/timeline-items/types";
+import { cn } from "@/lib/utils";
 
 const selectClassName =
   "h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -22,6 +24,7 @@ export function HistoricalDateFields({
   monthRegistration,
   dayRegistration,
   originalTextRegistration,
+  approximateControl,
   labelPrefix = "",
 }: {
   id: string;
@@ -39,6 +42,7 @@ export function HistoricalDateFields({
   monthRegistration: UseFormRegisterReturn;
   dayRegistration: UseFormRegisterReturn;
   originalTextRegistration: UseFormRegisterReturn;
+  approximateControl?: ReactNode;
   labelPrefix?: string;
 }) {
   const showsMonth = precision === "month" || precision === "day";
@@ -58,14 +62,24 @@ export function HistoricalDateFields({
       : null;
 
   return (
-    <div className="space-y-2">
-      <div className="grid gap-2 sm:grid-cols-[7rem_8rem_minmax(7.5rem,10rem)_4.5rem_4.5rem]">
+    <div className="w-full space-y-2">
+      <div
+        className={cn(
+          "grid gap-2",
+          showsDay
+            ? "sm:grid-cols-[7rem_8rem_minmax(7.5rem,10rem)_4.5rem_4.5rem_auto]"
+            : showsMonth
+              ? "sm:grid-cols-[7rem_8rem_minmax(7.5rem,10rem)_4.5rem_auto]"
+              : "sm:grid-cols-[7rem_8rem_minmax(7.5rem,10rem)_auto]",
+        )}
+        data-slot="historical-date-input-row"
+      >
         <select
           aria-label={`${labelPrefix}時代`}
           className={selectClassName}
           {...eraRegistration}
         >
-          <option value="ce">西暦</option>
+          <option value="ce">紀元後</option>
           <option value="bce">紀元前</option>
         </select>
         <select
@@ -104,9 +118,7 @@ export function HistoricalDateFields({
             type="number"
             {...monthRegistration}
           />
-        ) : (
-          <span aria-hidden="true" />
-        )}
+        ) : null}
         {showsDay ? (
           <Input
             aria-label={`${labelPrefix}日`}
@@ -117,13 +129,12 @@ export function HistoricalDateFields({
             type="number"
             {...dayRegistration}
           />
-        ) : (
-          <span aria-hidden="true" />
-        )}
+        ) : null}
+        {approximateControl}
       </div>
       <Input
-        aria-label={`${labelPrefix}原資料上の日付表記`}
-        placeholder="原資料上の表記（任意）"
+        aria-label={`${labelPrefix}日付表記の手動入力`}
+        placeholder="日付表記の手動入力（任意・例：平成10年）"
         {...originalTextRegistration}
       />
       {preview ? (

@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatHistoricalDate } from "@/features/timeline-items/historical-date";
+import { formatApproximateHistoricalDate } from "@/features/timeline-items/historical-date";
 import type { SearchEntityType, SearchResult } from "@/features/search/types";
 import { SearchService } from "@/lib/services/search-service";
 import { createClient } from "@/lib/supabase/server";
@@ -17,18 +17,24 @@ const LABELS: Record<SearchEntityType, string> = {
 function resultDate(result: SearchResult) {
   if (!result.start) return null;
   if (result.entityType === "timeline_event") {
-    return `${result.isStartApproximate ? "約 " : ""}${formatHistoricalDate(result.start)}`;
+    return formatApproximateHistoricalDate(
+      result.start,
+      result.isStartApproximate,
+    );
   }
   if (!result.endDateStatus) {
-    return `${result.isStartApproximate ? "約 " : ""}${formatHistoricalDate(result.start)}`;
+    return formatApproximateHistoricalDate(
+      result.start,
+      result.isStartApproximate,
+    );
   }
   const end =
     result.endDateStatus === "ongoing"
       ? "継続中"
       : result.endDateStatus === "unknown"
         ? "終了不明"
-        : `${result.isEndApproximate ? "約 " : ""}${formatHistoricalDate(result.end)}`;
-  return `${result.isStartApproximate ? "約 " : ""}${formatHistoricalDate(result.start)} — ${end}`;
+        : formatApproximateHistoricalDate(result.end, result.isEndApproximate);
+  return `${formatApproximateHistoricalDate(result.start, result.isStartApproximate)} — ${end}`;
 }
 
 function typeHref(query: string, type?: SearchEntityType) {

@@ -62,27 +62,24 @@ export function TimelineEventDraftEditor({
       </div>
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">日付</legend>
-        <div
-          className="flex flex-col gap-2 sm:flex-row sm:items-center"
-          data-slot="date-approximate-row"
-        >
-          <HistoricalDateFields
-            id={`${id}-event-year`}
-            labelPrefix="イベント"
-            precision={date?.precision ?? "year"}
-            value={date ?? undefined}
-            eraRegistration={register("date.era")}
-            precisionRegistration={register("date.precision")}
-            yearRegistration={register("date.year")}
-            monthRegistration={register("date.month")}
-            dayRegistration={register("date.day")}
-            originalTextRegistration={register("date.originalText")}
-          />
-          <ApproximateDateCheckbox
-            label="日付はおおよそ"
-            {...register("isApproximate")}
-          />
-        </div>
+        <HistoricalDateFields
+          id={`${id}-event-year`}
+          labelPrefix="イベント"
+          precision={date?.precision ?? "year"}
+          value={date ?? undefined}
+          eraRegistration={register("date.era")}
+          precisionRegistration={register("date.precision")}
+          yearRegistration={register("date.year")}
+          monthRegistration={register("date.month")}
+          dayRegistration={register("date.day")}
+          originalTextRegistration={register("date.originalText")}
+          approximateControl={
+            <ApproximateDateCheckbox
+              label="日付はおおよそ"
+              {...register("isApproximate")}
+            />
+          }
+        />
         {errors.date ? (
           <p role="alert" className="text-sm text-destructive">
             日付を確認してください。

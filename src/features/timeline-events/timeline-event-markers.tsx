@@ -22,6 +22,7 @@ import {
 import { eventX } from "@/features/timeline-events/snap";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import {
+  formatApproximateHistoricalDate,
   formatHistoricalDate,
   historicalDateOrdinal,
 } from "@/features/timeline-items/historical-date";
@@ -34,7 +35,7 @@ type EventMarker = {
 };
 
 function eventDateLabel(event: TimelineEventSummary) {
-  return `${event.isApproximate ? "約 " : ""}${formatHistoricalDate(event.date)}`;
+  return formatApproximateHistoricalDate(event.date, event.isApproximate);
 }
 
 function sortEvents(left: TimelineEventSummary, right: TimelineEventSummary) {

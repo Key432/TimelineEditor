@@ -15,7 +15,7 @@ import {
   timelineEventKeys,
 } from "@/features/timeline-events/api";
 import type { TimelineEvent } from "@/features/timeline-events/types";
-import { formatHistoricalDate } from "@/features/timeline-items/historical-date";
+import { formatApproximateHistoricalDate } from "@/features/timeline-items/historical-date";
 
 function DetailText({ value }: { value: string | null }) {
   return value ? (
@@ -104,8 +104,10 @@ export function TimelineEventDetail({
           <dl className="grid gap-3 text-sm sm:grid-cols-[8rem_1fr]">
             <dt className="text-muted-foreground">登録日付</dt>
             <dd>
-              {currentEvent.isApproximate ? "約 " : ""}
-              {formatHistoricalDate(currentEvent.date)}
+              {formatApproximateHistoricalDate(
+                currentEvent.date,
+                currentEvent.isApproximate,
+              )}
             </dd>
             <dt className="text-muted-foreground">タイムライン</dt>
             <dd>{currentEvent.parent.title}</dd>

@@ -2,7 +2,7 @@ import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
-import { formatHistoricalDate } from "@/features/timeline-items/historical-date";
+import { formatApproximateHistoricalDate } from "@/features/timeline-items/historical-date";
 
 export function TimelineItemEventList({
   projectId,
@@ -48,8 +48,10 @@ export function TimelineItemEventList({
                 </Link>
               )}
               <span className="text-xs whitespace-nowrap text-muted-foreground">
-                {event.isApproximate ? "約 " : ""}
-                {formatHistoricalDate(event.date)}
+                {formatApproximateHistoricalDate(
+                  event.date,
+                  event.isApproximate,
+                )}
               </span>
             </li>
           );

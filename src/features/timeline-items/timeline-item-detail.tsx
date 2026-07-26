@@ -8,7 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { DeleteTimelineItemDialog } from "@/features/timeline-items/delete-timeline-item-dialog";
-import { formatHistoricalDate } from "@/features/timeline-items/historical-date";
+import {
+  formatApproximateHistoricalDate,
+  formatHistoricalDate,
+} from "@/features/timeline-items/historical-date";
 import { TimelineItemEventList } from "@/features/timeline-items/timeline-item-event-list";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import {
@@ -19,15 +22,15 @@ import type { TimelineItem } from "@/features/timeline-items/types";
 
 function dateLabel(item: TimelineItem) {
   if (item.temporalType === "point") {
-    return `${item.isPointApproximate ? "約 " : ""}${formatHistoricalDate(item.point)}`;
+    return formatApproximateHistoricalDate(item.point, item.isPointApproximate);
   }
   const end =
     item.endDateStatus === "ongoing"
       ? "継続中"
       : item.endDateStatus === "unknown"
         ? `終了時期不明${item.lastConfirmed ? `（最終確認 ${formatHistoricalDate(item.lastConfirmed)}）` : ""}`
-        : `${item.isEndApproximate ? "約 " : ""}${formatHistoricalDate(item.end)}`;
-  return `${item.isStartApproximate ? "約 " : ""}${formatHistoricalDate(item.start)} — ${end}`;
+        : formatApproximateHistoricalDate(item.end, item.isEndApproximate);
+  return `${formatApproximateHistoricalDate(item.start, item.isStartApproximate)} — ${end}`;
 }
 
 function PlainText({ value }: { value: string | null }) {

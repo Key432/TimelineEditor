@@ -11,7 +11,7 @@ import {
   timelineEventKeys,
 } from "@/features/timeline-events/api";
 import { TimelineEventForm } from "@/features/timeline-events/timeline-event-form";
-import { formatHistoricalDate } from "@/features/timeline-items/historical-date";
+import { formatApproximateHistoricalDate } from "@/features/timeline-items/historical-date";
 import type {
   HistoricalDate,
   TimelineItemSummary,
@@ -68,8 +68,10 @@ export function TimelineEventSection({
               <div>
                 <p className="font-medium">{event.title}</p>
                 <p className="text-muted-foreground">
-                  {event.isApproximate ? "約 " : ""}
-                  {formatHistoricalDate(event.date)}
+                  {formatApproximateHistoricalDate(
+                    event.date,
+                    event.isApproximate,
+                  )}
                 </p>
               </div>
               <Button asChild size="sm" variant="ghost">

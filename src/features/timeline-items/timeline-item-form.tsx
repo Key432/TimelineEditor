@@ -109,28 +109,25 @@ function DateFields({
   const precision = date?.precision ?? "year";
   return (
     <div className="space-y-2">
-      <div
-        className="flex flex-col gap-2 sm:flex-row sm:items-center"
-        data-slot="date-approximate-row"
-      >
-        <HistoricalDateFields
-          id={`${formId}-${prefix}-year`}
-          precision={precision}
-          value={date ?? undefined}
-          eraRegistration={register(`${prefix}.era`)}
-          precisionRegistration={register(`${prefix}.precision`)}
-          yearRegistration={register(`${prefix}.year`)}
-          monthRegistration={register(`${prefix}.month`)}
-          dayRegistration={register(`${prefix}.day`)}
-          originalTextRegistration={register(`${prefix}.originalText`)}
-        />
-        {approximateLabel && approximateRegistration ? (
-          <ApproximateDateCheckbox
-            label={approximateLabel}
-            {...approximateRegistration}
-          />
-        ) : null}
-      </div>
+      <HistoricalDateFields
+        id={`${formId}-${prefix}-year`}
+        precision={precision}
+        value={date ?? undefined}
+        eraRegistration={register(`${prefix}.era`)}
+        precisionRegistration={register(`${prefix}.precision`)}
+        yearRegistration={register(`${prefix}.year`)}
+        monthRegistration={register(`${prefix}.month`)}
+        dayRegistration={register(`${prefix}.day`)}
+        originalTextRegistration={register(`${prefix}.originalText`)}
+        approximateControl={
+          approximateLabel && approximateRegistration ? (
+            <ApproximateDateCheckbox
+              label={approximateLabel}
+              {...approximateRegistration}
+            />
+          ) : null
+        }
+      />
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   );
