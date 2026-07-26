@@ -132,6 +132,24 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
     name: /イベントアイテム 代表作刊行/,
   });
   await expect(marker).toBeVisible();
+  const parentGlyph = page.getByRole("button", {
+    name: /親人物の詳細を表示 期間型バー/,
+  });
+  await parentGlyph.hover({ position: { x: 2, y: 2 } });
+  await expect(
+    page.getByRole("tooltip").filter({ hasText: "親人物" }).last(),
+  ).toBeVisible();
+  await marker.hover();
+  await expect
+    .poll(() => marker.evaluate((element) => element.matches(":hover")))
+    .toBe(true);
+  await expect
+    .poll(() => parentGlyph.evaluate((element) => element.matches(":hover")))
+    .toBe(false);
+  await page.mouse.move(0, 0);
+  await expect(
+    page.getByRole("tooltip").filter({ hasText: "親人物" }).last(),
+  ).toBeHidden();
   await marker.hover();
   await expect(
     page.getByRole("tooltip").filter({ hasText: "代表作刊行" }).last(),

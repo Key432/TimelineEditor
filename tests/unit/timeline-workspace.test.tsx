@@ -337,6 +337,29 @@ describe("TimelineWorkspace", () => {
     expect(screen.getByLabelText("ズーム段階")).toHaveValue("0");
   });
 
+  it("keeps event markers above a highlighted timeline item", () => {
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 21 }}
+          initialEvents={[timelineEvent("event-1", "重なるイベント", 1)]}
+          initialItems={[
+            item("33333333-3333-4333-8333-333333333333", "夏目漱石", "range"),
+          ]}
+          itemTypes={[type]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    expect(screen.getByLabelText(/期間型バー/)).toHaveClass("hover:z-20");
+    expect(
+      screen.getByRole("button", {
+        name: /イベントアイテム 重なるイベント/,
+      }),
+    ).toHaveClass("z-30", "hover:z-40", "hover:ring-2");
+  });
+
   it("groups and collapses rows by item type", async () => {
     const user = userEvent.setup();
     render(
