@@ -344,17 +344,71 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   );
   await page.getByRole("button", { name: "全体に合わせる" }).click();
   await expect(zoomSlider).toHaveValue("0");
-  await expect(page.getByTestId("timeline-minimap")).toBeVisible();
-  await expect(page.getByLabel("表示年代スライサー")).toBeVisible();
+  await expect(page.getByTestId("timeline-floating-controls")).toBeVisible();
+  await expect(page.getByTestId("timeline-time-slicer")).toBeVisible();
+  await expect(page.getByText("全期間ミニマップ")).toHaveCount(0);
+  const sliceStart = page.getByLabel("強調期間の始点");
+  const sliceEnd = page.getByLabel("強調期間の終点");
+  const sliceMin = Number(await sliceStart.getAttribute("min"));
+  const sliceMax = Number(await sliceEnd.getAttribute("max"));
+  await sliceStart.fill(
+    String(Math.round(sliceMin + (sliceMax - sliceMin) / 4)),
+  );
+  await sliceEnd.fill(String(Math.round(sliceMax - (sliceMax - sliceMin) / 4)));
+  await expect
+    .poll(() =>
+      page
+        .getByTestId("time-slice-before")
+        .evaluate((element) => element.getBoundingClientRect().width),
+    )
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      page
+        .getByTestId("time-slice-after")
+        .evaluate((element) => element.getBoundingClientRect().width),
+    )
+    .toBeGreaterThan(0);
   await viewport.hover({ position: { x: 620, y: 100 } });
   await expect(page.getByTestId("timeline-pointer-guide")).toBeVisible();
 
   await page.getByRole("button", { name: "最大化", exact: true }).click();
   await expect(page.getByRole("button", { name: "元の大きさ" })).toBeVisible();
+  await page.getByRole("button", { name: "アイテムを追加" }).click();
+  await page.getByRole("menuitem", { name: "タイムラインを追加" }).click();
+  await expect(
+    page.getByRole("heading", { name: "タイムラインアイテムを追加" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "フィルター" }).click();
+  await expect(
+    page.getByRole("heading", { name: "タイムラインを絞り込む" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await expect(
     page.getByRole("button", { name: "最大化", exact: true }),
   ).toBeVisible();
+
+  const fullscreenButton = page.getByRole("button", { name: "全画面" });
+  if ((await fullscreenButton.count()) > 0) {
+    await fullscreenButton.click();
+    await expect
+      .poll(() => page.evaluate(() => document.fullscreenElement !== null))
+      .toBe(true);
+    await page.getByRole("button", { name: "アイテムを追加" }).click();
+    await page.getByRole("menuitem", { name: "タイムラインを追加" }).click();
+    await expect(
+      page.getByRole("heading", { name: "タイムラインアイテムを追加" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "閉じる" }).click();
+    await page.getByRole("button", { name: "フィルター" }).click();
+    await expect(
+      page.getByRole("heading", { name: "タイムラインを絞り込む" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "閉じる" }).click();
+    await page.evaluate(() => document.exitFullscreen());
+  }
 
   await page.getByRole("button", { name: "保存済みビュー" }).click();
   await page.getByLabel("保存済みビュー名").fill("明治期ビュー");

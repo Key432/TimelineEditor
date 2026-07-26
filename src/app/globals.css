@@ -130,6 +130,11 @@
     @apply bg-background text-foreground;
   }
 
+  [data-timeline-workspace="true"]:fullscreen,
+  [data-timeline-workspace="true"]:fullscreen::backdrop {
+    background-color: var(--background);
+  }
+
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-ring;
   }

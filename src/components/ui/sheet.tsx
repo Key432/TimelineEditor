@@ -4,6 +4,7 @@ import * as React from "react";
 import { Dialog as SheetPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
+import { useFullscreenPortalContainer } from "@/components/ui/portal-container";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 
@@ -24,9 +25,17 @@ function SheetClose({
 }
 
 function SheetPortal({
+  container,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
-  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />;
+  const fullscreenContainer = useFullscreenPortalContainer();
+  return (
+    <SheetPrimitive.Portal
+      container={container ?? fullscreenContainer}
+      data-slot="sheet-portal"
+      {...props}
+    />
+  );
 }
 
 function SheetOverlay({

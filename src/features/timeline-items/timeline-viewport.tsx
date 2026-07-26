@@ -787,6 +787,10 @@ export function TimelineViewport({
     left: number;
     label: string;
   } | null>(null);
+  const [timeSlice, setTimeSlice] = useState<{
+    startOrdinal: number;
+    endOrdinal: number;
+  } | null>(null);
   const zoomLevel = useTimelineStore((state) => state.zoomLevel);
   const setZoomLevel = useTimelineStore((state) => state.setZoomLevel);
   const scrollLeft = useTimelineStore((state) => state.scrollLeft);
@@ -1035,6 +1039,23 @@ export function TimelineViewport({
     baseCanvasWidth,
     HORIZONTAL_PADDING * 2 + compactContentEnd,
   );
+  const timeSliceStart = Math.max(
+    bounds.domainStart,
+    Math.min(timeSlice?.startOrdinal ?? bounds.domainStart, bounds.domainEnd),
+  );
+  const timeSliceEnd = Math.max(
+    timeSliceStart,
+    Math.min(timeSlice?.endOrdinal ?? bounds.domainEnd, bounds.domainEnd),
+  );
+  const canvasOffset = layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0;
+  const timeSliceStartX =
+    canvasOffset +
+    HORIZONTAL_PADDING +
+    (timeSliceStart - bounds.domainStart) * pixelsPerDay;
+  const timeSliceEndX =
+    canvasOffset +
+    HORIZONTAL_PADDING +
+    (timeSliceEnd - bounds.domainStart) * pixelsPerDay;
   const onPinchZoom = useEffectEvent((offset: -1 | 1, cursorX: number) =>
     changeZoom(zoomLevel + offset, cursorX),
   );
@@ -1404,355 +1425,414 @@ export function TimelineViewport({
   return (
     <TooltipProvider>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-card p-2 shadow-xs">
-          <div className="flex h-8 items-center gap-1 rounded-md bg-muted/70 p-1">
-            <Button
-              aria-label="縮小"
-              className="size-6"
-              disabled={zoomLevel === 0}
-              size="icon-sm"
-              variant="ghost"
-              onClick={() => changeZoom(zoomLevel - 1)}
-            >
-              <Minus aria-hidden="true" className="size-3.5" />
-            </Button>
-            <input
-              aria-label="ズーム段階"
-              className="w-28 accent-primary sm:w-36"
-              max={ZOOM_LABELS.length - 1}
-              min={0}
-              step={1}
-              type="range"
-              value={zoomLevel}
-              onChange={(event) => changeZoom(Number(event.target.value))}
-            />
-            <Button
-              aria-label="拡大"
-              className="size-6"
-              disabled={zoomLevel === ZOOM_LABELS.length - 1}
-              size="icon-sm"
-              variant="ghost"
-              onClick={() => changeZoom(zoomLevel + 1)}
-            >
-              <Plus aria-hidden="true" className="size-3.5" />
-            </Button>
-          </div>
-          {zoomLevel > 0 ? (
-            <Badge className="min-w-14 justify-center" variant="outline">
-              {ZOOM_LABELS[zoomLevel]}
-            </Badge>
-          ) : null}
-          <Button size="sm" variant="outline" onClick={fitRange}>
-            <Maximize2 aria-hidden="true" className="size-4" />
-            全体に合わせる
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                aria-label="表示密度設定"
-                className="ml-auto"
-                size="sm"
-                variant="ghost"
-              >
-                <SlidersHorizontal aria-hidden="true" className="size-4" />
-                {density === "comfortable" ? "標準" : "高密度"}
-                <ChevronDown aria-hidden="true" className="size-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-40">
-              <DropdownMenuLabel>表示密度</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={density}
-                onValueChange={(value) =>
-                  setDensity(value as "compact" | "comfortable")
-                }
-              >
-                <DropdownMenuRadioItem value="comfortable">
-                  標準
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="compact">
-                  高密度
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        <div
-          ref={viewportRef}
-          aria-label="タイムライン表示領域"
-          className={cn(
-            "styled-scrollbar relative min-h-48 flex-1 touch-none overflow-auto rounded-lg border bg-card select-none",
-            isPanning && "cursor-grabbing",
-          )}
-          data-testid="timeline-viewport"
-          tabIndex={0}
-          onScroll={(event) =>
-            scheduleScrollSync(event.currentTarget.scrollLeft)
-          }
-          onMouseMove={updatePointerGuide}
-          onMouseLeave={clearPointerGuide}
-          onWheel={handleWheel}
-        >
+        <div className="relative min-h-48 flex-1">
           <div
-            className="relative transition-[width] duration-150"
-            style={{
-              width:
-                layoutMode === "row"
-                  ? HANDLE_WIDTH + INFO_WIDTH + canvasWidth + ACTION_WIDTH
-                  : canvasWidth,
-              height: AXIS_HEIGHT + virtualizer.getTotalSize(),
-            }}
+            ref={viewportRef}
+            aria-label="タイムライン表示領域"
+            className={cn(
+              "styled-scrollbar relative h-full min-h-48 touch-none overflow-auto rounded-lg border bg-card select-none",
+              isPanning && "cursor-grabbing",
+            )}
+            data-testid="timeline-viewport"
+            tabIndex={0}
+            onScroll={(event) =>
+              scheduleScrollSync(event.currentTarget.scrollLeft)
+            }
+            onMouseMove={updatePointerGuide}
+            onMouseLeave={clearPointerGuide}
+            onWheel={handleWheel}
           >
-            {pointerGuide ? (
+            <div
+              className="relative transition-[width] duration-150"
+              style={{
+                width:
+                  layoutMode === "row"
+                    ? HANDLE_WIDTH + INFO_WIDTH + canvasWidth + ACTION_WIDTH
+                    : canvasWidth,
+                height: AXIS_HEIGHT + virtualizer.getTotalSize(),
+              }}
+            >
+              {pointerGuide ? (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-0 bottom-0 z-50 border-l-2 border-primary"
+                  data-testid="timeline-pointer-guide"
+                  style={{ left: pointerGuide.left }}
+                >
+                  <span className="sticky top-1 ml-1 inline-block rounded bg-primary px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-primary-foreground shadow-sm">
+                    {pointerGuide.label}
+                  </span>
+                </div>
+              ) : null}
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute top-0 bottom-0 z-50 border-l-2 border-primary"
-                data-testid="timeline-pointer-guide"
-                style={{ left: pointerGuide.left }}
-              >
-                <span className="sticky top-1 ml-1 inline-block rounded bg-primary px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-primary-foreground shadow-sm">
-                  {pointerGuide.label}
-                </span>
-              </div>
-            ) : null}
-            <div className="sticky top-0 z-30 flex h-12 border-b bg-muted/95 text-xs font-medium text-muted-foreground backdrop-blur-sm">
-              {layoutMode === "row" ? (
-                <>
-                  <span
-                    className="sticky left-0 z-40 shrink-0 border-r bg-muted"
-                    style={{ width: HANDLE_WIDTH }}
-                  />
-                  <span
-                    className="sticky z-40 shrink-0 border-r bg-muted px-3 py-4"
-                    style={{ left: HANDLE_WIDTH, width: INFO_WIDTH }}
-                  >
-                    タイムライン
-                  </span>
-                </>
-              ) : null}
+                className="pointer-events-none absolute bottom-0 z-[35] bg-muted/75 backdrop-grayscale"
+                data-testid="time-slice-before"
+                style={{
+                  top: AXIS_HEIGHT,
+                  left: canvasOffset,
+                  width: Math.max(0, timeSliceStartX - canvasOffset),
+                }}
+              />
               <div
-                className="relative shrink-0 overflow-hidden"
-                style={{ width: canvasWidth }}
-                data-timeline-pan-surface="true"
-              >
-                {ticks.map((tick) => {
-                  const left =
-                    HORIZONTAL_PADDING +
-                    (tick.ordinal - bounds.domainStart) * pixelsPerDay;
-                  return (
+                aria-hidden="true"
+                className="pointer-events-none absolute bottom-0 z-[35] bg-muted/75 backdrop-grayscale"
+                data-testid="time-slice-after"
+                style={{
+                  top: AXIS_HEIGHT,
+                  left: timeSliceEndX,
+                  width: Math.max(
+                    0,
+                    canvasOffset + canvasWidth - timeSliceEndX,
+                  ),
+                }}
+              />
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute bottom-0 z-10 border-x-2 border-primary/70 bg-primary/8"
+                data-testid="time-slice-selected"
+                style={{
+                  top: AXIS_HEIGHT,
+                  left: timeSliceStartX,
+                  width: Math.max(0, timeSliceEndX - timeSliceStartX),
+                }}
+              />
+              <div className="sticky top-0 z-40 flex h-12 border-b bg-muted/95 text-xs font-medium text-muted-foreground backdrop-blur-sm">
+                {layoutMode === "row" ? (
+                  <>
                     <span
-                      key={`${unit}-${tick.ordinal}`}
-                      className={cn(
-                        "absolute inset-y-0 border-l",
-                        tick.major ? "border-foreground/35" : "border-border",
-                      )}
-                      style={{ left }}
+                      className="sticky left-0 z-40 shrink-0 border-r bg-muted"
+                      style={{ width: HANDLE_WIDTH }}
+                    />
+                    <span
+                      className="sticky z-40 shrink-0 border-r bg-muted px-3 py-4"
+                      style={{ left: HANDLE_WIDTH, width: INFO_WIDTH }}
                     >
-                      {tick.label ? (
-                        <span className="absolute top-1 left-1 whitespace-nowrap">
-                          {tick.label}
-                        </span>
-                      ) : null}
+                      タイムライン
                     </span>
-                  );
-                })}
-              </div>
-              {layoutMode === "row" ? (
-                <span
-                  className="sticky right-0 z-40 shrink-0 border-l bg-muted"
-                  style={{ width: ACTION_WIDTH }}
-                />
-              ) : null}
-            </div>
-
-            <div
-              className="absolute right-0 left-0"
-              style={{ top: AXIS_HEIGHT }}
-            >
-              {virtualItems.map((virtualRow) => {
-                const entry = entries[virtualRow.index];
-                if (!entry) return null;
-                return (
-                  <div
-                    key={
-                      entry.kind === "group"
-                        ? `group-${entry.id}`
-                        : entry.kind === "lane"
-                          ? `lane-${entry.id}`
-                          : entry.item.id
-                    }
-                    className="absolute top-0 left-0"
-                    data-index={virtualRow.index}
-                    style={{ transform: `translateY(${virtualRow.start}px)` }}
-                  >
-                    {entry.kind === "group" ? (
-                      <div
-                        className="h-10 border-b bg-muted"
-                        style={{
-                          width:
-                            layoutMode === "row"
-                              ? HANDLE_WIDTH +
-                                INFO_WIDTH +
-                                canvasWidth +
-                                ACTION_WIDTH
-                              : canvasWidth,
-                        }}
+                  </>
+                ) : null}
+                <div
+                  className="relative shrink-0 overflow-hidden"
+                  style={{ width: canvasWidth }}
+                  data-timeline-pan-surface="true"
+                >
+                  {ticks.map((tick) => {
+                    const left =
+                      HORIZONTAL_PADDING +
+                      (tick.ordinal - bounds.domainStart) * pixelsPerDay;
+                    return (
+                      <span
+                        key={`${unit}-${tick.ordinal}`}
+                        className={cn(
+                          "absolute inset-y-0 border-l",
+                          tick.major ? "border-foreground/35" : "border-border",
+                        )}
+                        style={{ left }}
                       >
-                        <button
-                          aria-expanded={!entry.collapsed}
-                          aria-label={`${entry.label} ${entry.itemCount}件`}
-                          className="sticky left-0 flex h-10 items-center gap-2 bg-muted px-3 text-left text-sm font-medium"
+                        {tick.label ? (
+                          <span className="absolute top-1 left-1 whitespace-nowrap">
+                            {tick.label}
+                          </span>
+                        ) : null}
+                      </span>
+                    );
+                  })}
+                </div>
+                {layoutMode === "row" ? (
+                  <span
+                    className="sticky right-0 z-40 shrink-0 border-l bg-muted"
+                    style={{ width: ACTION_WIDTH }}
+                  />
+                ) : null}
+              </div>
+
+              <div
+                className="absolute right-0 left-0"
+                style={{ top: AXIS_HEIGHT }}
+              >
+                {virtualItems.map((virtualRow) => {
+                  const entry = entries[virtualRow.index];
+                  if (!entry) return null;
+                  return (
+                    <div
+                      key={
+                        entry.kind === "group"
+                          ? `group-${entry.id}`
+                          : entry.kind === "lane"
+                            ? `lane-${entry.id}`
+                            : entry.item.id
+                      }
+                      className="absolute top-0 left-0"
+                      data-index={virtualRow.index}
+                      style={{ transform: `translateY(${virtualRow.start}px)` }}
+                    >
+                      {entry.kind === "group" ? (
+                        <div
+                          className="h-10 border-b bg-muted"
                           style={{
                             width:
                               layoutMode === "row"
-                                ? HANDLE_WIDTH + INFO_WIDTH
-                                : Math.min(360, canvasWidth),
+                                ? HANDLE_WIDTH +
+                                  INFO_WIDTH +
+                                  canvasWidth +
+                                  ACTION_WIDTH
+                                : canvasWidth,
                           }}
-                          type="button"
-                          onClick={() => onToggleGroup(entry.id)}
                         >
-                          {entry.collapsed ? (
-                            <ChevronRight className="size-4" />
-                          ) : (
-                            <ChevronDown className="size-4" />
+                          <button
+                            aria-expanded={!entry.collapsed}
+                            aria-label={`${entry.label} ${entry.itemCount}件`}
+                            className="sticky left-0 flex h-10 items-center gap-2 bg-muted px-3 text-left text-sm font-medium"
+                            style={{
+                              width:
+                                layoutMode === "row"
+                                  ? HANDLE_WIDTH + INFO_WIDTH
+                                  : Math.min(360, canvasWidth),
+                            }}
+                            type="button"
+                            onClick={() => onToggleGroup(entry.id)}
+                          >
+                            {entry.collapsed ? (
+                              <ChevronRight className="size-4" />
+                            ) : (
+                              <ChevronDown className="size-4" />
+                            )}
+                            <span
+                              className="size-2.5 rounded-full"
+                              style={{ backgroundColor: entry.color }}
+                            />
+                            {entry.label}
+                            <Badge variant="outline">{entry.itemCount}</Badge>
+                          </button>
+                        </div>
+                      ) : entry.kind === "item" ? (
+                        <TimelineItemRow
+                          canMoveDown={
+                            entry.item.manualOrder < allItems.length - 1
+                          }
+                          canMoveUp={entry.item.manualOrder > 0}
+                          canvasWidth={canvasWidth}
+                          currentDate={currentDate}
+                          defaultUncertaintyYears={
+                            project.settings.defaultUncertaintyYears
+                          }
+                          disabled={sortDisabled}
+                          dimmed={dimmed.has(entry.item.id)}
+                          domainStart={bounds.domainStart}
+                          isPanning={isPanning}
+                          showItemType={showItemType}
+                          item={entry.item}
+                          events={eventsByParent.get(entry.item.id) ?? []}
+                          highlightedEventIds={highlightedEvents}
+                          readOnly={readOnly}
+                          draftEvent={
+                            draftEvent?.parentId === entry.item.id
+                              ? draftEvent.date
+                              : null
+                          }
+                          pixelsPerDay={pixelsPerDay}
+                          rowHeight={rowHeight}
+                          visibleEnd={visibleEnd}
+                          visibleStart={visibleStart}
+                          onEdit={() => onEdit(entry.item.id)}
+                          onOpenItem={() => onOpenItem(entry.item.id)}
+                          onCreateEvent={(date) =>
+                            onCreateEvent(entry.item.id, date)
+                          }
+                          onOpenEvent={onOpenEvent}
+                          onMoveDown={() => onMove(entry.item.id, 1)}
+                          onMoveUp={() => onMove(entry.item.id, -1)}
+                        />
+                      ) : (
+                        <div
+                          className={cn(
+                            "relative border-b bg-muted/15",
+                            isPanning
+                              ? "cursor-grabbing"
+                              : "cursor-grab active:cursor-grabbing",
                           )}
-                          <span
-                            className="size-2.5 rounded-full"
-                            style={{ backgroundColor: entry.color }}
-                          />
-                          {entry.label}
-                          <Badge variant="outline">{entry.itemCount}</Badge>
-                        </button>
-                      </div>
-                    ) : entry.kind === "item" ? (
-                      <TimelineItemRow
-                        canMoveDown={
-                          entry.item.manualOrder < allItems.length - 1
-                        }
-                        canMoveUp={entry.item.manualOrder > 0}
-                        canvasWidth={canvasWidth}
-                        currentDate={currentDate}
-                        defaultUncertaintyYears={
-                          project.settings.defaultUncertaintyYears
-                        }
-                        disabled={sortDisabled}
-                        dimmed={dimmed.has(entry.item.id)}
-                        domainStart={bounds.domainStart}
-                        isPanning={isPanning}
-                        showItemType={showItemType}
-                        item={entry.item}
-                        events={eventsByParent.get(entry.item.id) ?? []}
-                        highlightedEventIds={highlightedEvents}
-                        readOnly={readOnly}
-                        draftEvent={
-                          draftEvent?.parentId === entry.item.id
-                            ? draftEvent.date
-                            : null
-                        }
-                        pixelsPerDay={pixelsPerDay}
-                        rowHeight={rowHeight}
-                        visibleEnd={visibleEnd}
-                        visibleStart={visibleStart}
-                        onEdit={() => onEdit(entry.item.id)}
-                        onOpenItem={() => onOpenItem(entry.item.id)}
-                        onCreateEvent={(date) =>
-                          onCreateEvent(entry.item.id, date)
-                        }
-                        onOpenEvent={onOpenEvent}
-                        onMoveDown={() => onMove(entry.item.id, 1)}
-                        onMoveUp={() => onMove(entry.item.id, -1)}
-                      />
-                    ) : (
-                      <div
-                        className={cn(
-                          "relative border-b bg-muted/15",
-                          isPanning
-                            ? "cursor-grabbing"
-                            : "cursor-grab active:cursor-grabbing",
-                        )}
-                        data-testid={`compact-lane-${entry.id}`}
-                        data-timeline-pan-surface="true"
-                        style={{
-                          width: canvasWidth,
-                          height: compactLaneHeight,
-                        }}
-                      >
-                        {entry.placements.map((placement) => (
-                          <CompactLaneItem
-                            key={placement.itemId}
-                            currentDate={currentDate}
-                            defaultUncertaintyYears={
-                              project.settings.defaultUncertaintyYears
-                            }
-                            domainStart={bounds.domainStart}
-                            draftEvent={
-                              draftEvent?.parentId === placement.itemId
-                                ? draftEvent.date
-                                : null
-                            }
-                            events={eventsByParent.get(placement.itemId) ?? []}
-                            dimmed={dimmed.has(placement.itemId)}
-                            highlightedEventIds={highlightedEvents}
-                            readOnly={readOnly}
-                            pixelsPerDay={pixelsPerDay}
-                            placement={placement}
-                            visibleEnd={visibleEnd}
-                            visibleStart={visibleStart}
-                            onEdit={() => onEdit(placement.itemId)}
-                            onOpenEvent={onOpenEvent}
-                            onOpenItem={() => onOpenItem(placement.itemId)}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                          data-testid={`compact-lane-${entry.id}`}
+                          data-timeline-pan-surface="true"
+                          style={{
+                            width: canvasWidth,
+                            height: compactLaneHeight,
+                          }}
+                        >
+                          {entry.placements.map((placement) => (
+                            <CompactLaneItem
+                              key={placement.itemId}
+                              currentDate={currentDate}
+                              defaultUncertaintyYears={
+                                project.settings.defaultUncertaintyYears
+                              }
+                              domainStart={bounds.domainStart}
+                              draftEvent={
+                                draftEvent?.parentId === placement.itemId
+                                  ? draftEvent.date
+                                  : null
+                              }
+                              events={
+                                eventsByParent.get(placement.itemId) ?? []
+                              }
+                              dimmed={dimmed.has(placement.itemId)}
+                              highlightedEventIds={highlightedEvents}
+                              readOnly={readOnly}
+                              pixelsPerDay={pixelsPerDay}
+                              placement={placement}
+                              visibleEnd={visibleEnd}
+                              visibleStart={visibleStart}
+                              onEdit={() => onEdit(placement.itemId)}
+                              onOpenEvent={onOpenEvent}
+                              onOpenItem={() => onOpenItem(placement.itemId)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-        <div
-          className="space-y-1 rounded-md border bg-card px-3 py-2"
-          data-testid="timeline-minimap"
-        >
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>全期間ミニマップ・時間スライサー</span>
-            <span>
-              {formatHistoricalDate(
-                historicalDateFromOrdinal(visibleStartOrdinal),
-              )}{" "}
-              —{" "}
-              {formatHistoricalDate(
-                historicalDateFromOrdinal(visibleEndOrdinal),
-              )}
-            </span>
+          <div
+            className="absolute right-3 bottom-3 z-40 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center justify-end gap-1 rounded-lg border bg-card/95 p-1.5 shadow-lg backdrop-blur-sm"
+            data-testid="timeline-floating-controls"
+          >
+            <div className="flex h-8 items-center gap-1 rounded-md bg-muted/70 p-1">
+              <Button
+                aria-label="縮小"
+                className="size-6"
+                disabled={zoomLevel === 0}
+                size="icon-sm"
+                variant="ghost"
+                onClick={() => changeZoom(zoomLevel - 1)}
+              >
+                <Minus aria-hidden="true" className="size-3.5" />
+              </Button>
+              <input
+                aria-label="ズーム段階"
+                className="w-20 accent-primary sm:w-28"
+                max={ZOOM_LABELS.length - 1}
+                min={0}
+                step={1}
+                type="range"
+                value={zoomLevel}
+                onChange={(event) => changeZoom(Number(event.target.value))}
+              />
+              <Button
+                aria-label="拡大"
+                className="size-6"
+                disabled={zoomLevel === ZOOM_LABELS.length - 1}
+                size="icon-sm"
+                variant="ghost"
+                onClick={() => changeZoom(zoomLevel + 1)}
+              >
+                <Plus aria-hidden="true" className="size-3.5" />
+              </Button>
+            </div>
+            {zoomLevel > 0 ? (
+              <Badge className="min-w-14 justify-center" variant="outline">
+                {ZOOM_LABELS[zoomLevel]}
+              </Badge>
+            ) : null}
+            <Button size="sm" variant="outline" onClick={fitRange}>
+              <Maximize2 aria-hidden="true" className="size-4" />
+              全体に合わせる
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button aria-label="表示密度設定" size="sm" variant="ghost">
+                  <SlidersHorizontal aria-hidden="true" className="size-4" />
+                  {density === "comfortable" ? "標準" : "高密度"}
+                  <ChevronDown aria-hidden="true" className="size-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-40">
+                <DropdownMenuLabel>表示密度</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={density}
+                  onValueChange={(value) =>
+                    setDensity(value as "compact" | "comfortable")
+                  }
+                >
+                  <DropdownMenuRadioItem value="comfortable">
+                    標準
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="compact">
+                    高密度
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          <input
-            aria-label="表示年代スライサー"
-            className="w-full accent-primary"
-            min={Math.ceil(bounds.domainStart)}
-            max={Math.floor(bounds.domainEnd)}
-            step={1}
-            type="range"
-            value={Math.round((visibleStartOrdinal + visibleEndOrdinal) / 2)}
-            onChange={(event) => {
-              const center = Number(event.target.value);
-              const element = viewportRef.current;
-              if (!element) return;
-              const canvasOffset =
-                layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0;
-              element.scrollLeft = Math.max(
-                0,
-                HORIZONTAL_PADDING +
-                  (center - bounds.domainStart) * pixelsPerDay -
-                  timelineViewportWidth / 2 +
-                  canvasOffset,
-              );
-              flushScrollSync(element.scrollLeft);
-            }}
-          />
         </div>
+        <section
+          aria-label="時間スライサー"
+          className="space-y-2 rounded-md border bg-card px-3 py-2"
+          data-testid="timeline-time-slicer"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="font-medium">強調する期間</span>
+            <span className="text-muted-foreground">
+              {formatHistoricalDate(historicalDateFromOrdinal(timeSliceStart))}{" "}
+              — {formatHistoricalDate(historicalDateFromOrdinal(timeSliceEnd))}
+            </span>
+            <Button
+              className="h-7 px-2"
+              disabled={timeSlice === null}
+              size="sm"
+              variant="ghost"
+              onClick={() => setTimeSlice(null)}
+            >
+              全期間に戻す
+            </Button>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="grid grid-cols-[3rem_1fr] items-center gap-2 text-xs text-muted-foreground">
+              始点
+              <input
+                aria-label="強調期間の始点"
+                className="w-full accent-primary"
+                max={Math.floor(timeSliceEnd)}
+                min={Math.ceil(bounds.domainStart)}
+                step={1}
+                type="range"
+                value={Math.round(timeSliceStart)}
+                onChange={(event) =>
+                  setTimeSlice({
+                    startOrdinal: Math.min(
+                      Number(event.target.value),
+                      timeSliceEnd,
+                    ),
+                    endOrdinal: timeSliceEnd,
+                  })
+                }
+              />
+            </label>
+            <label className="grid grid-cols-[3rem_1fr] items-center gap-2 text-xs text-muted-foreground">
+              終点
+              <input
+                aria-label="強調期間の終点"
+                className="w-full accent-primary"
+                max={Math.floor(bounds.domainEnd)}
+                min={Math.ceil(timeSliceStart)}
+                step={1}
+                type="range"
+                value={Math.round(timeSliceEnd)}
+                onChange={(event) =>
+                  setTimeSlice({
+                    startOrdinal: timeSliceStart,
+                    endOrdinal: Math.max(
+                      Number(event.target.value),
+                      timeSliceStart,
+                    ),
+                  })
+                }
+              />
+            </label>
+          </div>
+        </section>
         <p className="text-xs text-muted-foreground">
           {layoutMode === "compact"
             ? "上下左右へドラッグ、スクロールバー、トラックパッドで移動できます。"

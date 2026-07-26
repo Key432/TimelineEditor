@@ -4,6 +4,7 @@ import * as React from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
+import { useFullscreenPortalContainer } from "@/components/ui/portal-container";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 
@@ -20,9 +21,17 @@ function DialogTrigger({
 }
 
 function DialogPortal({
+  container,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
+  const fullscreenContainer = useFullscreenPortalContainer();
+  return (
+    <DialogPrimitive.Portal
+      container={container ?? fullscreenContainer}
+      data-slot="dialog-portal"
+      {...props}
+    />
+  );
 }
 
 function DialogClose({

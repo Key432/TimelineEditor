@@ -463,9 +463,12 @@ function TimelineWorkspaceContent({
     <div
       ref={workspaceRef}
       className={cn(
-        "flex min-h-0 min-w-0 flex-1 flex-col gap-3",
-        isMaximized && "fixed inset-0 z-50 bg-background p-3",
+        "flex min-h-0 min-w-0 flex-1 flex-col gap-3 bg-background",
+        isMaximized && "fixed inset-0 z-40 p-3",
       )}
+      data-maximized={isMaximized}
+      data-timeline-workspace="true"
+      data-testid="timeline-workspace"
     >
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2 shadow-xs">
         {!readOnly ? (

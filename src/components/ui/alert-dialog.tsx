@@ -4,6 +4,7 @@ import * as React from "react";
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
+import { useFullscreenPortalContainer } from "@/components/ui/portal-container";
 import { Button } from "@/components/ui/button";
 
 function AlertDialog({
@@ -21,10 +22,16 @@ function AlertDialogTrigger({
 }
 
 function AlertDialogPortal({
+  container,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Portal>) {
+  const fullscreenContainer = useFullscreenPortalContainer();
   return (
-    <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" {...props} />
+    <AlertDialogPrimitive.Portal
+      container={container ?? fullscreenContainer}
+      data-slot="alert-dialog-portal"
+      {...props}
+    />
   );
 }
 
