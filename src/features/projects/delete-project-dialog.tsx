@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { OperationBlockingOverlay } from "@/components/operation-blocking-overlay";
 import { deleteProject, projectKeys } from "@/features/projects/api";
 
 export function DeleteProjectDialog({
@@ -35,9 +36,11 @@ export function DeleteProjectDialog({
   const mutation = useMutation({
     mutationFn: () => deleteProject(projectId, confirmationName),
     onSuccess: async () => {
-      setOpen(false);
-      await queryClient.invalidateQueries({ queryKey: projectKeys.all });
-      router.push("/projects");
+      await queryClient.invalidateQueries({
+        queryKey: projectKeys.all,
+        exact: true,
+      });
+      router.replace("/projects");
       router.refresh();
     },
   });
@@ -46,6 +49,7 @@ export function DeleteProjectDialog({
     <AlertDialog
       open={open}
       onOpenChange={(nextOpen) => {
+        if (mutation.isPending) return;
         setOpen(nextOpen);
         if (!nextOpen) setConfirmationName("");
       }}
@@ -57,6 +61,9 @@ export function DeleteProjectDialog({
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
+        {mutation.isPending ? (
+          <OperationBlockingOverlay message="プロジェクトを削除しています" />
+        ) : null}
         <AlertDialogHeader>
           <AlertDialogTitle>
             プロジェクトを完全に削除しますか？
@@ -71,6 +78,7 @@ export function DeleteProjectDialog({
           <Input
             id={inputId}
             autoComplete="off"
+            disabled={mutation.isPending}
             value={confirmationName}
             onChange={(event) => setConfirmationName(event.target.value)}
           />

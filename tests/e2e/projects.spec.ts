@@ -81,14 +81,33 @@ test("creates, edits, and permanently deletes a project", async ({ page }) => {
   await expect(
     page.getByRole("link", { name: "プロジェクト設定へ" }),
   ).toBeVisible();
-  await page.goto((await page.url()).replace(/\/item-types$/, "/settings"));
-
-  await page.getByRole("button", { name: "プロジェクトを完全削除" }).click();
+  await page.goto(projectUrl);
+  await page.getByRole("button", { name: "設定", exact: true }).click();
+  const settingsPanel = page.getByRole("dialog", {
+    name: "プロジェクト設定",
+  });
+  await settingsPanel
+    .getByRole("button", { name: "プロジェクトを完全削除" })
+    .click();
   const confirmDelete = page.getByRole("button", { name: "完全に削除" });
   await expect(confirmDelete).toBeDisabled();
   await page.getByLabel("プロジェクト名").last().fill("日本近代文学史");
   await expect(confirmDelete).toBeEnabled();
+
+  let finishDelete: (() => void) | undefined;
+  const deleteGate = new Promise<void>((resolve) => {
+    finishDelete = resolve;
+  });
+  await page.route("**/api/projects/*", async (route) => {
+    if (route.request().method() === "DELETE") await deleteGate;
+    await route.continue();
+  });
   await confirmDelete.click();
+  await expect(
+    page.getByRole("status", { name: "プロジェクトを削除しています" }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(projectUrl);
+  finishDelete?.();
 
   await expect(page).toHaveURL(/\/projects$/);
   await expect(page.getByText("日本近代文学史")).toHaveCount(0);

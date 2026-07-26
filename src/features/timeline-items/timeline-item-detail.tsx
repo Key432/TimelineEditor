@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { Pencil } from "lucide-react";
 import Link from "next/link";
 
@@ -10,6 +11,10 @@ import { DeleteTimelineItemDialog } from "@/features/timeline-items/delete-timel
 import { formatHistoricalDate } from "@/features/timeline-items/historical-date";
 import { TimelineItemEventList } from "@/features/timeline-items/timeline-item-event-list";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
+import {
+  getTimelineItem,
+  timelineItemKeys,
+} from "@/features/timeline-items/api";
 import type { TimelineItem } from "@/features/timeline-items/types";
 
 function dateLabel(item: TimelineItem) {
@@ -77,20 +82,27 @@ export function TimelineItemDetail({
   eventBasePath?: string;
   hardEventNavigation?: boolean;
 }) {
+  const { data: currentItem } = useQuery({
+    queryKey: timelineItemKeys.detail(projectId, item.id),
+    queryFn: () => getTimelineItem(projectId, item.id),
+    initialData: item,
+    enabled: !readOnly,
+  });
+
   return (
     <article className="space-y-8 px-6 py-8 sm:px-10 sm:py-10">
       <header className="space-y-5 pr-8">
         <Badge variant="outline">タイムラインアイテム</Badge>
         <h1 className="text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">
-          {item.title}
+          {currentItem.title}
         </h1>
         <dl className="grid gap-3 text-sm sm:grid-cols-[8rem_1fr]">
           <dt className="text-muted-foreground">対象種別</dt>
-          <dd>{item.itemType.name}</dd>
+          <dd>{currentItem.itemType.name}</dd>
           <dt className="text-muted-foreground">時間形式</dt>
-          <dd>{item.temporalType === "range" ? "期間" : "時点"}</dd>
+          <dd>{currentItem.temporalType === "range" ? "期間" : "時点"}</dd>
           <dt className="text-muted-foreground">登録日付</dt>
-          <dd>{dateLabel(item)}</dd>
+          <dd>{dateLabel(currentItem)}</dd>
           <dt className="text-muted-foreground">イベント</dt>
           <dd>
             <TimelineItemEventList
@@ -104,20 +116,20 @@ export function TimelineItemDetail({
       </header>
       <Separator />
       <section className="min-h-28 text-base leading-7">
-        <PlainText value={item.description} />
+        <PlainText value={currentItem.description} />
       </section>
       <Separator />
       <section>
         <h2 className="mb-3 text-sm font-medium text-muted-foreground">
           出典・参考文献
         </h2>
-        <SourceText value={item.sourceText} />
+        <SourceText value={currentItem.sourceText} />
       </section>
-      {item.externalUrl ? (
+      {currentItem.externalUrl ? (
         <p>
           <a
             className="text-primary underline underline-offset-4"
-            href={item.externalUrl}
+            href={currentItem.externalUrl}
             rel="noreferrer"
             target="_blank"
           >
@@ -128,7 +140,7 @@ export function TimelineItemDetail({
       {!readOnly ? (
         <div className="flex flex-wrap gap-2 border-t pt-6">
           <Button asChild>
-            <Link href={`/projects/${projectId}/items/${item.id}/edit`}>
+            <Link href={`/projects/${projectId}/items/${currentItem.id}/edit`}>
               <Pencil aria-hidden="true" className="size-4" />
               編集
             </Link>
@@ -136,9 +148,9 @@ export function TimelineItemDetail({
           <DeleteTimelineItemDialog
             childEventCount={events.length}
             redirectAfterDelete
-            itemId={item.id}
+            itemId={currentItem.id}
             projectId={projectId}
-            title={item.title}
+            title={currentItem.title}
           />
         </div>
       ) : null}

@@ -224,8 +224,17 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
       name: "タイムラインアイテム編集",
     }),
   ).toBeVisible();
+  const itemOverlayEditForm = page
+    .getByRole("dialog")
+    .getByRole("form", { name: "タイムラインアイテム編集" });
+  await itemOverlayEditForm.getByLabel("本文").fill("更新後の人物本文");
+  await itemOverlayEditForm.getByRole("button", { name: "変更を保存" }).click();
+  await expect(
+    itemOverlayEditForm.getByRole("button", { name: "変更を保存" }),
+  ).toBeEnabled();
   await page.goBack();
   await expect(page.getByRole("dialog").locator("h1")).toHaveText("夏目漱石");
+  await expect(page.getByRole("dialog")).toContainText("更新後の人物本文");
   await page.goBack();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
@@ -403,7 +412,7 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     name: "タイムラインアイテム編集",
   });
   await expect(editForm.getByText("詳細編集を開く")).toHaveCount(0);
-  await expect(editForm.getByLabel("本文")).toHaveValue("明治・大正期の小説家");
+  await expect(editForm.getByLabel("本文")).toHaveValue("更新後の人物本文");
   await expect(editForm.getByLabel("出典・参考文献")).toHaveValue(
     "人物事典 第一巻",
   );

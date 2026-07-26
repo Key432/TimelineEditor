@@ -185,8 +185,14 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   expect(formBox).not.toBeNull();
   expect(formBox!.x - dialogBox!.x).toBeGreaterThanOrEqual(24);
 
+  await overlayEditForm.getByLabel("本文").fill("更新後イベント本文");
+  await overlayEditForm.getByRole("button", { name: "変更を保存" }).click();
+  await expect(
+    overlayEditForm.getByRole("button", { name: "変更を保存" }),
+  ).toBeEnabled();
   await page.goBack();
   await expect(page.getByRole("dialog")).toContainText("代表作刊行");
+  await expect(page.getByRole("dialog")).toContainText("更新後イベント本文");
   await page.goBack();
   await expect(page).toHaveURL(`/projects/${project.id}/timeline`);
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -255,4 +261,27 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
     new RegExp(`/projects/${project.id}/events/[0-9a-f-]+$`),
   );
   await expect(page.getByRole("dialog")).toContainText("クラスタ候補A");
+
+  let finishDelete: (() => void) | undefined;
+  const deleteGate = new Promise<void>((resolve) => {
+    finishDelete = resolve;
+  });
+  await page.route(`**/api/projects/${project.id}/events/*`, async (route) => {
+    if (route.request().method() === "DELETE") await deleteGate;
+    await route.continue();
+  });
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "完全削除" })
+    .click();
+  await expect(
+    page.getByRole("status", { name: "イベントを削除しています" }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(
+    new RegExp(`/projects/${project.id}/events/[0-9a-f-]+$`),
+  );
+  finishDelete?.();
+  await expect(page).toHaveURL(`/projects/${project.id}/timeline`);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });
