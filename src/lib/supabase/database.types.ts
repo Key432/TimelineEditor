@@ -363,6 +363,10 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      import_project_data: {
+        Args: { p_target_project_id: string; p_mode: string; p_payload: Json };
+        Returns: string;
+      };
       create_timeline_item_with_events: {
         Args: {
           p_project_id: string;

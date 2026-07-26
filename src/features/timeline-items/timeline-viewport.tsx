@@ -23,6 +23,7 @@ import {
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -85,6 +86,22 @@ const SCROLL_STATE_INTERVAL_MS = 1000 / 30;
 const COMPACT_LANE_COMFORTABLE_HEIGHT = 56;
 const COMPACT_LANE_DENSE_HEIGHT = 44;
 const EMPTY_ID_SET: ReadonlySet<string> = new Set();
+
+function isCoarsePointer() {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(pointer: coarse)").matches
+  );
+}
+
+function capturePointer(element: HTMLElement, pointerId: number) {
+  try {
+    element.setPointerCapture?.(pointerId);
+  } catch {
+    // The pointer may have ended between dispatch and capture.
+  }
+}
 
 function zoomLevelForInitialPreset(
   preset: Project["settings"]["initialZoomPreset"],
@@ -448,6 +465,7 @@ function TimelineItemRow({
         style={{ width: canvasWidth }}
         onDoubleClick={(event) => {
           if (readOnly) return;
+          if (isCoarsePointer()) return;
           if (item.temporalType !== "range") return;
           const target = event.target;
           if (
@@ -739,6 +757,8 @@ export function TimelineViewport({
     scrollLeft: number;
     scrollTop: number;
   } | null>(null);
+  const touchPointsRef = useRef(new Map<number, { x: number; y: number }>());
+  const pinchDistanceRef = useRef<number | null>(null);
   const lastSurfacePressRef = useRef<{
     parentId: string;
     clientX: number;
@@ -1006,6 +1026,9 @@ export function TimelineViewport({
     baseCanvasWidth,
     HORIZONTAL_PADDING * 2 + compactContentEnd,
   );
+  const onPinchZoom = useEffectEvent((offset: -1 | 1, cursorX: number) =>
+    changeZoom(zoomLevel + offset, cursorX),
+  );
 
   useEffect(() => {
     const element = viewportRef.current;
@@ -1044,6 +1067,23 @@ export function TimelineViewport({
       ) {
         return;
       }
+      if (event.pointerType === "touch") {
+        touchPointsRef.current.set(event.pointerId, {
+          x: event.clientX,
+          y: event.clientY,
+        });
+        if (touchPointsRef.current.size === 2) {
+          const [first, second] = [...touchPointsRef.current.values()];
+          pinchDistanceRef.current = Math.hypot(
+            second!.x - first!.x,
+            second!.y - first!.y,
+          );
+          pointerRef.current = null;
+          capturePointer(viewport, event.pointerId);
+          setPanning(true);
+          return;
+        }
+      }
       const eventSurface = target.closest<HTMLElement>(
         "[data-timeline-event-parent-id]",
       );
@@ -1054,7 +1094,7 @@ export function TimelineViewport({
           previous?.parentId === parentId &&
           event.timeStamp - previous.time <= 500 &&
           Math.abs(event.clientX - previous.clientX) <= 8;
-        if (isDoublePress) {
+        if (isDoublePress && event.pointerType !== "touch") {
           lastSurfacePressRef.current = null;
           const rect = eventSurface.getBoundingClientRect();
           onCreateEvent(
@@ -1079,10 +1119,39 @@ export function TimelineViewport({
         scrollLeft: viewport.scrollLeft,
         scrollTop: viewport.scrollTop,
       };
-      viewport.setPointerCapture(event.pointerId);
+      capturePointer(viewport, event.pointerId);
       setPanning(true);
     };
     const pointerMove = (event: PointerEvent) => {
+      if (
+        event.pointerType === "touch" &&
+        touchPointsRef.current.has(event.pointerId)
+      ) {
+        touchPointsRef.current.set(event.pointerId, {
+          x: event.clientX,
+          y: event.clientY,
+        });
+        if (touchPointsRef.current.size >= 2) {
+          event.preventDefault();
+          const [first, second] = [...touchPointsRef.current.values()];
+          const distance = Math.hypot(
+            second!.x - first!.x,
+            second!.y - first!.y,
+          );
+          const previousDistance = pinchDistanceRef.current ?? distance;
+          const ratio = distance / Math.max(1, previousDistance);
+          if (ratio >= 1.18 || ratio <= 0.82) {
+            const rect = viewport.getBoundingClientRect();
+            const cursorX =
+              (first!.x + second!.x) / 2 -
+              rect.left -
+              (layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0);
+            onPinchZoom(ratio > 1 ? 1 : -1, Math.max(0, cursorX));
+            pinchDistanceRef.current = distance;
+          }
+          return;
+        }
+      }
       const pointer = pointerRef.current;
       if (!pointer) return;
       viewport.scrollLeft = pointer.scrollLeft - (event.clientX - pointer.x);
@@ -1091,13 +1160,19 @@ export function TimelineViewport({
       }
     };
     const pointerEnd = (event: PointerEvent) => {
-      if (!pointerRef.current) return;
-      pointerRef.current = null;
-      if (viewport.hasPointerCapture(event.pointerId)) {
-        viewport.releasePointerCapture(event.pointerId);
+      if (event.pointerType === "touch") {
+        touchPointsRef.current.delete(event.pointerId);
+        pinchDistanceRef.current = null;
       }
-      flushScrollSync(viewport.scrollLeft);
-      setPanning(false);
+      const hadPointer = pointerRef.current !== null;
+      pointerRef.current = null;
+      if (viewport.hasPointerCapture?.(event.pointerId)) {
+        viewport.releasePointerCapture?.(event.pointerId);
+      }
+      if (hadPointer || touchPointsRef.current.size === 0) {
+        flushScrollSync(viewport.scrollLeft);
+        setPanning(false);
+      }
     };
 
     viewport.addEventListener("pointerdown", pointerDown);
@@ -1326,7 +1401,7 @@ export function TimelineViewport({
           ref={viewportRef}
           aria-label="タイムライン表示領域"
           className={cn(
-            "styled-scrollbar relative min-h-48 flex-1 overflow-auto rounded-lg border bg-card select-none",
+            "styled-scrollbar relative min-h-48 flex-1 touch-none overflow-auto rounded-lg border bg-card select-none",
             isPanning && "cursor-grabbing",
           )}
           data-testid="timeline-viewport"

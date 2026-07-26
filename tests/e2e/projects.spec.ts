@@ -69,17 +69,15 @@ test("creates, edits, and permanently deletes a project", async ({ page }) => {
     name: "日本近代文学史のタイムラインを開く",
   });
   await expect(timelineCard).toBeVisible();
-  await timelineCard.click();
-  await expect(page).toHaveURL(new RegExp(`/projects/[0-9a-f-]+/timeline$`));
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "ナビゲーションを開く" }).click();
   const navigationDialog = page.getByRole("dialog");
   await navigationDialog.getByRole("link", { name: "日本近代文学史" }).click();
+  await expect(page).toHaveURL(new RegExp(`/projects/[0-9a-f-]+/timeline$`));
   await expect(navigationDialog).toBeHidden();
-  await page.waitForLoadState("networkidle");
 
-  await page.goto((await page.url()).replace(/\/timeline$/, "/item-types"));
+  await page.goto(projectUrl.replace(/\/timeline$/, "/item-types"));
   await expect(
     page.getByRole("link", { name: "プロジェクト設定へ" }),
   ).toBeVisible();

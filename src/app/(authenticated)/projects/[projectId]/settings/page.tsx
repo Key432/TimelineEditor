@@ -1,4 +1,4 @@
-import { ArrowLeft, ChartNoAxesGantt, Tags } from "lucide-react";
+import { ArrowLeft, ChartNoAxesGantt, FileArchive, Tags } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -41,6 +41,23 @@ export default async function ProjectSettingsPage({
           一覧へ戻る
         </Link>
       </Button>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">入出力</CardTitle>
+          <CardDescription>
+            JSONバックアップとCSV ZIPの保存・取り込みを行います。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href={`/projects/${project.id}/import-export`}>
+              <FileArchive aria-hidden="true" className="size-4" />
+              インポート／エクスポート
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between gap-3">

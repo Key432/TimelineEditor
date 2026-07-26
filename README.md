@@ -50,7 +50,7 @@ pnpm dev
 ローカルのGoogle OAuthを手動確認する場合は、Google CloudのWeb OAuthクライアントを作成し、次を設定します。
 
 - Authorized JavaScript origin: `http://localhost:3000`
-- Authorized redirect URI: `http://127.0.0.1:54321/auth/v1/callback`
+- Authorized redirect URI: `http://127.0.0.1:54621/auth/v1/callback`
 
 続いて、クライアントIDとSecretを環境変数へ設定し、`supabase/config.toml` の `[auth.external.google]` を `enabled = true` にします。
 
@@ -309,15 +309,32 @@ POST /api/projects/[projectId]/unpublish
 POST /api/projects/[projectId]/public-id/regenerate
 ```
 
-## 次の実装：Phase 10
-
-JSON／CSV入出力、モバイル閲覧、性能、アクセシビリティの仕上げを行います。
-
 Phase 8で提供するAPI：
 
 ```text
 GET /api/search
 GET /api/projects/[projectId]/timeline/search
+```
+
+## Phase 10：入出力・モバイル・仕上げ
+
+- プロジェクト設定の「インポート／エクスポート」から、スキーマバージョン付き完全バックアップJSONと、UTF-8 BOM付きの3CSV＋README ZIPを保存できます。
+- JSONは保存前プレビュー後、既定では非公開の別プロジェクトとして複製します。同じプロジェクトIDのバックアップは、確認後に現在のプロジェクトへ上書きすることもできます。
+- CSVは空IDへ新しいUUIDを割り当てます。イベントの親はIDを優先し、空欄ならタイトルを照合します。対象種別もIDを優先し、`type_name` をフォールバックに使用します。同名候補が複数ある場合はエラーとして表示します。
+- 確定インポートはRLSを通る `SECURITY INVOKER` RPCの単一トランザクションで実行し、制約違反時に途中データを残しません。
+- スマートフォンでもフォーム作成、編集、削除、対象種別、公開状態、入出力を利用できます。タイムラインフィールドからのイベント作成だけを無効にし、イベントは追加メニューまたはフォームから作成します。
+- タッチパンとピンチズームをPointer Eventsで実装しました。既存の行／レーン仮想化、表示範囲クリッピング、30fpsのスクロール状態同期、検索ページネーションを維持しています。
+- エクスポートはData APIの1,000行上限を越えるよう1,000件単位でページングし、1,000項目・10,000イベントのCSV生成を単体テストで確認しています。
+
+Phase 10で提供するAPI：
+
+```text
+GET  /api/projects/[projectId]/export/json
+GET  /api/projects/[projectId]/export/csv
+POST /api/projects/[projectId]/import/json/preview
+POST /api/projects/[projectId]/import/json/commit
+POST /api/projects/[projectId]/import/csv/preview
+POST /api/projects/[projectId]/import/csv/commit
 ```
 
 ## 検証
@@ -337,7 +354,7 @@ pnpm verify:commit
 - マイグレーションリセット
 - Next.js本番ビルド
 
-統合・E2E・マイグレーション検証はDocker上のローカルSupabaseを自動起動します。E2Eは開発サーバーと同時実行できるよう、専用のポート `3100` とビルド領域を使用します。
+統合・E2E・マイグレーション検証はDocker上のローカルSupabaseを自動起動します。ローカルSupabaseはWindowsの予約範囲を避けてAPI `54621`、DB `54622` を使用します。E2Eは開発サーバーと同時実行できるよう、専用のポート `3100` とビルド領域を使用します。
 
 ## セキュリティ
 
