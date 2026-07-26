@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createCsvArchive,
   csvArchiveFileName,
+  jsonExportFileName,
   parseCsvImport,
 } from "@/features/import-export/csv";
 import {
@@ -148,6 +149,46 @@ describe("project import and export formats", () => {
     expect(
       csvArchiveFileName("文学史年表", new Date("2026-07-26T00:00:00Z")),
     ).toBe("文学史年表_2026-07-26.zip");
+  });
+
+  it("builds a project-name and date based JSON filename", () => {
+    expect(
+      jsonExportFileName("文学史年表", new Date("2026-07-26T00:00:00Z")),
+    ).toBe("文学史年表_2026-07-26.json");
+  });
+
+  it("creates a missing item type from type_name and aggregates CSV warnings", () => {
+    const base = backup();
+    const exported = readStoredZip(createCsvArchive(base)).get(
+      "timeline-items.csv",
+    )!;
+    const [headers, row] = exported.trim().split("\r\n");
+    const itemRow = row!.replace(`${itemId},${typeId},人物`, `,,新しい種別`);
+    const input = new TextEncoder().encode(
+      `${headers}\r\n${itemRow}\r\n${itemRow}\r\n`,
+    );
+
+    const preview = parseCsvImport(input, "timeline-items.csv", base);
+
+    expect(preview.errors).toEqual([]);
+    expect(preview.warnings).toEqual([
+      "2件のタイムライン項目を新規作成しました。",
+      "1件の対象種別を新規作成しました",
+    ]);
+    expect(preview.payload?.importSections).toEqual([
+      "itemTypes",
+      "timelineItems",
+    ]);
+    expect(preview.payload?.itemTypes).toEqual([
+      expect.objectContaining({
+        name: "新しい種別",
+        defaultColor: "#00B0B0",
+        sortOrder: 1,
+      }),
+    ]);
+    expect(preview.payload?.timelineItems[0]?.typeId).toBe(
+      preview.payload?.itemTypes[0]?.id,
+    );
   });
 
   it("serializes the 1,000 item and 10,000 event performance target", () => {

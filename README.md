@@ -319,8 +319,8 @@ GET /api/projects/[projectId]/timeline/search
 ## Phase 10：入出力・モバイル・仕上げ
 
 - プロジェクト設定またはタイムライン上部の「インポート／エクスポート」から、スキーマバージョン付き完全バックアップJSONと、UTF-8 BOM付きの3CSV＋`README.md` ZIPを保存できます。ZIP名は `[project name]_yyyy-mm-dd.zip` です。
-- JSONは保存前プレビュー後、現在のプロジェクトを上書きします。新規プロジェクト画面ではJSONまたはCSV ZIPから非公開プロジェクトを作成できます。
-- CSV ZIPに加え、`item-types.csv`、`timeline-items.csv`、`timeline-events.csv` を個別に取り込めます。ID一致行は更新、未一致行は追加します。イベントの親はIDを優先し、空欄ならタイトルを照合します。対象種別もIDを優先し、`type_name` をフォールバックに使用します。
+- JSONは `[project name]_yyyy-mm-dd.json` で保存します。保存前プレビュー後、現在のプロジェクトを上書きします。新規プロジェクト画面ではJSONまたはCSV ZIPから非公開プロジェクトを作成できます。
+- CSV ZIPに加え、`item-types.csv`、`timeline-items.csv`、`timeline-events.csv` を個別に取り込めます。ID一致行は更新、未一致行は追加します。イベントの親はIDを優先し、空欄ならタイトルを照合します。対象種別もIDを優先し、`type_name` をフォールバックに使用します。`timeline-items.csv` でIDが空の対象種別名が未登録なら、Primary Color・末尾順の対象種別を自動作成します。新規タイムライン項目数と自動作成対象種別数は警告欄へ集約して表示します。
 - DBでは時点日を `start_year/month/day`、終了不明の最終確認日を `end_year/month/day` に保存し、重複していた6列を廃止しました。
 - 確定インポートはRLSを通る `SECURITY INVOKER` RPCの単一トランザクションで実行し、制約違反時に途中データを残しません。
 - スマートフォンでもフォーム作成、編集、削除、対象種別、公開状態、入出力を利用できます。タイムラインフィールドからのイベント作成だけを無効にし、イベントは追加メニューまたはフォームから作成します。

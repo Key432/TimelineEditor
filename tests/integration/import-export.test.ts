@@ -279,4 +279,53 @@ describe("transactional project import", () => {
       .eq("project_id", targetId);
     expect(items.data).toEqual([{ title: "CSV更新後" }]);
   });
+
+  it("imports an auto-created item type and its timeline item atomically", async () => {
+    const newTypeId = crypto.randomUUID();
+    const newItemId = crypto.randomUUID();
+    const partial = payload();
+    partial.itemTypes = [
+      {
+        id: newTypeId,
+        name: "CSV自動作成種別",
+        defaultColor: "#00B0B0",
+        icon: "circle-dot",
+        sortOrder: 1,
+        isVisible: true,
+      },
+    ];
+    partial.timelineItems[0] = {
+      ...partial.timelineItems[0]!,
+      id: newItemId,
+      typeId: newTypeId,
+      title: "自動作成種別の項目",
+    };
+    const result = await owner.rpc("import_project_data", {
+      p_target_project_id: targetId,
+      p_mode: "append",
+      p_payload: {
+        ...partial,
+        timelineEvents: [],
+        importSections: ["itemTypes", "timelineItems"],
+      },
+    });
+    expect(result.error).toBeNull();
+    const createdType = await owner
+      .from("timeline_item_types")
+      .select("id, default_color, sort_order")
+      .eq("project_id", targetId)
+      .eq("name", "CSV自動作成種別")
+      .single();
+    expect(createdType.data).toMatchObject({
+      default_color: "#00B0B0",
+      sort_order: 1,
+    });
+    const createdItem = await owner
+      .from("timeline_items")
+      .select("type_id")
+      .eq("project_id", targetId)
+      .eq("title", "自動作成種別の項目")
+      .single();
+    expect(createdItem.data?.type_id).toBe(createdType.data?.id);
+  });
 });

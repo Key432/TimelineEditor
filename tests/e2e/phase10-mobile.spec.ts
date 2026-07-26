@@ -139,6 +139,9 @@ test("keeps mobile editing available while touch gestures never create an event 
   ]);
   expect(jsonExport.ok()).toBe(true);
   expect(csvExport.ok()).toBe(true);
+  expect(jsonExport.headers()["content-disposition"]).toContain(
+    encodeURIComponent("モバイル最終確認_"),
+  );
   expect(csvExport.headers()["content-type"]).toContain("application/zip");
   await page.getByLabel("CSVまたはCSV ZIP").setInputFiles({
     name: "project.zip",

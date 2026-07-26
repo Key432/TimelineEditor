@@ -6,6 +6,7 @@ import {
 import { createStoredZip, readStoredZip } from "@/features/import-export/zip";
 
 const BOM = "\uFEFF";
+const PRIMARY_COLOR = "#00B0B0";
 const README = `# Timeline Editor CSV
 
 ## 各CSVのカラム項目
@@ -60,13 +61,25 @@ const README = `# Timeline Editor CSV
 - is_visible: 表示状態を TRUE/FALSE で指定。
 `;
 
-export function csvArchiveFileName(projectName: string, date = new Date()) {
+function exportFileName(
+  projectName: string,
+  extension: "json" | "zip",
+  date: Date,
+) {
   const safeName =
     projectName
       .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_")
       .replace(/[. ]+$/g, "")
       .trim() || "project";
-  return `${safeName}_${date.toISOString().slice(0, 10)}.zip`;
+  return `${safeName}_${date.toISOString().slice(0, 10)}.${extension}`;
+}
+
+export function csvArchiveFileName(projectName: string, date = new Date()) {
+  return exportFileName(projectName, "zip", date);
+}
+
+export function jsonExportFileName(projectName: string, date = new Date()) {
+  return exportFileName(projectName, "json", date);
 }
 
 function cell(value: unknown) {
@@ -230,6 +243,8 @@ function parseCsv(text: string) {
 }
 
 const nullable = (value: string | undefined) => value?.trim() || null;
+const normalizedName = (value: string | undefined) =>
+  value?.trim().replace(/\s+/g, " ").toLowerCase() ?? "";
 const number = (value: string | undefined) =>
   value?.trim() ? Number(value) : null;
 const boolean = (value: string | undefined, fallback = false) =>
@@ -318,15 +333,13 @@ export function parseCsvImport(
       : [];
     const originalTypeIds = new Map<string, string>();
     const typeIdsByName = new Map(
-      base.itemTypes.map((type) => [type.name.trim().toLowerCase(), type.id]),
+      base.itemTypes.map((type) => [normalizedName(type.name), type.id]),
     );
     for (const type of base.itemTypes) originalTypeIds.set(type.id, type.id);
     const itemTypes = rawTypes.map((row, index) => {
       const id = row.id || crypto.randomUUID();
-      if (!row.id)
-        warnings.push(`item-types.csv ${index + 2}行: IDを生成しました。`);
-      else originalTypeIds.set(row.id, id);
-      typeIdsByName.set(row.name.trim().toLowerCase(), id);
+      if (row.id) originalTypeIds.set(row.id, id);
+      typeIdsByName.set(normalizedName(row.name), id);
       return {
         id,
         name: row.name,
@@ -336,6 +349,14 @@ export function parseCsvImport(
         isVisible: boolean(row.is_visible, true),
       };
     });
+    let nextTypeSortOrder =
+      Math.max(
+        -1,
+        ...base.itemTypes.map((type) => type.sortOrder),
+        ...itemTypes.map((type) => type.sortOrder),
+      ) + 1;
+    let createdTimelineItemCount = 0;
+    let createdItemTypeCount = 0;
     const originalItemIds = new Map<string, string>();
     const titleIds = new Map<string, string[]>();
     for (const item of base.timelineItems) {
@@ -344,17 +365,30 @@ export function parseCsvImport(
     }
     const timelineItems = rawItems.map((row, index) => {
       const id = row.id || crypto.randomUUID();
-      if (!row.id)
-        warnings.push(`timeline-items.csv ${index + 2}行: IDを生成しました。`);
+      if (!row.id) createdTimelineItemCount += 1;
       else originalItemIds.set(row.id, id);
       if (!base.timelineItems.some((item) => item.id === id))
         titleIds.set(row.title, [...(titleIds.get(row.title) ?? []), id]);
+      const typeName = normalizedName(row.type_name);
+      let typeId =
+        originalTypeIds.get(row.type_id) ?? typeIdsByName.get(typeName);
+      if (!typeId && !row.type_id && typeName) {
+        typeId = crypto.randomUUID();
+        itemTypes.push({
+          id: typeId,
+          name: row.type_name.trim(),
+          defaultColor: PRIMARY_COLOR,
+          icon: null,
+          sortOrder: nextTypeSortOrder,
+          isVisible: true,
+        });
+        nextTypeSortOrder += 1;
+        createdItemTypeCount += 1;
+        typeIdsByName.set(typeName, typeId);
+      }
       return {
         id,
-        typeId:
-          originalTypeIds.get(row.type_id) ??
-          typeIdsByName.get(row.type_name.trim().toLowerCase()) ??
-          row.type_id,
+        typeId: typeId ?? row.type_id,
         title: row.title,
         description: nullable(row.description),
         sourceText: nullable(row.source_text),
@@ -396,8 +430,6 @@ export function parseCsvImport(
         return [];
       }
       const id = row.id || crypto.randomUUID();
-      if (!row.id)
-        warnings.push(`timeline-events.csv ${index + 2}行: IDを生成しました。`);
       return [
         {
           id,
@@ -415,6 +447,22 @@ export function parseCsvImport(
         },
       ];
     });
+    if (createdTimelineItemCount > 0)
+      warnings.push(
+        `${createdTimelineItemCount}件のタイムライン項目を新規作成しました。`,
+      );
+    if (createdItemTypeCount > 0)
+      warnings.push(`${createdItemTypeCount}件の対象種別を新規作成しました`);
+    const importSections = sections.map(
+      (name: CsvName) =>
+        ({
+          "item-types.csv": "itemTypes",
+          "timeline-items.csv": "timelineItems",
+          "timeline-events.csv": "timelineEvents",
+        })[name],
+    );
+    if (createdItemTypeCount > 0 && !importSections.includes("itemTypes"))
+      importSections.unshift("itemTypes");
     const preview = previewBackup({
       schemaVersion: 1,
       appVersion: base.appVersion,
@@ -424,14 +472,7 @@ export function parseCsvImport(
       itemTypes,
       timelineItems,
       timelineEvents,
-      importSections: sections.map(
-        (name: CsvName) =>
-          ({
-            "item-types.csv": "itemTypes",
-            "timeline-items.csv": "timelineItems",
-            "timeline-events.csv": "timelineEvents",
-          })[name],
-      ),
+      importSections,
     });
     return {
       ...preview,
