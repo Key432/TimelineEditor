@@ -12,6 +12,7 @@ import {
   ArrowUp,
   ChevronDown,
   ChevronRight,
+  Clock3,
   EyeOff,
   GripVertical,
   Maximize2,
@@ -408,13 +409,15 @@ function TimelineItemRow({
       {readOnly ? (
         <span
           aria-hidden="true"
-          className="sticky left-0 z-20 shrink-0 border-r bg-card"
+          className="sticky left-0 z-40 shrink-0 border-r bg-card"
+          data-timeline-fixed-column="reorder"
           style={{ width: HANDLE_WIDTH }}
         />
       ) : (
         <button
           aria-label={`${item.title}を並べ替え`}
-          className="sticky left-0 z-20 flex shrink-0 cursor-grab items-center justify-center border-r bg-card text-muted-foreground disabled:cursor-not-allowed"
+          className="sticky left-0 z-40 flex shrink-0 cursor-grab items-center justify-center border-r bg-card text-muted-foreground disabled:cursor-not-allowed"
+          data-timeline-fixed-column="reorder"
           disabled={disabled}
           style={{ width: HANDLE_WIDTH }}
           type="button"
@@ -425,7 +428,8 @@ function TimelineItemRow({
         </button>
       )}
       <div
-        className="sticky z-20 min-w-0 shrink-0 border-r bg-card px-3 py-2"
+        className="sticky z-40 min-w-0 shrink-0 border-r bg-card px-3 py-2"
+        data-timeline-fixed-column="info"
         style={{ left: HANDLE_WIDTH, width: INFO_WIDTH }}
       >
         <div className="flex items-center gap-2">
@@ -519,7 +523,8 @@ function TimelineItemRow({
         ) : null}
       </div>
       <div
-        className="sticky right-0 z-20 flex shrink-0 items-center gap-1 border-l bg-card px-2"
+        className="sticky right-0 z-40 flex shrink-0 items-center gap-1 border-l bg-card px-2"
+        data-timeline-fixed-column="actions"
         style={{ width: ACTION_WIDTH }}
       >
         {!readOnly ? (
@@ -791,6 +796,7 @@ export function TimelineViewport({
     startOrdinal: number;
     endOrdinal: number;
   } | null>(null);
+  const [timeSlicerVisible, setTimeSlicerVisible] = useState(true);
   const zoomLevel = useTimelineStore((state) => state.zoomLevel);
   const setZoomLevel = useTimelineStore((state) => state.setZoomLevel);
   const scrollLeft = useTimelineStore((state) => state.scrollLeft);
@@ -1464,39 +1470,43 @@ export function TimelineViewport({
                   </span>
                 </div>
               ) : null}
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute bottom-0 z-[35] bg-muted/75 backdrop-grayscale"
-                data-testid="time-slice-before"
-                style={{
-                  top: AXIS_HEIGHT,
-                  left: canvasOffset,
-                  width: Math.max(0, timeSliceStartX - canvasOffset),
-                }}
-              />
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute bottom-0 z-[35] bg-muted/75 backdrop-grayscale"
-                data-testid="time-slice-after"
-                style={{
-                  top: AXIS_HEIGHT,
-                  left: timeSliceEndX,
-                  width: Math.max(
-                    0,
-                    canvasOffset + canvasWidth - timeSliceEndX,
-                  ),
-                }}
-              />
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute bottom-0 z-10 border-x-2 border-primary/70 bg-primary/8"
-                data-testid="time-slice-selected"
-                style={{
-                  top: AXIS_HEIGHT,
-                  left: timeSliceStartX,
-                  width: Math.max(0, timeSliceEndX - timeSliceStartX),
-                }}
-              />
+              {timeSlicerVisible ? (
+                <>
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-0 z-[35] bg-muted/75 backdrop-grayscale"
+                    data-testid="time-slice-before"
+                    style={{
+                      top: AXIS_HEIGHT,
+                      left: canvasOffset,
+                      width: Math.max(0, timeSliceStartX - canvasOffset),
+                    }}
+                  />
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-0 z-[35] bg-muted/75 backdrop-grayscale"
+                    data-testid="time-slice-after"
+                    style={{
+                      top: AXIS_HEIGHT,
+                      left: timeSliceEndX,
+                      width: Math.max(
+                        0,
+                        canvasOffset + canvasWidth - timeSliceEndX,
+                      ),
+                    }}
+                  />
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-0 z-10 border-x-2 border-primary/70 bg-primary/8"
+                    data-testid="time-slice-selected"
+                    style={{
+                      top: AXIS_HEIGHT,
+                      left: timeSliceStartX,
+                      width: Math.max(0, timeSliceEndX - timeSliceStartX),
+                    }}
+                  />
+                </>
+              ) : null}
               <div className="sticky top-0 z-40 flex h-12 border-b bg-muted/95 text-xs font-medium text-muted-foreground backdrop-blur-sm">
                 {layoutMode === "row" ? (
                   <>
@@ -1696,143 +1706,165 @@ export function TimelineViewport({
             </div>
           </div>
           <div
-            className="absolute right-3 bottom-3 z-40 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center justify-end gap-1 rounded-lg border bg-card/95 p-1.5 shadow-lg backdrop-blur-sm"
-            data-testid="timeline-floating-controls"
+            className="pointer-events-none absolute inset-x-3 bottom-3 z-50 flex flex-col-reverse items-end gap-2 sm:left-auto sm:w-[40rem] sm:max-w-[calc(100%-1.5rem)]"
+            data-testid="timeline-floating-panels"
           >
-            <div className="flex h-8 items-center gap-1 rounded-md bg-muted/70 p-1">
-              <Button
-                aria-label="縮小"
-                className="size-6"
-                disabled={zoomLevel === 0}
-                size="icon-sm"
-                variant="ghost"
-                onClick={() => changeZoom(zoomLevel - 1)}
-              >
-                <Minus aria-hidden="true" className="size-3.5" />
+            <div
+              className="pointer-events-auto flex max-w-full flex-wrap items-center justify-end gap-1 rounded-lg border bg-card/95 p-1.5 shadow-lg backdrop-blur-sm"
+              data-testid="timeline-floating-controls"
+            >
+              <div className="flex h-8 items-center gap-1 rounded-md bg-muted/70 p-1">
+                <Button
+                  aria-label="縮小"
+                  className="size-6"
+                  disabled={zoomLevel === 0}
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={() => changeZoom(zoomLevel - 1)}
+                >
+                  <Minus aria-hidden="true" className="size-3.5" />
+                </Button>
+                <input
+                  aria-label="ズーム段階"
+                  className="w-20 accent-primary sm:w-28"
+                  max={ZOOM_LABELS.length - 1}
+                  min={0}
+                  step={1}
+                  type="range"
+                  value={zoomLevel}
+                  onChange={(event) => changeZoom(Number(event.target.value))}
+                />
+                <Button
+                  aria-label="拡大"
+                  className="size-6"
+                  disabled={zoomLevel === ZOOM_LABELS.length - 1}
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={() => changeZoom(zoomLevel + 1)}
+                >
+                  <Plus aria-hidden="true" className="size-3.5" />
+                </Button>
+              </div>
+              {zoomLevel > 0 ? (
+                <Badge className="min-w-14 justify-center" variant="outline">
+                  {ZOOM_LABELS[zoomLevel]}
+                </Badge>
+              ) : null}
+              <Button size="sm" variant="outline" onClick={fitRange}>
+                <Maximize2 aria-hidden="true" className="size-4" />
+                全体に合わせる
               </Button>
-              <input
-                aria-label="ズーム段階"
-                className="w-20 accent-primary sm:w-28"
-                max={ZOOM_LABELS.length - 1}
-                min={0}
-                step={1}
-                type="range"
-                value={zoomLevel}
-                onChange={(event) => changeZoom(Number(event.target.value))}
-              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button aria-label="表示密度設定" size="sm" variant="ghost">
+                    <SlidersHorizontal aria-hidden="true" className="size-4" />
+                    {density === "comfortable" ? "標準" : "高密度"}
+                    <ChevronDown aria-hidden="true" className="size-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-40">
+                  <DropdownMenuLabel>表示密度</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={density}
+                    onValueChange={(value) =>
+                      setDensity(value as "compact" | "comfortable")
+                    }
+                  >
+                    <DropdownMenuRadioItem value="comfortable">
+                      標準
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="compact">
+                      高密度
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
-                aria-label="拡大"
-                className="size-6"
-                disabled={zoomLevel === ZOOM_LABELS.length - 1}
-                size="icon-sm"
-                variant="ghost"
-                onClick={() => changeZoom(zoomLevel + 1)}
+                aria-label="時間スライサー表示"
+                aria-pressed={timeSlicerVisible}
+                size="sm"
+                variant={timeSlicerVisible ? "secondary" : "ghost"}
+                onClick={() => setTimeSlicerVisible((visible) => !visible)}
               >
-                <Plus aria-hidden="true" className="size-3.5" />
+                <Clock3 aria-hidden="true" className="size-4" />
+                時間スライサー
               </Button>
             </div>
-            {zoomLevel > 0 ? (
-              <Badge className="min-w-14 justify-center" variant="outline">
-                {ZOOM_LABELS[zoomLevel]}
-              </Badge>
+            {timeSlicerVisible ? (
+              <section
+                aria-label="時間スライサー"
+                className="pointer-events-auto w-full space-y-2 rounded-lg border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm"
+                data-testid="timeline-time-slicer"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="font-medium">強調する期間</span>
+                  <span className="text-muted-foreground">
+                    {formatHistoricalDate(
+                      historicalDateFromOrdinal(timeSliceStart),
+                    )}{" "}
+                    —{" "}
+                    {formatHistoricalDate(
+                      historicalDateFromOrdinal(timeSliceEnd),
+                    )}
+                  </span>
+                  <Button
+                    className="h-7 px-2"
+                    disabled={timeSlice === null}
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setTimeSlice(null)}
+                  >
+                    全期間に戻す
+                  </Button>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="grid grid-cols-[3rem_1fr] items-center gap-2 text-xs text-muted-foreground">
+                    始点
+                    <input
+                      aria-label="強調期間の始点"
+                      className="w-full accent-primary"
+                      max={Math.floor(timeSliceEnd)}
+                      min={Math.ceil(bounds.domainStart)}
+                      step={1}
+                      type="range"
+                      value={Math.round(timeSliceStart)}
+                      onChange={(event) =>
+                        setTimeSlice({
+                          startOrdinal: Math.min(
+                            Number(event.target.value),
+                            timeSliceEnd,
+                          ),
+                          endOrdinal: timeSliceEnd,
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="grid grid-cols-[3rem_1fr] items-center gap-2 text-xs text-muted-foreground">
+                    終点
+                    <input
+                      aria-label="強調期間の終点"
+                      className="w-full accent-primary"
+                      max={Math.floor(bounds.domainEnd)}
+                      min={Math.ceil(timeSliceStart)}
+                      step={1}
+                      type="range"
+                      value={Math.round(timeSliceEnd)}
+                      onChange={(event) =>
+                        setTimeSlice({
+                          startOrdinal: timeSliceStart,
+                          endOrdinal: Math.max(
+                            Number(event.target.value),
+                            timeSliceStart,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+              </section>
             ) : null}
-            <Button size="sm" variant="outline" onClick={fitRange}>
-              <Maximize2 aria-hidden="true" className="size-4" />
-              全体に合わせる
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button aria-label="表示密度設定" size="sm" variant="ghost">
-                  <SlidersHorizontal aria-hidden="true" className="size-4" />
-                  {density === "comfortable" ? "標準" : "高密度"}
-                  <ChevronDown aria-hidden="true" className="size-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-40">
-                <DropdownMenuLabel>表示密度</DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  value={density}
-                  onValueChange={(value) =>
-                    setDensity(value as "compact" | "comfortable")
-                  }
-                >
-                  <DropdownMenuRadioItem value="comfortable">
-                    標準
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="compact">
-                    高密度
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
-        <section
-          aria-label="時間スライサー"
-          className="space-y-2 rounded-md border bg-card px-3 py-2"
-          data-testid="timeline-time-slicer"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="font-medium">強調する期間</span>
-            <span className="text-muted-foreground">
-              {formatHistoricalDate(historicalDateFromOrdinal(timeSliceStart))}{" "}
-              — {formatHistoricalDate(historicalDateFromOrdinal(timeSliceEnd))}
-            </span>
-            <Button
-              className="h-7 px-2"
-              disabled={timeSlice === null}
-              size="sm"
-              variant="ghost"
-              onClick={() => setTimeSlice(null)}
-            >
-              全期間に戻す
-            </Button>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <label className="grid grid-cols-[3rem_1fr] items-center gap-2 text-xs text-muted-foreground">
-              始点
-              <input
-                aria-label="強調期間の始点"
-                className="w-full accent-primary"
-                max={Math.floor(timeSliceEnd)}
-                min={Math.ceil(bounds.domainStart)}
-                step={1}
-                type="range"
-                value={Math.round(timeSliceStart)}
-                onChange={(event) =>
-                  setTimeSlice({
-                    startOrdinal: Math.min(
-                      Number(event.target.value),
-                      timeSliceEnd,
-                    ),
-                    endOrdinal: timeSliceEnd,
-                  })
-                }
-              />
-            </label>
-            <label className="grid grid-cols-[3rem_1fr] items-center gap-2 text-xs text-muted-foreground">
-              終点
-              <input
-                aria-label="強調期間の終点"
-                className="w-full accent-primary"
-                max={Math.floor(bounds.domainEnd)}
-                min={Math.ceil(timeSliceStart)}
-                step={1}
-                type="range"
-                value={Math.round(timeSliceEnd)}
-                onChange={(event) =>
-                  setTimeSlice({
-                    startOrdinal: timeSliceStart,
-                    endOrdinal: Math.max(
-                      Number(event.target.value),
-                      timeSliceStart,
-                    ),
-                  })
-                }
-              />
-            </label>
-          </div>
-        </section>
         <p className="text-xs text-muted-foreground">
           {layoutMode === "compact"
             ? "上下左右へドラッグ、スクロールバー、トラックパッドで移動できます。"

@@ -346,6 +346,14 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(zoomSlider).toHaveValue("0");
   await expect(page.getByTestId("timeline-floating-controls")).toBeVisible();
   await expect(page.getByTestId("timeline-time-slicer")).toBeVisible();
+  const timeSlicerToggle = page.getByRole("button", {
+    name: "時間スライサー表示",
+  });
+  await expect(timeSlicerToggle).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("timeline-floating-panels")).toHaveCSS(
+    "position",
+    "absolute",
+  );
   await expect(page.getByText("全期間ミニマップ")).toHaveCount(0);
   const sliceStart = page.getByLabel("強調期間の始点");
   const sliceEnd = page.getByLabel("強調期間の終点");
@@ -369,6 +377,26 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
         .evaluate((element) => element.getBoundingClientRect().width),
     )
     .toBeGreaterThan(0);
+  const overlayZIndex = await page
+    .getByTestId("time-slice-before")
+    .evaluate((element) => Number(getComputedStyle(element).zIndex));
+  const fixedColumnZIndexes = await page
+    .getByTestId(/^timeline-row-/)
+    .first()
+    .locator("[data-timeline-fixed-column]")
+    .evaluateAll((elements) =>
+      elements.map((element) => Number(getComputedStyle(element).zIndex)),
+    );
+  expect(fixedColumnZIndexes).toHaveLength(3);
+  expect(fixedColumnZIndexes.every((zIndex) => zIndex > overlayZIndex)).toBe(
+    true,
+  );
+  await timeSlicerToggle.click();
+  await expect(timeSlicerToggle).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("timeline-time-slicer")).toHaveCount(0);
+  await expect(page.getByTestId("time-slice-before")).toHaveCount(0);
+  await timeSlicerToggle.click();
+  await expect(page.getByTestId("timeline-time-slicer")).toBeVisible();
   await viewport.hover({ position: { x: 620, y: 100 } });
   await expect(page.getByTestId("timeline-pointer-guide")).toBeVisible();
 
