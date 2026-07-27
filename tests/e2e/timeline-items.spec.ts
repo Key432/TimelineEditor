@@ -345,16 +345,19 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await page.getByRole("button", { name: "全体に合わせる" }).click();
   await expect(zoomSlider).toHaveValue("0");
   await expect(page.getByTestId("timeline-floating-controls")).toBeVisible();
-  await expect(page.getByTestId("timeline-time-slicer")).toBeVisible();
+  await expect(page.getByTestId("timeline-time-slicer")).toHaveCount(0);
   const timeSlicerToggle = page.getByRole("button", {
-    name: "時間スライサー表示",
+    name: "期間強調表示",
   });
-  await expect(timeSlicerToggle).toHaveAttribute("aria-pressed", "true");
+  await expect(timeSlicerToggle).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByTestId("timeline-floating-panels")).toHaveCSS(
     "position",
     "absolute",
   );
   await expect(page.getByText("全期間ミニマップ")).toHaveCount(0);
+  await timeSlicerToggle.click();
+  await expect(timeSlicerToggle).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("timeline-time-slicer")).toBeVisible();
   const sliceStart = page.getByLabel("強調期間の始点");
   const sliceEnd = page.getByLabel("強調期間の終点");
   const sliceMin = Number(await sliceStart.getAttribute("min"));
@@ -363,33 +366,40 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     String(Math.round(sliceMin + (sliceMax - sliceMin) / 4)),
   );
   await sliceEnd.fill(String(Math.round(sliceMax - (sliceMax - sliceMin) / 4)));
-  await expect
-    .poll(() =>
-      page
-        .getByTestId("time-slice-before")
-        .evaluate((element) => element.getBoundingClientRect().width),
-    )
-    .toBeGreaterThan(0);
-  await expect
-    .poll(() =>
-      page
-        .getByTestId("time-slice-after")
-        .evaluate((element) => element.getBoundingClientRect().width),
-    )
-    .toBeGreaterThan(0);
-  const overlayZIndex = await page
-    .getByTestId("time-slice-before")
-    .evaluate((element) => Number(getComputedStyle(element).zIndex));
-  const fixedColumnZIndexes = await page
+  await expect(page.getByTestId("time-slice-before")).toBeAttached();
+  await expect(page.getByTestId("time-slice-after")).toBeAttached();
+  await expect(page.getByTestId("time-slice-selected")).toBeAttached();
+  const fixedColumnRects = await page
     .getByTestId(/^timeline-row-/)
     .first()
     .locator("[data-timeline-fixed-column]")
     .evaluateAll((elements) =>
-      elements.map((element) => Number(getComputedStyle(element).zIndex)),
+      elements.map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right };
+      }),
     );
-  expect(fixedColumnZIndexes).toHaveLength(3);
-  expect(fixedColumnZIndexes.every((zIndex) => zIndex > overlayZIndex)).toBe(
-    true,
+  expect(fixedColumnRects).toHaveLength(3);
+  const highlightLayerRect = await page
+    .getByTestId("timeline-period-highlight-layer")
+    .evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { left: rect.left, right: rect.right };
+    });
+  expect(highlightLayerRect.left).toBeGreaterThanOrEqual(
+    fixedColumnRects[1].right,
+  );
+  expect(highlightLayerRect.right).toBeLessThanOrEqual(
+    fixedColumnRects[2].left,
+  );
+  const floatingControlsRect = await page
+    .getByTestId("timeline-floating-controls")
+    .evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { right: rect.right };
+    });
+  expect(floatingControlsRect.right).toBeLessThanOrEqual(
+    fixedColumnRects[2].left - 8,
   );
   await timeSlicerToggle.click();
   await expect(timeSlicerToggle).toHaveAttribute("aria-pressed", "false");

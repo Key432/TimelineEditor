@@ -796,7 +796,7 @@ export function TimelineViewport({
     startOrdinal: number;
     endOrdinal: number;
   } | null>(null);
-  const [timeSlicerVisible, setTimeSlicerVisible] = useState(true);
+  const [timeSlicerVisible, setTimeSlicerVisible] = useState(false);
   const zoomLevel = useTimelineStore((state) => state.zoomLevel);
   const setZoomLevel = useTimelineStore((state) => state.setZoomLevel);
   const scrollLeft = useTimelineStore((state) => state.scrollLeft);
@@ -1062,6 +1062,17 @@ export function TimelineViewport({
     canvasOffset +
     HORIZONTAL_PADDING +
     (timeSliceEnd - bounds.domainStart) * pixelsPerDay;
+  const timeSliceStartInViewport = Math.max(
+    0,
+    Math.min(
+      timelineViewportWidth,
+      timeSliceStartX - canvasOffset - scrollLeft,
+    ),
+  );
+  const timeSliceEndInViewport = Math.max(
+    timeSliceStartInViewport,
+    Math.min(timelineViewportWidth, timeSliceEndX - canvasOffset - scrollLeft),
+  );
   const onPinchZoom = useEffectEvent((offset: -1 | 1, cursorX: number) =>
     changeZoom(zoomLevel + offset, cursorX),
   );
@@ -1470,43 +1481,6 @@ export function TimelineViewport({
                   </span>
                 </div>
               ) : null}
-              {timeSlicerVisible ? (
-                <>
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute bottom-0 z-[35] bg-muted/75 backdrop-grayscale"
-                    data-testid="time-slice-before"
-                    style={{
-                      top: AXIS_HEIGHT,
-                      left: canvasOffset,
-                      width: Math.max(0, timeSliceStartX - canvasOffset),
-                    }}
-                  />
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute bottom-0 z-[35] bg-muted/75 backdrop-grayscale"
-                    data-testid="time-slice-after"
-                    style={{
-                      top: AXIS_HEIGHT,
-                      left: timeSliceEndX,
-                      width: Math.max(
-                        0,
-                        canvasOffset + canvasWidth - timeSliceEndX,
-                      ),
-                    }}
-                  />
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute bottom-0 z-10 border-x-2 border-primary/70 bg-primary/8"
-                    data-testid="time-slice-selected"
-                    style={{
-                      top: AXIS_HEIGHT,
-                      left: timeSliceStartX,
-                      width: Math.max(0, timeSliceEndX - timeSliceStartX),
-                    }}
-                  />
-                </>
-              ) : null}
               <div className="sticky top-0 z-40 flex h-12 border-b bg-muted/95 text-xs font-medium text-muted-foreground backdrop-blur-sm">
                 {layoutMode === "row" ? (
                   <>
@@ -1705,9 +1679,56 @@ export function TimelineViewport({
               </div>
             </div>
           </div>
+          {timeSlicerVisible ? (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute z-30 overflow-hidden"
+              data-testid="timeline-period-highlight-layer"
+              style={{
+                top: AXIS_HEIGHT + 1,
+                right: (layoutMode === "row" ? ACTION_WIDTH : 0) + 1,
+                bottom: 1,
+                left:
+                  (layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0) + 1,
+              }}
+            >
+              <div
+                className="absolute inset-y-0 left-0 bg-muted/75 backdrop-grayscale"
+                data-testid="time-slice-before"
+                style={{ width: timeSliceStartInViewport }}
+              />
+              <div
+                className="absolute inset-y-0 right-0 bg-muted/75 backdrop-grayscale"
+                data-testid="time-slice-after"
+                style={{
+                  width: Math.max(
+                    0,
+                    timelineViewportWidth - timeSliceEndInViewport,
+                  ),
+                }}
+              />
+              <div
+                className="absolute inset-y-0 border-x-2 border-primary/70 bg-primary/8"
+                data-testid="time-slice-selected"
+                style={{
+                  left: timeSliceStartInViewport,
+                  width: Math.max(
+                    0,
+                    timeSliceEndInViewport - timeSliceStartInViewport,
+                  ),
+                }}
+              />
+            </div>
+          ) : null}
           <div
-            className="pointer-events-none absolute inset-x-3 bottom-3 z-50 flex flex-col-reverse items-end gap-2 sm:left-auto sm:w-[40rem] sm:max-w-[calc(100%-1.5rem)]"
+            className="pointer-events-none absolute bottom-3 left-3 z-50 flex flex-col-reverse items-end gap-2 sm:left-auto sm:w-[40rem]"
             data-testid="timeline-floating-panels"
+            style={{
+              right: (layoutMode === "row" ? ACTION_WIDTH : 0) + 12,
+              maxWidth: `calc(100% - ${
+                (layoutMode === "row" ? ACTION_WIDTH : 0) + 24
+              }px)`,
+            }}
           >
             <div
               className="pointer-events-auto flex max-w-full flex-wrap items-center justify-end gap-1 rounded-lg border bg-card/95 p-1.5 shadow-lg backdrop-blur-sm"
@@ -1780,19 +1801,19 @@ export function TimelineViewport({
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button
-                aria-label="時間スライサー表示"
+                aria-label="期間強調表示"
                 aria-pressed={timeSlicerVisible}
                 size="sm"
                 variant={timeSlicerVisible ? "secondary" : "ghost"}
                 onClick={() => setTimeSlicerVisible((visible) => !visible)}
               >
                 <Clock3 aria-hidden="true" className="size-4" />
-                時間スライサー
+                期間強調
               </Button>
             </div>
             {timeSlicerVisible ? (
               <section
-                aria-label="時間スライサー"
+                aria-label="期間強調"
                 className="pointer-events-auto w-full space-y-2 rounded-lg border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm"
                 data-testid="timeline-time-slicer"
               >
