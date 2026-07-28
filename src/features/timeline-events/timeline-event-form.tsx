@@ -28,6 +28,7 @@ import type {
 import { ApproximateDateCheckbox } from "@/features/timeline-items/approximate-date-checkbox";
 import { HistoricalDateFields } from "@/features/timeline-items/historical-date-fields";
 import { EntityContentFields } from "@/features/timeline-items/entity-content-fields";
+import { EntityAliasFields } from "@/features/timeline-items/entity-alias-fields";
 
 export function TimelineEventForm({
   projectId,
@@ -53,6 +54,8 @@ export function TimelineEventForm({
     ? {
         timelineItemId: event.timelineItemId,
         title: event.title,
+        aliases: event.aliases,
+        addPreviousTitleToAliases: false,
         date: event.date,
         isApproximate: event.isApproximate,
         description: event.description ?? "",
@@ -64,6 +67,7 @@ export function TimelineEventForm({
     register,
     control,
     handleSubmit,
+    setValue,
     formState: { errors, isDirty },
   } = useForm<TimelineEventInput, undefined, TimelineEventValues>({
     resolver: standardSchemaResolver(timelineEventSchema),
@@ -91,6 +95,8 @@ export function TimelineEventForm({
   const parentId = useWatch({ control, name: "timelineItemId" });
   const date = useWatch({ control, name: "date" });
   const description = useWatch({ control, name: "description" }) ?? "";
+  const aliases = useWatch({ control, name: "aliases" }) ?? [];
+  const title = useWatch({ control, name: "title" }) ?? "";
   const parent = rangeItems.find((item) => item.id === parentId);
   const parsedDate = date
     ? {
@@ -145,6 +151,24 @@ export function TimelineEventForm({
           </p>
         ) : null}
       </div>
+      <EntityAliasFields
+        aliases={aliases}
+        error={errors.aliases?.message}
+        id="event-aliases"
+        onChange={(next) =>
+          setValue("aliases", next, { shouldDirty: true, shouldValidate: true })
+        }
+      />
+      {event && title.trim() && title.trim() !== event.title ? (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            className="size-4 accent-primary"
+            type="checkbox"
+            {...register("addPreviousTitleToAliases")}
+          />
+          変更前のタイトル「{event.title}」を別名へ追加
+        </label>
+      ) : null}
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">日付</legend>
         <HistoricalDateFields
@@ -186,6 +210,7 @@ export function TimelineEventForm({
         externalUrlError={errors.externalUrl}
         idPrefix="event"
         sourceText={register("sourceText")}
+        projectId={projectId}
       />
       {mutation.error ? (
         <p role="alert" className="text-sm text-destructive">

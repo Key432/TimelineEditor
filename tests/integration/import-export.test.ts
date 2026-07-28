@@ -28,10 +28,11 @@ let targetId = "";
 
 const sourceTypeId = "11111111-1111-4111-8111-111111111111";
 const sourceItemId = "22222222-2222-4222-8222-222222222222";
+const sourceEventId = "33333333-3333-4333-8333-333333333333";
 
 function payload(name = "取り込み元") {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     appVersion: "0.1.0",
     exportedAt: new Date().toISOString(),
     project: {
@@ -65,7 +66,8 @@ function payload(name = "取り込み元") {
         id: sourceItemId,
         typeId: sourceTypeId,
         title: "取り込み項目",
-        description: null,
+        aliases: ["取込人物"],
+        description: `[[event:${sourceEventId}|取り込みイベント]]`,
         sourceText: null,
         externalUrl: null,
         temporalType: "range",
@@ -102,9 +104,10 @@ function payload(name = "取り込み元") {
     ],
     timelineEvents: [
       {
-        id: "33333333-3333-4333-8333-333333333333",
+        id: sourceEventId,
         timelineItemId: sourceItemId,
         title: "取り込みイベント",
+        aliases: ["取込出来事"],
         date: {
           era: "ce",
           precision: "decade",
@@ -115,7 +118,7 @@ function payload(name = "取り込み元") {
           calendar: "proleptic_gregorian",
         },
         isApproximate: false,
-        description: null,
+        description: `[[item:${sourceItemId}|取り込み項目]]`,
         sourceText: null,
         externalUrl: null,
       },
@@ -202,11 +205,15 @@ describe("transactional project import", () => {
         .eq("project_id", duplicateId!),
       owner
         .from("timeline_items")
-        .select("id, start_era, start_precision, start_original_text")
+        .select(
+          "id, aliases, description, start_era, start_precision, start_original_text",
+        )
         .eq("project_id", duplicateId!),
       owner
         .from("timeline_events")
-        .select("id, event_precision, event_original_text")
+        .select(
+          "id, aliases, description, event_precision, event_original_text",
+        )
         .eq("project_id", duplicateId!),
     ]);
     expect(projects.data).toEqual({
@@ -219,14 +226,20 @@ describe("transactional project import", () => {
       events.data?.length,
     ]).toEqual([1, 1, 1]);
     expect(items.data?.[0]).toMatchObject({
+      aliases: ["取込人物"],
       start_era: "bce",
       start_precision: "century",
       start_original_text: "第五世紀頃",
     });
     expect(events.data?.[0]).toMatchObject({
+      aliases: ["取込出来事"],
       event_precision: "decade",
       event_original_text: "the twenties",
     });
+    expect(items.data?.[0]?.description).toContain(events.data?.[0]?.id);
+    expect(items.data?.[0]?.description).not.toContain(sourceEventId);
+    expect(events.data?.[0]?.description).toContain(items.data?.[0]?.id);
+    expect(events.data?.[0]?.description).not.toContain(sourceItemId);
   });
 
   it("creates a new private project without a target project ID", async () => {

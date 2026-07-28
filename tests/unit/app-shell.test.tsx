@@ -1,11 +1,32 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "@/components/app-shell";
 import { QueryProvider } from "@/components/query-provider";
 
-afterEach(cleanup);
+const storage = new Map<string, string>();
+
+Object.defineProperty(window, "localStorage", {
+  configurable: true,
+  value: {
+    clear: () => storage.clear(),
+    getItem: (key: string) => storage.get(key) ?? null,
+    removeItem: (key: string) => storage.delete(key),
+    setItem: (key: string, value: string) => storage.set(key, value),
+  },
+});
+
+afterEach(() => {
+  cleanup();
+  storage.clear();
+});
 
 describe("AppShell", () => {
   it("renders the authenticated shell and keyboard logout action", async () => {
@@ -58,10 +79,37 @@ describe("AppShell", () => {
     });
     await user.click(toggle);
 
-    expect(aside).toHaveAttribute("aria-hidden", "true");
+    expect(aside).toHaveAttribute("data-collapsed", "true");
+    expect(
+      window.localStorage.getItem("timeline-editor:sidebar-collapsed:v1"),
+    ).toBe("true");
 
     await user.click(toggle);
-    expect(aside).toHaveAttribute("aria-hidden", "false");
+    expect(aside).toHaveAttribute("data-collapsed", "false");
+    expect(
+      window.localStorage.getItem("timeline-editor:sidebar-collapsed:v1"),
+    ).toBe("false");
+  });
+
+  it("restores the sidebar collapsed state from localStorage", async () => {
+    window.localStorage.setItem("timeline-editor:sidebar-collapsed:v1", "true");
+
+    render(
+      <QueryProvider>
+        <AppShell logoutAction={vi.fn(async () => undefined)}>
+          <h1>プロジェクト</h1>
+        </AppShell>
+      </QueryProvider>,
+    );
+
+    const aside = document.querySelector("aside");
+    expect(aside).not.toBeNull();
+    await waitFor(() =>
+      expect(aside).toHaveAttribute("data-collapsed", "true"),
+    );
+    expect(
+      screen.getByRole("button", { name: "サイドパネルを開く" }),
+    ).toBeVisible();
   });
 
   it("closes the mobile navigation after choosing a project", async () => {

@@ -22,10 +22,12 @@ import {
 export function TimelineEventDraftEditor({
   value,
   onCancel,
+  projectId,
   onSave,
 }: {
   value?: TimelineEventDraftInput;
   onCancel: () => void;
+  projectId?: string;
   onSave: (value: TimelineEventDraftValues) => void;
 }) {
   const id = useId();
@@ -94,6 +96,7 @@ export function TimelineEventDraftEditor({
         registration={register("description")}
         rows={6}
         value={description}
+        projectId={projectId}
       />
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">

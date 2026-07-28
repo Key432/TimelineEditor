@@ -69,6 +69,7 @@ export function TimelineItemDetail({
   eventBasePath,
   hardEventNavigation = false,
   closeOverlayAfterDelete = false,
+  internalLinkBasePath,
 }: {
   projectId: string;
   item: TimelineItem;
@@ -77,6 +78,7 @@ export function TimelineItemDetail({
   eventBasePath?: string;
   hardEventNavigation?: boolean;
   closeOverlayAfterDelete?: boolean;
+  internalLinkBasePath?: string;
 }) {
   const { data: currentItem } = useQuery({
     queryKey: timelineItemKeys.detail(projectId, item.id),
@@ -108,11 +110,19 @@ export function TimelineItemDetail({
               projectId={projectId}
             />
           </dd>
+          <dt className="text-muted-foreground">別名</dt>
+          <dd>
+            {currentItem.aliases.length ? currentItem.aliases.join("、") : "—"}
+          </dd>
         </dl>
       </header>
       <Separator />
       <section className="min-h-28 text-base leading-7">
-        <MarkdownRenderer value={currentItem.description} />
+        <MarkdownRenderer
+          internalLinkBasePath={internalLinkBasePath}
+          projectId={projectId}
+          value={currentItem.description}
+        />
       </section>
       <Separator />
       <section>

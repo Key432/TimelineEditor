@@ -142,6 +142,7 @@ export function createCsvArchive(backup: ProjectBackup) {
       "type_id",
       "type_name",
       "title",
+      "aliases_json",
       "description",
       "source_text",
       "external_url",
@@ -175,6 +176,7 @@ export function createCsvArchive(backup: ProjectBackup) {
       item.typeId,
       backup.itemTypes.find((type) => type.id === item.typeId)?.name,
       item.title,
+      JSON.stringify(item.aliases),
       item.description,
       item.sourceText,
       item.externalUrl,
@@ -203,6 +205,7 @@ export function createCsvArchive(backup: ProjectBackup) {
       "timeline_item_id",
       "timeline_item_title",
       "title",
+      "aliases_json",
       "event_year",
       "event_month",
       "event_day",
@@ -220,6 +223,7 @@ export function createCsvArchive(backup: ProjectBackup) {
       event.timelineItemId,
       titleById.get(event.timelineItemId),
       event.title,
+      JSON.stringify(event.aliases),
       ...dateCells(event.date),
       event.isApproximate,
       event.description,
@@ -306,6 +310,17 @@ function parseCsv(text: string) {
 }
 
 const nullable = (value: string | undefined) => value?.trim() || null;
+const parseAliases = (value: string | undefined) => {
+  if (!value?.trim()) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((alias): alias is string => typeof alias === "string")
+      : [];
+  } catch {
+    return [];
+  }
+};
 const normalizedName = (value: string | undefined) =>
   value?.trim().replace(/\s+/g, " ").toLowerCase() ?? "";
 const number = (value: string | undefined) =>
@@ -434,9 +449,11 @@ export function parseCsvImport(
       throw new Error("CSVスキーマバージョンが不正です。");
     }
     if (schemaVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION) {
-      warnings.push("旧CSV形式をスキーマバージョン2へ移行しました。");
+      warnings.push("旧CSV形式をスキーマバージョン3へ移行しました。");
     } else if (schemaVersion === 1) {
-      warnings.push("CSVスキーマバージョン1をバージョン2へ移行しました。");
+      warnings.push("CSVスキーマバージョン1をバージョン3へ移行しました。");
+    } else if (schemaVersion === 2) {
+      warnings.push("CSVスキーマバージョン2をバージョン3へ移行しました。");
     } else if (schemaVersion !== IMPORT_SCHEMA_VERSION) {
       throw new Error(
         `CSVスキーマバージョン${schemaVersion}の移行処理がありません。`,
@@ -504,6 +521,7 @@ export function parseCsvImport(
         id,
         typeId: typeId ?? row.type_id,
         title: row.title,
+        aliases: parseAliases(row.aliases_json),
         description: nullable(row.description),
         sourceText: nullable(row.source_text),
         externalUrl: nullable(row.external_url),
@@ -549,6 +567,7 @@ export function parseCsvImport(
           id,
           timelineItemId: parent,
           title: row.title,
+          aliases: parseAliases(row.aliases_json),
           date: {
             era: row.event_era === "bce" ? "bce" : "ce",
             precision: (row.event_precision ||

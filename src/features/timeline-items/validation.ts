@@ -15,6 +15,30 @@ const nullableText = (max: number, message: string) =>
     .transform((value) => value || null)
     .nullable();
 
+export const entityAliasesSchema = z
+  .array(
+    z
+      .string()
+      .trim()
+      .min(1, "別名を入力してください。")
+      .max(200, "別名は200文字以内で入力してください。"),
+  )
+  .max(20, "別名は20件以内で入力してください。")
+  .superRefine((aliases, context) => {
+    const normalized = new Set<string>();
+    for (const [index, alias] of aliases.entries()) {
+      const key = alias.toLocaleLowerCase("ja");
+      if (normalized.has(key)) {
+        context.addIssue({
+          code: "custom",
+          path: [index],
+          message: "同じ別名を重複して登録できません。",
+        });
+      }
+      normalized.add(key);
+    }
+  });
+
 const optionalDatePart = z
   .union([z.number(), z.string(), z.null(), z.undefined()])
   .transform((value) => {
@@ -101,6 +125,8 @@ const baseTimelineItemSchema = z.object({
     .trim()
     .min(1, "名称を入力してください。")
     .max(200, "名称は200文字以内で入力してください。"),
+  aliases: entityAliasesSchema.default([]),
+  addPreviousTitleToAliases: z.boolean().default(false),
   description: nullableText(20000, "本文は20000文字以内で入力してください。"),
   sourceText: nullableText(10000, "出典は10000文字以内で入力してください。"),
   externalUrl: z
@@ -219,6 +245,8 @@ export function emptyTimelineItemValues(typeId = ""): TimelineItemInput {
   return {
     typeId,
     title: "",
+    aliases: [],
+    addPreviousTitleToAliases: false,
     description: "",
     sourceText: "",
     externalUrl: "",

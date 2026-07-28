@@ -475,6 +475,117 @@ describe("timeline item persistence and RLS", () => {
     expect(usedTypeDelete.error?.code).toBe("23503");
   });
 
+  it("indexes aliases and internal links while hiding private targets", async () => {
+    const projectId = await createProject("internal links");
+    const typeId = await firstType(projectId);
+    const { data: items, error } = await owner
+      .from("timeline_items")
+      .insert([
+        {
+          ...rangeRow(projectId, typeId, "同名候補", 0),
+          aliases: ["本名候補"],
+        },
+        {
+          ...rangeRow(projectId, typeId, "参照元", 1),
+          aliases: [],
+        },
+      ])
+      .select("id, title");
+    if (error || !items?.[0] || !items[1]) throw error ?? new Error("items");
+    const target = items.find((item) => item.title === "同名候補")!;
+    const source = items.find((item) => item.title === "参照元")!;
+    const { data: event, error: eventError } = await owner
+      .from("timeline_events")
+      .insert({
+        project_id: projectId,
+        timeline_item_id: source.id,
+        title: "同名候補",
+        aliases: ["出来事候補"],
+        event_year: 1905,
+      })
+      .select("id")
+      .single();
+    if (eventError) throw eventError;
+
+    const linked = await owner
+      .from("timeline_items")
+      .update({ description: `[[item:${target.id}|同名候補]]` })
+      .eq("id", source.id);
+    expect(linked.error).toBeNull();
+
+    const candidates = await owner.rpc("get_internal_link_candidates", {
+      p_project_id: projectId,
+      p_query: "候補",
+    });
+    expect(candidates.error).toBeNull();
+    expect(
+      candidates.data?.map((row: { entity_type: string }) => row.entity_type),
+    ).toEqual(["event", "item"]);
+    expect(
+      candidates.data?.find(
+        (row: { entity_type: string; parent_title: string | null }) =>
+          row.entity_type === "event",
+      )?.parent_title,
+    ).toBe("参照元");
+
+    const aliasCandidate = await owner.rpc("get_internal_link_candidates", {
+      p_project_id: projectId,
+      p_query: "本名候補",
+    });
+    expect(
+      aliasCandidate.data?.map((row: { entity_id: string }) => row.entity_id),
+    ).toEqual([target.id]);
+
+    const [ownerLinks, otherLinks, anonymousLinks] = await Promise.all([
+      owner.from("internal_links").select("target_entity_id"),
+      otherUser.from("internal_links").select("target_entity_id"),
+      anonymous.from("internal_links").select("target_entity_id"),
+    ]);
+    expect(ownerLinks.data).toContainEqual({ target_entity_id: target.id });
+    expect(otherLinks.data).toEqual([]);
+    expect(anonymousLinks.data).toBeNull();
+    expect(anonymousLinks.error?.code).toBe("42501");
+
+    const renamed = await owner
+      .from("timeline_items")
+      .update({ title: "変更後名称" })
+      .eq("id", target.id);
+    expect(renamed.error).toBeNull();
+    const resolved = await owner.rpc("resolve_internal_links", {
+      p_project_id: projectId,
+      p_item_ids: [target.id],
+      p_event_ids: [event.id],
+    });
+    expect(resolved.data).toContainEqual({
+      entity_type: "item",
+      entity_id: target.id,
+      title: "変更後名称",
+    });
+
+    const trashed = await owner.rpc("trash_timeline_item", {
+      p_project_id: projectId,
+      p_item_id: target.id,
+    });
+    expect(trashed.error).toBeNull();
+    const broken = await owner.rpc("resolve_internal_links", {
+      p_project_id: projectId,
+      p_item_ids: [target.id],
+      p_event_ids: [],
+    });
+    expect(broken.data).toEqual([]);
+    const references = await owner
+      .from("internal_links")
+      .select("source_entity_id")
+      .eq("target_entity_id", target.id);
+    expect(references.data).toEqual([{ source_entity_id: source.id }]);
+
+    const duplicateAliases = await owner
+      .from("timeline_events")
+      .update({ aliases: ["重複", "重複"] })
+      .eq("id", event.id);
+    expect(duplicateAliases.error?.code).toBe("23514");
+  });
+
   it("cascades timeline items when deleting their project", async () => {
     const projectId = await createProject("cascade items");
     const typeId = await firstType(projectId);

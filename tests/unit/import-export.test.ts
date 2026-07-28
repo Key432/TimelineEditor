@@ -68,6 +68,7 @@ function backup(): ProjectBackup {
         id: itemId,
         typeId,
         title: '夏目漱石, "作家"',
+        aliases: [],
         description: "改行\nを含む",
         sourceText: null,
         externalUrl: null,
@@ -92,6 +93,7 @@ function backup(): ProjectBackup {
         id: eventId,
         timelineItemId: itemId,
         title: "吾輩は猫である",
+        aliases: [],
         date: date(1905, 1, null),
         isApproximate: false,
         description: null,
@@ -125,7 +127,7 @@ describe("project import and export formats", () => {
 
     expect(preview.errors).toEqual([]);
     expect(preview.warnings).toContain(
-      "旧JSON形式をスキーマバージョン2へ移行しました。",
+      "旧JSON形式をスキーマバージョン3へ移行しました。",
     );
     expect(preview.payload?.schemaVersion).toBe(IMPORT_SCHEMA_VERSION);
   });
@@ -174,7 +176,7 @@ describe("project import and export formats", () => {
       .map(([name, content]) => ({
         name,
         content: content.replace(
-          /^\uFEFF?# timeline-editor-schema-version=2\r?\n/,
+          /^\uFEFF?# timeline-editor-schema-version=3\r?\n/,
           "\uFEFF",
         ),
       }));
@@ -187,7 +189,7 @@ describe("project import and export formats", () => {
 
     expect(preview.errors).toEqual([]);
     expect(preview.warnings).toContain(
-      "旧CSV形式をスキーマバージョン2へ移行しました。",
+      "旧CSV形式をスキーマバージョン3へ移行しました。",
     );
     expect(preview.payload?.schemaVersion).toBe(IMPORT_SCHEMA_VERSION);
   });
@@ -198,7 +200,7 @@ describe("project import and export formats", () => {
       files
         .get("timeline-items.csv")!
         .replace(
-          "# timeline-editor-schema-version=2",
+          "# timeline-editor-schema-version=3",
           "# timeline-editor-schema-version=99",
         ),
     );
@@ -212,7 +214,7 @@ describe("project import and export formats", () => {
         content:
           name === "timeline-events.csv"
             ? content.replace(
-                /^\uFEFF?# timeline-editor-schema-version=2\r?\n/,
+                /^\uFEFF?# timeline-editor-schema-version=3\r?\n/,
                 "\uFEFF",
               )
             : content,

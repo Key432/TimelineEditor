@@ -131,6 +131,7 @@ export class ImportExportRepository {
         id: item.id,
         typeId: item.type_id,
         title: item.title,
+        aliases: item.aliases,
         description: item.description,
         sourceText: item.source_text,
         externalUrl: item.external_url,
@@ -191,6 +192,7 @@ export class ImportExportRepository {
         id: event.id,
         timelineItemId: event.timeline_item_id,
         title: event.title,
+        aliases: event.aliases,
         date: {
           era: event.event_era,
           precision: event.event_precision,

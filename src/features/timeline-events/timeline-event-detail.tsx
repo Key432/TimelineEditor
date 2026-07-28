@@ -48,11 +48,13 @@ export function TimelineEventDetail({
   event,
   readOnly = false,
   closeOverlayAfterDelete = false,
+  internalLinkBasePath,
 }: {
   projectId: string;
   event: TimelineEvent;
   readOnly?: boolean;
   closeOverlayAfterDelete?: boolean;
+  internalLinkBasePath?: string;
 }) {
   const { data: currentEvent } = useQuery({
     queryKey: timelineEventKeys.detail(projectId, event.id),
@@ -77,11 +79,21 @@ export function TimelineEventDetail({
           </dd>
           <dt className="text-muted-foreground">タイムライン</dt>
           <dd>{currentEvent.parent.title}</dd>
+          <dt className="text-muted-foreground">別名</dt>
+          <dd>
+            {currentEvent.aliases.length
+              ? currentEvent.aliases.join("、")
+              : "—"}
+          </dd>
         </dl>
       </header>
       <Separator />
       <section className="min-h-28 text-base leading-7">
-        <MarkdownRenderer value={currentEvent.description} />
+        <MarkdownRenderer
+          internalLinkBasePath={internalLinkBasePath}
+          projectId={projectId}
+          value={currentEvent.description}
+        />
       </section>
       <Separator />
       <section>

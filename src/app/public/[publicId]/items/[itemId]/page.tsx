@@ -48,6 +48,7 @@ export default async function PublicTimelineItemPage({
         <div className="rounded-xl bg-card ring-1 ring-foreground/10">
           <TimelineItemDetail
             eventBasePath={`/public/${publicId}`}
+            internalLinkBasePath={`/public/${publicId}`}
             events={result.events.filter(
               (event) => event.timelineItemId === itemId,
             )}

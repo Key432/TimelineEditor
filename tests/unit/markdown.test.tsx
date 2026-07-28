@@ -1,12 +1,24 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { getInternalLinkCandidates } from "@/features/internal-links/api";
 import { MarkdownEditor, MarkdownRenderer } from "@/features/markdown/markdown";
 
-function TestMarkdownEditor({ onChange }: { onChange: () => void }) {
+vi.mock("@/features/internal-links/api", () => ({
+  getInternalLinkCandidates: vi.fn(),
+  resolveInternalLinks: vi.fn(),
+}));
+
+function TestMarkdownEditor({
+  onChange,
+  projectId,
+}: {
+  onChange: () => void;
+  projectId?: string;
+}) {
   const [value, setValue] = useState("");
   const handleChange: UseFormRegisterReturn["onChange"] = async (event) => {
     onChange();
@@ -23,6 +35,7 @@ function TestMarkdownEditor({ onChange }: { onChange: () => void }) {
         ref: vi.fn(),
       }}
       value={value}
+      projectId={projectId}
     />
   );
 }
@@ -171,8 +184,38 @@ describe("MarkdownEditor", () => {
     expect(
       screen.getByRole("link", { name: "Markdown記法ヘルプ" }),
     ).toHaveAttribute("href", "/help/markdown");
+    expect(
+      screen.getByRole("link", { name: "Markdown記法ヘルプ" }),
+    ).toHaveAttribute("target", "_blank");
+    expect(
+      screen.getByRole("link", { name: "Markdown記法ヘルプ" }),
+    ).toHaveAttribute("rel", "noreferrer noopener");
 
     await user.click(screen.getByRole("button", { name: "編集" }));
     expect(screen.getByRole("textbox", { name: "本文" })).toBeVisible();
+  });
+
+  it("inserts the selected candidate into the controlled textarea", async () => {
+    vi.mocked(getInternalLinkCandidates).mockResolvedValue([
+      {
+        entityType: "item",
+        entityId: "11111111-1111-4111-8111-111111111111",
+        title: "夏目漱石",
+        aliases: ["夏目金之助"],
+        kindLabel: "人物",
+        dateLabel: "1867",
+        parentTitle: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    render(<TestMarkdownEditor onChange={vi.fn()} projectId="project-1" />);
+
+    const editor = screen.getByRole("textbox", { name: "本文" });
+    fireEvent.change(editor, { target: { value: "参照: [[夏目金" } });
+    await user.click(await screen.findByRole("option", { name: /夏目漱石/ }));
+
+    expect(editor).toHaveValue(
+      "参照: [[item:11111111-1111-4111-8111-111111111111|夏目漱石]]",
+    );
   });
 });

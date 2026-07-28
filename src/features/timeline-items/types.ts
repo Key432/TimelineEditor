@@ -51,6 +51,7 @@ export type TimelineItem = {
   typeId: string;
   itemType: TimelineItemType;
   title: string;
+  aliases: string[];
   description: string | null;
   sourceText: string | null;
   externalUrl: string | null;
@@ -74,7 +75,7 @@ export type TimelineItem = {
 
 export type TimelineItemSummary = Omit<
   TimelineItem,
-  "description" | "sourceText" | "externalUrl"
+  "description" | "sourceText" | "externalUrl" | "aliases"
 >;
 
 export type TimelineEventCreationFailure = {

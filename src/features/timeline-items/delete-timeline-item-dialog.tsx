@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -17,6 +17,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { getInternalLinkReferenceCount } from "@/features/internal-links/api";
 import { useRegisterDetailOption } from "@/features/timeline-items/detail-options-context";
 import { timelineEventKeys } from "@/features/timeline-events/api";
 import {
@@ -53,6 +54,11 @@ export function DeleteTimelineItemDialog({
   useRegisterDetailOption(detailOption, triggerPlacement === "detail-options");
   const router = useRouter();
   const queryClient = useQueryClient();
+  const referenceCount = useQuery({
+    queryKey: ["projects", projectId, "internal-links", "item", itemId],
+    queryFn: () => getInternalLinkReferenceCount(projectId, "item", itemId),
+    enabled: open,
+  });
   const mutation = useMutation({
     mutationFn: () => deleteTimelineItem(projectId, itemId),
     onSuccess: async () => {
@@ -94,6 +100,9 @@ export function DeleteTimelineItemDialog({
           </AlertDialogTitle>
           <AlertDialogDescription>
             ゴミ箱から復元できます。
+            {referenceCount.data
+              ? ` この項目は${referenceCount.data}件の本文から参照されています。移動後はリンク切れとして表示されます。`
+              : ""}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {mutation.error ? (

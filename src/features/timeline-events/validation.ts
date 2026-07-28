@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 import { historicalDateOrdinal } from "@/features/timeline-items/historical-date";
-import { historicalDateSchema } from "@/features/timeline-items/validation";
+import {
+  entityAliasesSchema,
+  historicalDateSchema,
+} from "@/features/timeline-items/validation";
 import type {
   HistoricalDate,
   TimelineItem,
@@ -24,6 +27,8 @@ export const timelineEventSchema = z.object({
     .trim()
     .min(1, "タイトルを入力してください。")
     .max(200, "タイトルは200文字以内で入力してください。"),
+  aliases: entityAliasesSchema.default([]),
+  addPreviousTitleToAliases: z.boolean().default(false),
   date: eventDateSchema,
   isApproximate: z.boolean(),
   description: nullableText(20000, "本文は20000文字以内で入力してください。"),
@@ -62,6 +67,8 @@ export function emptyTimelineEventValues(
   return {
     timelineItemId,
     title: "",
+    aliases: [],
+    addPreviousTitleToAliases: false,
     date: date ?? {
       era: "ce",
       precision: "year",
@@ -81,6 +88,8 @@ export function emptyTimelineEventValues(
 export function emptyTimelineEventDraftValues(): TimelineEventDraftInput {
   return {
     title: "",
+    aliases: [],
+    addPreviousTitleToAliases: false,
     date: {
       era: "ce",
       precision: "year",

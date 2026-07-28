@@ -94,6 +94,7 @@ function mapEvent(row: JoinedRow): TimelineEvent {
     projectId: row.project_id,
     timelineItemId: row.timeline_item_id,
     title: row.title,
+    aliases: row.aliases,
     date: {
       era: row.event_era,
       precision: row.event_precision,
@@ -117,6 +118,7 @@ function persistenceValues(input: TimelineEventValues) {
   return {
     timeline_item_id: input.timelineItemId,
     title: input.title,
+    aliases: input.aliases,
     event_year: input.date.year,
     event_month: input.date.month,
     event_day: input.date.day,

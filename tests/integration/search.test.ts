@@ -102,6 +102,7 @@ describe("PGroonga search synchronization and RLS", () => {
         project_id: projectId,
         type_id: itemType.id,
         title: "夏目漱石",
+        aliases: ["夏目金之助", "漱石"],
         description: "# 明治時代の**小説家**",
         source_text: "文学史資料",
         temporal_type: "range",
@@ -149,6 +150,13 @@ describe("PGroonga search synchronization and RLS", () => {
       p_page: 1,
       p_page_size: 20,
     });
+    const aliasSearch = await owner.rpc("search_global_documents", {
+      p_query: "夏目金之助",
+      p_page: 1,
+      p_page_size: 20,
+    });
+    expect(aliasSearch.error).toBeNull();
+    expect(aliasSearch.data?.map((row) => row.entity_id)).toContain(item.id);
     expect(itemSearch.error).toBeNull();
     expect(itemSearch.data?.some((row) => row.entity_id === item.id)).toBe(
       true,

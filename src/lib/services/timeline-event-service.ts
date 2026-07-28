@@ -88,14 +88,28 @@ export class TimelineEventService {
   }
 
   async update(projectId: string, eventId: string, input: unknown) {
-    const { project } = await this.get(projectId, eventId);
+    const { project, event: currentEvent } = await this.get(projectId, eventId);
     const result = timelineEventSchema.safeParse(input);
     if (!result.success) throw validationError(result.error);
     await this.requireRangeParent(project.id, result.data.timelineItemId);
+    const hasPreviousTitle = result.data.aliases.some(
+      (alias) =>
+        alias.localeCompare(currentEvent.title, "ja", {
+          sensitivity: "base",
+        }) === 0,
+    );
+    const enrichedResult = timelineEventSchema.safeParse({
+      ...result.data,
+      aliases:
+        result.data.addPreviousTitleToAliases && !hasPreviousTitle
+          ? [...result.data.aliases, currentEvent.title]
+          : result.data.aliases,
+    });
+    if (!enrichedResult.success) throw validationError(enrichedResult.error);
     const event = await this.repository.update(
       project.id,
       this.parseEventId(eventId),
-      result.data,
+      enrichedResult.data,
     );
     if (!event) {
       throw new ServiceError(

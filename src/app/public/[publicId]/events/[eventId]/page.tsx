@@ -51,6 +51,7 @@ export default async function PublicTimelineEventPage({
         <div className="rounded-xl bg-card ring-1 ring-foreground/10">
           <TimelineEventDetail
             event={result.event}
+            internalLinkBasePath={`/public/${publicId}`}
             projectId={result.project.id}
             readOnly
           />

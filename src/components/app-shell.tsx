@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { LogOut, Menu, PanelLeftClose } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -25,14 +25,47 @@ type AppShellProps = {
   projects?: ProjectSummary[];
 };
 
+const SIDEBAR_COLLAPSED_KEY = "timeline-editor:sidebar-collapsed:v1";
+const SIDEBAR_PREFERENCE_EVENT = "timeline-editor:sidebar-preference";
+
+function subscribeSidebarPreference(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener(SIDEBAR_PREFERENCE_EVENT, callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener(SIDEBAR_PREFERENCE_EVENT, callback);
+  };
+}
+
+function sidebarPreferenceSnapshot() {
+  try {
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
 export function AppShell({
   children,
   email,
   logoutAction = signOut,
   projects = [],
 }: AppShellProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = useSyncExternalStore(
+    subscribeSidebarPreference,
+    sidebarPreferenceSnapshot,
+    () => false,
+  );
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
+
+  function toggleSidebar() {
+    try {
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(!collapsed));
+      window.dispatchEvent(new Event(SIDEBAR_PREFERENCE_EVENT));
+    } catch {
+      // Storage can be unavailable in private or restricted browser contexts.
+    }
+  }
   return (
     <div className="min-h-svh bg-background lg:h-svh lg:overflow-hidden">
       <header className="sticky top-0 z-30 flex h-14 items-center border-b bg-card px-4 lg:px-6">
@@ -95,7 +128,7 @@ export function AppShell({
       >
         <aside
           className={`hidden border-r bg-sidebar lg:block ${collapsed ? "p-2" : "p-4"}`}
-          aria-hidden={collapsed}
+          data-collapsed={collapsed}
         >
           <div className="mb-5 flex items-center justify-between px-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {!collapsed ? (
@@ -109,7 +142,7 @@ export function AppShell({
               }
               size="icon"
               variant="ghost"
-              onClick={() => setCollapsed((v) => !v)}
+              onClick={toggleSidebar}
             >
               <PanelLeftClose aria-hidden="true" className="size-4" />
             </Button>

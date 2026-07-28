@@ -30,11 +30,11 @@ describe("data compatibility foundations", () => {
   it("pins the database and import/export baseline versions", () => {
     expect(DATA_COMPATIBILITY_BASELINE).toEqual({
       database: {
-        version: 2,
-        migration: "20260726151016_phase_l1_historical_dates.sql",
+        version: 3,
+        migration: "20260728131644_phase_l6_internal_links_aliases.sql",
       },
-      json: { version: 2 },
-      csv: { version: 2 },
+      json: { version: 3 },
+      csv: { version: 3 },
     });
 
     const migrations = join(process.cwd(), "supabase", "migrations");

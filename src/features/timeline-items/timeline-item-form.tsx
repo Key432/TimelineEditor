@@ -14,6 +14,7 @@ import { timelineEventKeys } from "@/features/timeline-events/api";
 import { TimelineEventDraftEditor } from "@/features/timeline-events/timeline-event-draft-editor";
 import type { TimelineEventDraftValues } from "@/features/timeline-events/validation";
 import { ApproximateDateCheckbox } from "@/features/timeline-items/approximate-date-checkbox";
+import { EntityAliasFields } from "@/features/timeline-items/entity-alias-fields";
 import { EntityContentFields } from "@/features/timeline-items/entity-content-fields";
 import { HistoricalDateFields } from "@/features/timeline-items/historical-date-fields";
 import { formatHistoricalDate } from "@/features/timeline-items/historical-date";
@@ -62,6 +63,8 @@ function defaults(
   return {
     typeId: item.typeId,
     title: item.title,
+    aliases: item.aliases,
+    addPreviousTitleToAliases: false,
     description: item.description ?? "",
     sourceText: item.sourceText ?? "",
     externalUrl: item.externalUrl ?? "",
@@ -158,6 +161,8 @@ export function TimelineItemForm({
   const colorOverride = useWatch({ control, name: "colorOverride" });
   const selectedTypeId = useWatch({ control, name: "typeId" });
   const description = useWatch({ control, name: "description" }) ?? "";
+  const aliases = useWatch({ control, name: "aliases" }) ?? [];
+  const title = useWatch({ control, name: "title" }) ?? "";
   const [eventDrafts, setEventDrafts] = useState<TimelineEventDraftValues[]>(
     [],
   );
@@ -259,6 +264,25 @@ export function TimelineItemForm({
           <p className="text-sm text-destructive">{errors.title.message}</p>
         ) : null}
       </div>
+
+      <EntityAliasFields
+        aliases={aliases}
+        error={errors.aliases?.message}
+        id={`${formId}-aliases`}
+        onChange={(next) =>
+          setValue("aliases", next, { shouldDirty: true, shouldValidate: true })
+        }
+      />
+      {item && title.trim() && title.trim() !== item.title ? (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            className="size-4 accent-primary"
+            type="checkbox"
+            {...register("addPreviousTitleToAliases")}
+          />
+          変更前の名称「{item.title}」を別名へ追加
+        </label>
+      ) : null}
 
       <div className="space-y-2">
         <Label htmlFor={`${formId}-type`}>対象種別</Label>
@@ -534,6 +558,7 @@ export function TimelineItemForm({
                 );
                 setEditingEvent(null);
               }}
+              projectId={projectId}
             />
           ) : null}
         </section>
@@ -546,6 +571,7 @@ export function TimelineItemForm({
         externalUrlError={errors.externalUrl}
         idPrefix={formId}
         sourceText={register("sourceText")}
+        projectId={projectId}
       />
 
       {isDirty && !mutation.isPending ? (

@@ -82,6 +82,7 @@ function mapItem(row: JoinedRow): TimelineItem {
     typeId: row.type_id,
     itemType: mapItemType(row.timeline_item_types),
     title: row.title,
+    aliases: row.aliases,
     description: row.description,
     sourceText: row.source_text,
     externalUrl: row.external_url,
@@ -126,6 +127,7 @@ function persistenceValues(
   return {
     type_id: input.typeId,
     title: input.title,
+    aliases: input.aliases,
     description: input.description,
     source_text: input.sourceText,
     external_url: input.externalUrl,

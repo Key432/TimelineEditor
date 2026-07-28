@@ -192,12 +192,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      internal_links: {
+        Row: {
+          project_id: string;
+          source_entity_type: "timeline_item" | "timeline_event";
+          source_entity_id: string;
+          target_entity_type: "timeline_item" | "timeline_event";
+          target_entity_id: string;
+        };
+        Insert: {
+          project_id: string;
+          source_entity_type: "timeline_item" | "timeline_event";
+          source_entity_id: string;
+          target_entity_type: "timeline_item" | "timeline_event";
+          target_entity_id: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["internal_links"]["Insert"]
+        >;
+        Relationships: [];
+      };
       timeline_events: {
         Row: {
           id: string;
           project_id: string;
           timeline_item_id: string;
           title: string;
+          aliases: string[];
           event_year: number;
           event_month: number | null;
           event_day: number | null;
@@ -222,6 +243,7 @@ export type Database = {
           project_id: string;
           timeline_item_id: string;
           title: string;
+          aliases?: string[];
           event_year: number;
           event_month?: number | null;
           event_day?: number | null;
@@ -244,6 +266,7 @@ export type Database = {
           project_id?: string;
           timeline_item_id?: string;
           title?: string;
+          aliases?: string[];
           event_year?: number;
           event_month?: number | null;
           event_day?: number | null;
@@ -269,6 +292,7 @@ export type Database = {
           project_id: string;
           type_id: string;
           title: string;
+          aliases: string[];
           description: string | null;
           source_text: string | null;
           external_url: string | null;
@@ -311,6 +335,7 @@ export type Database = {
           project_id: string;
           type_id: string;
           title: string;
+          aliases?: string[];
           description?: string | null;
           source_text?: string | null;
           external_url?: string | null;
@@ -349,6 +374,7 @@ export type Database = {
           project_id?: string;
           type_id?: string;
           title?: string;
+          aliases?: string[];
           description?: string | null;
           source_text?: string | null;
           external_url?: string | null;
@@ -497,6 +523,30 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      get_internal_link_candidates: {
+        Args: { p_project_id: string; p_query?: string };
+        Returns: {
+          entity_type: "item" | "event";
+          entity_id: string;
+          title: string;
+          aliases: string[];
+          kind_label: string;
+          date_label: string | null;
+          parent_title: string | null;
+        }[];
+      };
+      resolve_internal_links: {
+        Args: {
+          p_project_id: string;
+          p_item_ids?: string[];
+          p_event_ids?: string[];
+        };
+        Returns: {
+          entity_type: "item" | "event";
+          entity_id: string;
+          title: string;
+        }[];
+      };
       create_entity_checkpoint: {
         Args: {
           p_project_id: string;

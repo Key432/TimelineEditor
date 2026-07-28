@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -15,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { getInternalLinkReferenceCount } from "@/features/internal-links/api";
 import {
   deleteTimelineEvent,
   timelineEventKeys,
@@ -47,6 +48,11 @@ export function DeleteTimelineEventDialog({
   useRegisterDetailOption(detailOption, true);
   const router = useRouter();
   const queryClient = useQueryClient();
+  const referenceCount = useQuery({
+    queryKey: ["projects", projectId, "internal-links", "event", eventId],
+    queryFn: () => getInternalLinkReferenceCount(projectId, "event", eventId),
+    enabled: open,
+  });
   const mutation = useMutation({
     mutationFn: () => deleteTimelineEvent(projectId, eventId),
     onSuccess: async () => {
@@ -75,6 +81,9 @@ export function DeleteTimelineEventDialog({
           </AlertDialogTitle>
           <AlertDialogDescription>
             ゴミ箱から復元できます。
+            {referenceCount.data
+              ? ` このイベントは${referenceCount.data}件の本文から参照されています。移動後はリンク切れとして表示されます。`
+              : ""}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {mutation.error ? (

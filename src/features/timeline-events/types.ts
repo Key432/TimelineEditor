@@ -14,6 +14,7 @@ export type TimelineEvent = {
   projectId: string;
   timelineItemId: string;
   title: string;
+  aliases: string[];
   date: HistoricalDate;
   isApproximate: boolean;
   description: string | null;
@@ -26,5 +27,5 @@ export type TimelineEvent = {
 
 export type TimelineEventSummary = Omit<
   TimelineEvent,
-  "description" | "sourceText" | "externalUrl" | "parent"
+  "description" | "sourceText" | "externalUrl" | "parent" | "aliases"
 >;

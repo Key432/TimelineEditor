@@ -13,6 +13,7 @@ export function EntityContentFields({
   sourceText,
   externalUrl,
   externalUrlError,
+  projectId,
 }: {
   idPrefix: string;
   description: UseFormRegisterReturn;
@@ -20,6 +21,7 @@ export function EntityContentFields({
   sourceText: UseFormRegisterReturn;
   externalUrl: UseFormRegisterReturn;
   externalUrlError?: FieldError;
+  projectId: string;
 }) {
   return (
     <>
@@ -30,6 +32,7 @@ export function EntityContentFields({
           label="本文"
           registration={description}
           value={descriptionValue}
+          projectId={projectId}
         />
         <Separator />
         <div className="space-y-2">

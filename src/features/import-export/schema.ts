@@ -41,6 +41,7 @@ const itemSchema = z.object({
   id: z.uuid(),
   typeId: z.uuid(),
   title: z.string(),
+  aliases: z.array(z.string().trim().min(1).max(200)).max(20),
   description: nullableString,
   sourceText: nullableString,
   externalUrl: nullableString,
@@ -64,6 +65,7 @@ const eventSchema = z.object({
   id: z.uuid(),
   timelineItemId: z.uuid(),
   title: z.string(),
+  aliases: z.array(z.string().trim().min(1).max(200)).max(20),
   date: historicalDate.unwrap(),
   isApproximate: z.boolean(),
   description: nullableString,
@@ -203,12 +205,30 @@ function migrateVersionOne(input: Record<string, unknown>) {
   return { ...input, schemaVersion: 2, timelineItems, timelineEvents };
 }
 
+function migrateVersionTwo(input: Record<string, unknown>) {
+  const addAliases = (value: unknown) =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? { ...(value as Record<string, unknown>), aliases: [] }
+      : value;
+  return {
+    ...input,
+    schemaVersion: 3,
+    timelineItems: Array.isArray(input.timelineItems)
+      ? input.timelineItems.map(addAliases)
+      : input.timelineItems,
+    timelineEvents: Array.isArray(input.timelineEvents)
+      ? input.timelineEvents.map(addAliases)
+      : input.timelineEvents,
+  };
+}
+
 const importMigrations: Record<number, ImportMigration> = {
   [LEGACY_UNVERSIONED_SCHEMA_VERSION]: (input) => ({
     ...input,
     schemaVersion: 1,
   }),
   1: migrateVersionOne,
+  2: migrateVersionTwo,
 };
 
 export type ImportMigrationResult = {
@@ -269,10 +289,12 @@ export function migrateProjectBackup(input: unknown): ImportMigrationResult {
     errors: [],
     warnings:
       inputVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION
-        ? ["旧JSON形式をスキーマバージョン2へ移行しました。"]
+        ? ["旧JSON形式をスキーマバージョン3へ移行しました。"]
         : inputVersion === 1
-          ? ["JSONスキーマバージョン1をバージョン2へ移行しました。"]
-          : [],
+          ? ["JSONスキーマバージョン1をバージョン3へ移行しました。"]
+          : inputVersion === 2
+            ? ["JSONスキーマバージョン2をバージョン3へ移行しました。"]
+            : [],
   };
 }
 

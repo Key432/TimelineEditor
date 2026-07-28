@@ -146,14 +146,28 @@ export class TimelineItemService {
   }
 
   async update(projectId: string, itemId: string, input: unknown) {
-    const { project } = await this.get(projectId, itemId);
+    const { project, item: currentItem } = await this.get(projectId, itemId);
     const result = timelineItemSchema.safeParse(input);
     if (!result.success) throw validationError(result.error);
     await this.requireItemType(project.id, result.data.typeId);
+    const hasPreviousTitle = result.data.aliases.some(
+      (alias) =>
+        alias.localeCompare(currentItem.title, "ja", {
+          sensitivity: "base",
+        }) === 0,
+    );
+    const enrichedResult = timelineItemSchema.safeParse({
+      ...result.data,
+      aliases:
+        result.data.addPreviousTitleToAliases && !hasPreviousTitle
+          ? [...result.data.aliases, currentItem.title]
+          : result.data.aliases,
+    });
+    if (!enrichedResult.success) throw validationError(enrichedResult.error);
     const item = await this.repository.update(
       project.id,
       this.parseItemId(itemId),
-      result.data,
+      enrichedResult.data,
     );
     if (!item) {
       throw new ServiceError(
