@@ -1,6 +1,12 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { QueryProvider } from "@/components/query-provider";
 import type { TimelineItemType } from "@/features/item-types/types";
@@ -19,7 +25,27 @@ const itemType: TimelineItemType = {
   updatedAt: "2026-01-01T00:00:00Z",
 };
 
+afterEach(cleanup);
+
 describe("TimelineItemForm", () => {
+  it("keeps aliases collapsed until the optional section is opened", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <QueryProvider>
+        <TimelineItemForm
+          itemTypes={[itemType]}
+          projectId={itemType.projectId}
+        />
+      </QueryProvider>,
+    );
+
+    const aliases = container.querySelector('[data-slot="entity-aliases"]');
+    expect(aliases).not.toHaveAttribute("open");
+    await user.click(screen.getByText("別名（任意）"));
+    expect(aliases).toHaveAttribute("open");
+    expect(screen.getByLabelText("別名")).toBeVisible();
+  });
+
   it("opens item type management and keeps content fields visually separate", async () => {
     const user = userEvent.setup();
     const onEditItemTypes = vi.fn();

@@ -38,12 +38,6 @@ const examples = [
     code: "[資料名](https://example.com/source)",
   },
   {
-    title: "プロジェクト内リンク",
-    description:
-      "[[ に続けて名称や別名を入力し、同じプロジェクト内の候補から選択します。リンクは名称変更後も維持されます。",
-    code: "[[夏目漱石]]",
-  },
-  {
     title: "表",
     description: "見出し行の下に区切り行を置きます。",
     code: "| 名前 | 年 |\n| --- | ---: |\n| 夏目漱石 | 1867 |",
@@ -86,6 +80,25 @@ export default function MarkdownHelpPage() {
             </pre>
           </section>
         ))}
+
+        <section className="space-y-3">
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold">プロジェクト内リンク</h2>
+            <p className="text-sm text-muted-foreground">
+              本文で [[
+              に続けて名称または別名を入力し、同じプロジェクト内の候補から選択します。
+            </p>
+            <p className="text-sm text-muted-foreground">
+              候補には種類、日付、親アイテムが表示されます。
+            </p>
+            <p className="text-sm text-muted-foreground">
+              選択すると安定したIDを含む記法が挿入されるため、参照先の名称や別名を変更してもリンクは維持されます。削除された参照先はリンク切れとして表示されます。
+            </p>
+          </div>
+          <pre className="overflow-x-auto rounded-lg bg-foreground p-4 text-sm text-background">
+            <code>[[夏目漱石]]</code>
+          </pre>
+        </section>
 
         <section className="space-y-3">
           <div className="space-y-1">

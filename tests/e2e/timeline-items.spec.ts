@@ -271,6 +271,19 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     "700",
   );
   await expect(page.getByRole("dialog").locator("script, img")).toHaveCount(0);
+  await itemDetail.getByRole("button", { name: "編集" }).click();
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByRole("form", {
+        name: "タイムラインアイテム編集",
+      })
+      .getByLabel("本文"),
+  ).toHaveValue(
+    "# 更新後の人物本文\n\n**強調表示**\n\n> [!NOTE]\n> 即時プレビュー\n\n<script>alert('xss')</script>\n\n![非対応画像](https://example.com/image.png)",
+  );
+  await itemDetail.getByRole("button", { name: "詳細オプション" }).click();
+  await page.getByRole("menuitem", { name: "閲覧に戻る" }).click();
   await itemDetail.getByRole("button", { name: "詳細オプション" }).click();
   await page.getByRole("menuitem", { name: "変更履歴" }).click();
   const historyDialog = page.getByRole("dialog", { name: "変更履歴" });

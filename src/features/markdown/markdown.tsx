@@ -287,6 +287,23 @@ export function MarkdownRenderer({
   if (!value) {
     return <p className="text-muted-foreground">{emptyLabel}</p>;
   }
+  const isResolvingInternalLinks =
+    Boolean(projectId) &&
+    Boolean(references.itemIds.length || references.eventIds.length) &&
+    resolvedLinks.key !== resolutionKey;
+  if (isResolvingInternalLinks) {
+    return (
+      <div
+        aria-label="本文を読み込み中"
+        className={cn("min-h-20 animate-pulse space-y-3 py-2", className)}
+        role="status"
+      >
+        <div aria-hidden="true" className="h-5 w-2/5 rounded bg-muted" />
+        <div aria-hidden="true" className="h-4 w-full rounded bg-muted" />
+        <div aria-hidden="true" className="h-4 w-3/4 rounded bg-muted" />
+      </div>
+    );
+  }
   return (
     <div className={cn("markdown-body min-w-0", className)}>
       <ReactMarkdown

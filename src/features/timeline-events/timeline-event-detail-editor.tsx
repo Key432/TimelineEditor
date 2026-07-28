@@ -1,5 +1,11 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+
+import {
+  getTimelineEvent,
+  timelineEventKeys,
+} from "@/features/timeline-events/api";
 import { TimelineEventForm } from "@/features/timeline-events/timeline-event-form";
 import type { TimelineEvent } from "@/features/timeline-events/types";
 import type { TimelineItemSummary } from "@/features/timeline-items/types";
@@ -17,10 +23,15 @@ export function TimelineEventDetailEditor({
   currentYear: number;
 }) {
   const { onDirtyChange, onSaved } = useDetailEditorActions();
+  const { data: currentEvent } = useQuery({
+    queryKey: timelineEventKeys.detail(projectId, event.id),
+    queryFn: () => getTimelineEvent(projectId, event.id),
+    initialData: event,
+  });
   return (
     <TimelineEventForm
       currentDate={{ year: currentYear, month: 1, day: 1 }}
-      event={event}
+      event={currentEvent}
       projectId={projectId}
       rangeItems={rangeItems}
       onDirtyChange={onDirtyChange}

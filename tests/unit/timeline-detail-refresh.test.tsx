@@ -9,6 +9,7 @@ import {
   type getTimelineEvent,
 } from "@/features/timeline-events/api";
 import { TimelineEventDetail } from "@/features/timeline-events/timeline-event-detail";
+import { TimelineEventDetailEditor } from "@/features/timeline-events/timeline-event-detail-editor";
 import { DetailEditShell } from "@/features/timeline-items/detail-edit-shell";
 import type { TimelineEvent } from "@/features/timeline-events/types";
 import {
@@ -16,6 +17,7 @@ import {
   type getTimelineItem,
 } from "@/features/timeline-items/api";
 import { TimelineItemDetail } from "@/features/timeline-items/timeline-item-detail";
+import { TimelineItemDetailEditor } from "@/features/timeline-items/timeline-item-detail-editor";
 import type { TimelineItem } from "@/features/timeline-items/types";
 
 const mocks = vi.hoisted(() => ({
@@ -44,6 +46,18 @@ vi.mock("@/features/timeline-events/api", async (importOriginal) => ({
 vi.mock("@/features/timeline-items/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/timeline-items/api")>()),
   getTimelineItem: mocks.getTimelineItem,
+}));
+
+vi.mock("@/features/timeline-items/timeline-item-form", () => ({
+  TimelineItemForm: ({ item: current }: { item: TimelineItem }) => (
+    <output data-testid="item-editor-title">{current.title}</output>
+  ),
+}));
+
+vi.mock("@/features/timeline-events/timeline-event-form", () => ({
+  TimelineEventForm: ({ event: current }: { event: TimelineEvent }) => (
+    <output data-testid="event-editor-title">{current.title}</output>
+  ),
 }));
 
 const event: TimelineEvent = {
@@ -183,6 +197,95 @@ describe("timeline detail refresh", () => {
 
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: "更新後項目" })).toBeVisible(),
+    );
+  });
+
+  it("reopens the item editor with the value saved in the detail cache", async () => {
+    const { queryClient, Wrapper } = createWrapper();
+    const user = userEvent.setup();
+    const pointItem: TimelineItem = {
+      ...item,
+      temporalType: "point",
+      start: null,
+      endDateStatus: null,
+      end: null,
+      point: { year: 1900, month: null, day: null },
+    };
+    render(
+      <Wrapper>
+        <DetailEditShell
+          editor={
+            <TimelineItemDetailEditor
+              currentYear={2026}
+              item={pointItem}
+              itemTypes={[pointItem.itemType]}
+              projectId={pointItem.projectId}
+              rangeItems={[]}
+            />
+          }
+          preferenceKey="/projects/project-id/items/item-id"
+        >
+          <div>詳細表示</div>
+        </DetailEditShell>
+      </Wrapper>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "編集" }));
+    expect(screen.getByTestId("item-editor-title")).toHaveTextContent(
+      "更新前項目",
+    );
+    act(() => {
+      queryClient.setQueryData(
+        timelineItemKeys.detail(pointItem.projectId, pointItem.id),
+        { ...pointItem, title: "更新後項目" },
+      );
+    });
+    await user.click(screen.getByRole("button", { name: "詳細オプション" }));
+    await user.click(screen.getByRole("menuitem", { name: "閲覧に戻る" }));
+    await user.click(screen.getByRole("button", { name: "編集" }));
+
+    expect(screen.getByTestId("item-editor-title")).toHaveTextContent(
+      "更新後項目",
+    );
+  });
+
+  it("reopens the event editor with the value saved in the detail cache", async () => {
+    const { queryClient, Wrapper } = createWrapper();
+    const user = userEvent.setup();
+    render(
+      <Wrapper>
+        <DetailEditShell
+          editor={
+            <TimelineEventDetailEditor
+              currentYear={2026}
+              event={event}
+              projectId={event.projectId}
+              rangeItems={[]}
+            />
+          }
+          preferenceKey="/projects/project-id/events/event-id"
+        >
+          <div>詳細表示</div>
+        </DetailEditShell>
+      </Wrapper>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "編集" }));
+    expect(screen.getByTestId("event-editor-title")).toHaveTextContent(
+      "更新前イベント",
+    );
+    act(() => {
+      queryClient.setQueryData(
+        timelineEventKeys.detail(event.projectId, event.id),
+        { ...event, title: "更新後イベント" },
+      );
+    });
+    await user.click(screen.getByRole("button", { name: "詳細オプション" }));
+    await user.click(screen.getByRole("menuitem", { name: "閲覧に戻る" }));
+    await user.click(screen.getByRole("button", { name: "編集" }));
+
+    expect(screen.getByTestId("event-editor-title")).toHaveTextContent(
+      "更新後イベント",
     );
   });
 

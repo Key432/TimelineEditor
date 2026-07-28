@@ -21,6 +21,10 @@ test("opens the static help index and Markdown reference", async ({ page }) => {
     page.locator("code").filter({ hasText: "> [!WARNING]" }),
   ).toBeVisible();
   await expect(
+    page.getByText("候補には種類、日付、親アイテムが表示されます。"),
+  ).toBeVisible();
+  await expect(page.getByText(/削除された参照先はリンク切れ/)).toBeVisible();
+  await expect(
     page.getByText("画像・HTML・埋め込み", { exact: true }),
   ).toBeVisible();
   await expect(

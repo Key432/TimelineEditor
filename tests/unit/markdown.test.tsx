@@ -1,10 +1,19 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getInternalLinkCandidates } from "@/features/internal-links/api";
+import {
+  getInternalLinkCandidates,
+  resolveInternalLinks,
+} from "@/features/internal-links/api";
 import { MarkdownEditor, MarkdownRenderer } from "@/features/markdown/markdown";
 
 vi.mock("@/features/internal-links/api", () => ({
@@ -43,6 +52,44 @@ function TestMarkdownEditor({
 afterEach(cleanup);
 
 describe("MarkdownRenderer", () => {
+  it("does not expose the raw internal-link token while resolving it", async () => {
+    let finishResolution:
+      | ((targets: Awaited<ReturnType<typeof resolveInternalLinks>>) => void)
+      | undefined;
+    vi.mocked(resolveInternalLinks).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishResolution = resolve;
+      }),
+    );
+    render(
+      <MarkdownRenderer
+        projectId="22222222-2222-4222-8222-222222222222"
+        value={[
+          "# 見出し",
+          "",
+          "[[item:11111111-1111-4111-8111-111111111111|参照先]]",
+        ].join("\n")}
+      />,
+    );
+
+    expect(
+      screen.getByRole("status", { name: "本文を読み込み中" }),
+    ).toBeVisible();
+    expect(screen.queryByText(/\[\[item:/)).not.toBeInTheDocument();
+
+    await act(async () => {
+      finishResolution?.([
+        {
+          entityType: "item",
+          entityId: "11111111-1111-4111-8111-111111111111",
+          title: "参照先",
+        },
+      ]);
+    });
+    expect(await screen.findByRole("link", { name: "参照先" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "見出し" })).toBeVisible();
+  });
+
   it("renders supported Markdown and GitHub-style callouts", () => {
     render(
       <MarkdownRenderer
