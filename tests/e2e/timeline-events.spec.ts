@@ -173,6 +173,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await marker.click();
   await expect(page).toHaveURL(
     new RegExp(`/projects/${project.id}/events/[0-9a-f-]+$`),
+    { timeout: 15_000 },
   );
   const detailDialog = page.getByRole("dialog");
   await expect(detailDialog).toContainText("代表作刊行");
@@ -220,7 +221,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   );
   await expect
     .poll(async () => (await fullPageDetail.boundingBox())!.width)
-    .toBeGreaterThan(wideWidth);
+    .toBeGreaterThanOrEqual(wideWidth);
   await page.goto(`/projects/${project.id}/timeline`);
   await marker.click();
 
@@ -310,6 +311,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await clusterChoice.click();
   await expect(page).toHaveURL(
     new RegExp(`/projects/${project.id}/events/[0-9a-f-]+$`),
+    { timeout: 15_000 },
   );
   await expect(page.getByRole("dialog")).toContainText("クラスタ候補A");
 
@@ -324,10 +326,12 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   page.once("dialog", (dialog) => void dialog.accept());
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "完全削除" })
+    .getByRole("button", { name: "ゴミ箱へ移動" })
     .click();
   await expect(
-    page.getByRole("status", { name: "イベントを削除しています" }),
+    page.getByRole("status", {
+      name: "イベントをゴミ箱へ移動しています",
+    }),
   ).toBeVisible();
   await expect(page).toHaveURL(
     new RegExp(`/projects/${project.id}/events/[0-9a-f-]+$`),

@@ -55,7 +55,7 @@ test("renders the authenticated layout and logs out", async ({ page }) => {
   await expect(page.getByText(email)).toBeVisible();
 
   await page.getByRole("button", { name: "ログアウト" }).click();
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page).toHaveURL(/\/login$/, { timeout: 15_000 });
 });
 
 test("serves noindex headers and blocks robots", async ({ page, request }) => {

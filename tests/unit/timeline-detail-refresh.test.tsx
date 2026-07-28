@@ -183,7 +183,7 @@ describe("timeline detail refresh", () => {
     );
   });
 
-  it("blocks interaction while an event is deleted and then opens the timeline", async () => {
+  it("blocks interaction while an event is moved to trash and then opens the timeline", async () => {
     let completeDeletion: (() => void) | undefined;
     mocks.deleteTimelineEvent.mockReturnValueOnce(
       new Promise<void>((resolve) => {
@@ -203,9 +203,11 @@ describe("timeline detail refresh", () => {
       </Wrapper>,
     );
 
-    await user.click(screen.getByRole("button", { name: "完全削除" }));
+    await user.click(screen.getByRole("button", { name: "ゴミ箱へ移動" }));
     expect(
-      screen.getByRole("status", { name: "イベントを削除しています" }),
+      screen.getByRole("status", {
+        name: "イベントをゴミ箱へ移動しています",
+      }),
     ).toBeVisible();
     expect(mocks.replace).not.toHaveBeenCalled();
 
