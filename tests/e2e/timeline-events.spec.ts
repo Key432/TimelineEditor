@@ -89,6 +89,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   const { item } = (await itemResponse.json()) as { item: { id: string } };
 
   await page.goto(`/projects/${project.id}/timeline`);
+  await page.getByRole("button", { name: "タイムライン操作を開く" }).click();
   await page.getByRole("button", { name: "アイテムを追加" }).click();
   await page.getByRole("menuitem", { name: "イベントを追加" }).click();
   const sideForm = page.getByRole("form", { name: "イベントアイテム作成" });
@@ -177,14 +178,65 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await expect(detailDialog).toContainText("代表作刊行");
   await expect(detailDialog.getByText("親人物", { exact: true })).toBeVisible();
   const eventId = page.url().split("/").at(-1)!;
+  const initialDialogWidth = (await detailDialog.boundingBox())!.width;
+  const [optionsBox, fullscreenBox] = await Promise.all([
+    detailDialog.getByRole("button", { name: "詳細オプション" }).boundingBox(),
+    detailDialog.getByRole("button", { name: "全画面で表示" }).boundingBox(),
+  ]);
+  expect(optionsBox).not.toBeNull();
+  expect(fullscreenBox).not.toBeNull();
+  expect(optionsBox!.y).toBe(fullscreenBox!.y);
+  await detailDialog.getByRole("button", { name: "詳細オプション" }).click();
+  await page
+    .getByRole("menuitemradio", {
+      name: "ワイド（左右の余白を縮小）",
+    })
+    .click();
+  await expect(detailDialog.locator("[data-detail-width]")).toHaveAttribute(
+    "data-detail-width",
+    "wide",
+  );
+  await expect
+    .poll(async () => (await detailDialog.boundingBox())!.width)
+    .toBeGreaterThan(initialDialogWidth);
 
   await detailDialog.getByRole("button", { name: "全画面で表示" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "代表作刊行" })).toBeVisible();
+  const fullPageDetail = page.locator("main [data-detail-width]");
+  await expect(fullPageDetail).toHaveAttribute("data-detail-width", "wide");
+  const wideWidth = (await fullPageDetail.boundingBox())!.width;
+  const maximizeOption = page.getByRole("menuitemradio", {
+    name: "最大化",
+  });
+  await expect(async () => {
+    await page.getByRole("button", { name: "詳細オプション" }).click();
+    await expect(maximizeOption).toBeVisible({ timeout: 1_000 });
+  }).toPass();
+  await maximizeOption.click();
+  await expect(fullPageDetail).toHaveAttribute(
+    "data-detail-width",
+    "maximized",
+  );
+  await expect
+    .poll(async () => (await fullPageDetail.boundingBox())!.width)
+    .toBeGreaterThan(wideWidth);
   await page.goto(`/projects/${project.id}/timeline`);
   await marker.click();
 
-  await detailDialog.getByRole("link", { name: "編集" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/projects/${project.id}/events/${eventId}$`),
+  );
+  const detailUrl = page.url();
+  await expect(detailDialog.locator("[data-detail-width]")).toHaveAttribute(
+    "data-detail-width",
+    "maximized",
+  );
+  await detailDialog.getByRole("button", { name: "詳細オプション" }).click();
+  await page.getByRole("menuitemradio", { name: "通常" }).click();
+  await detailDialog.getByRole("button", { name: "詳細オプション" }).click();
+  await page.getByRole("menuitem", { name: "編集" }).click();
+  await expect(page).toHaveURL(detailUrl);
   const overlayEditForm = page
     .getByRole("dialog")
     .getByRole("form", { name: "イベントアイテム編集" });
@@ -195,29 +247,16 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   ]);
   expect(dialogBox).not.toBeNull();
   expect(formBox).not.toBeNull();
+  expect(dialogBox!.width).toBeLessThanOrEqual(770);
   expect(formBox!.x - dialogBox!.x).toBeGreaterThanOrEqual(24);
 
   await overlayEditForm.getByLabel("本文").fill("更新後イベント本文");
   await overlayEditForm.getByRole("button", { name: "変更を保存" }).click();
-  await expect(
-    overlayEditForm.getByRole("button", { name: "変更を保存" }),
-  ).toBeEnabled();
-  await page.goBack();
   await expect(page.getByRole("dialog")).toContainText("代表作刊行");
   await expect(page.getByRole("dialog")).toContainText("更新後イベント本文");
   await page.goBack();
   await expect(page).toHaveURL(`/projects/${project.id}/timeline`);
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await marker.dblclick();
-  await expect(page).toHaveURL(
-    `/projects/${project.id}/events/${eventId}/edit`,
-  );
-  await expect(
-    page
-      .getByRole("dialog")
-      .getByRole("form", { name: "イベントアイテム編集" }),
-  ).toBeVisible();
-
   await page.goto(`/projects/${project.id}/events/${eventId}`);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "代表作刊行" })).toBeVisible();

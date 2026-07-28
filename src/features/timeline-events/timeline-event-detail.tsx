@@ -1,8 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Trash2 } from "lucide-react";
-import Link from "next/link";
+import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -138,14 +137,6 @@ export function TimelineEventDetail({
         ) : null}
         {!readOnly ? (
           <div className="flex flex-wrap gap-2 border-t pt-6">
-            <Button asChild>
-              <Link
-                href={`/projects/${projectId}/events/${currentEvent.id}/edit`}
-              >
-                <Pencil className="size-4" aria-hidden="true" />
-                編集
-              </Link>
-            </Button>
             <Button
               variant="destructive"
               disabled={deletion.isPending}

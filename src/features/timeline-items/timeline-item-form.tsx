@@ -9,13 +9,12 @@ import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import type { TimelineItemType } from "@/features/item-types/types";
 import { timelineEventKeys } from "@/features/timeline-events/api";
 import { TimelineEventDraftEditor } from "@/features/timeline-events/timeline-event-draft-editor";
 import type { TimelineEventDraftValues } from "@/features/timeline-events/validation";
 import { ApproximateDateCheckbox } from "@/features/timeline-items/approximate-date-checkbox";
+import { EntityContentFields } from "@/features/timeline-items/entity-content-fields";
 import { HistoricalDateFields } from "@/features/timeline-items/historical-date-fields";
 import { formatHistoricalDate } from "@/features/timeline-items/historical-date";
 import {
@@ -539,47 +538,13 @@ export function TimelineItemForm({
         </section>
       ) : null}
 
-      <Separator className="my-7" />
-      <div className="space-y-8">
-        <div className="space-y-2">
-          <Label htmlFor={`${formId}-description`}>本文</Label>
-          <Textarea
-            id={`${formId}-description`}
-            className="min-h-44 resize-y border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-            placeholder="本文を入力…"
-            rows={8}
-            {...register("description")}
-          />
-        </div>
-        <Separator />
-        <div className="space-y-2">
-          <Label htmlFor={`${formId}-source`}>出典・参考文献</Label>
-          <Textarea
-            id={`${formId}-source`}
-            className="min-h-28 resize-y border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-            placeholder="出典や参考文献を入力…"
-            rows={5}
-            {...register("sourceText")}
-          />
-        </div>
-        <Separator />
-        <div className="space-y-2">
-          <Label htmlFor={`${formId}-url`}>外部URL</Label>
-          <Input
-            id={`${formId}-url`}
-            className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-            inputMode="url"
-            placeholder="https://example.com"
-            type="url"
-            {...register("externalUrl")}
-          />
-          {errors.externalUrl ? (
-            <p className="text-sm text-destructive">
-              {errors.externalUrl.message}
-            </p>
-          ) : null}
-        </div>
-      </div>
+      <EntityContentFields
+        description={register("description")}
+        externalUrl={register("externalUrl")}
+        externalUrlError={errors.externalUrl}
+        idPrefix={formId}
+        sourceText={register("sourceText")}
+      />
 
       {isDirty && !mutation.isPending ? (
         <p className="text-xs text-muted-foreground">

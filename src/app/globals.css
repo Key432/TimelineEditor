@@ -49,6 +49,15 @@
 }
 
 @layer utilities {
+  .detail-font-gothic {
+    font-family: "Yu Gothic UI", "Yu Gothic", Meiryo, system-ui, sans-serif;
+  }
+
+  .detail-font-mincho {
+    font-family:
+      "Yu Mincho", "Hiragino Mincho ProN", "Hiragino Mincho Pro", serif;
+  }
+
   .styled-scrollbar {
     scrollbar-color: color-mix(in srgb, var(--primary) 55%, transparent)
       transparent;

@@ -79,7 +79,7 @@ UIだけ、APIだけ、DBだけを未接続のまま完成扱いにしない。
 2. 修正前にそのテストが失敗することを確認する
 3. 実装修正
 4. 対象テスト成功を確認する
-5. 全検証を実行する
+5. 更新箇所に対応するテストを実行する
 
 ### 4.3 禁止事項
 
@@ -112,7 +112,9 @@ UIだけ、APIだけ、DBだけを未接続のまま完成扱いにしない。
 - `fix: `、`feat: `、`docs: `、`refactor: `、`chore: ` などの接頭辞を付ける。
 - 例: `fix: handle invalid project name`、`docs: add branching strategy guidance`
 
-コミット前に必ず以下を実行する。
+作業中とコミット直前は、更新箇所に対応するテスト、型検査、Lint等を必要な範囲で実行する。
+
+Git hookが `pnpm verify:commit` を実行する場合、コミット直前に同じ全検証を手動で重複実行しない。コミット操作時のhookで、必ず以下を実行する。
 
 ```bash
 pnpm verify:commit
@@ -131,12 +133,14 @@ pnpm test:migrations
 pnpm build
 ```
 
-失敗した場合：
+Git hookが利用できない環境では、コミット前に `pnpm verify:commit` を手動実行する。
+
+コミット時の検証に失敗した場合：
 
 1. 原因を調査
 2. 実装またはテストを修正
 3. 対象検証を実行
-4. 最後に `pnpm verify:commit` を最初から再実行
+4. コミットを再実行し、Git hookの `pnpm verify:commit` を最初から通す
 
 すべて成功するまでコミットしてはならない。
 

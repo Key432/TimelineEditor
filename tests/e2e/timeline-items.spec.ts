@@ -17,7 +17,11 @@ const admin = createClient(url, serviceRoleKey, {
 });
 
 async function chooseDensity(page: Page, name: "標準" | "高密度") {
-  await page.getByRole("button", { name: "表示密度設定" }).click();
+  const settings = page.getByRole("button", { name: "表示密度設定" });
+  if (!(await settings.isVisible())) {
+    await page.getByRole("button", { name: "タイムライン操作を開く" }).click();
+  }
+  await settings.click();
   await page.getByRole("menuitemradio", { name }).click();
 }
 
@@ -215,10 +219,10 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await page.goto(`/projects/${projectId}/timeline`);
   await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
   await expect(itemDetail.locator("h1")).toHaveText("夏目漱石");
-  await itemDetail.getByRole("link", { name: "編集" }).click();
-  await expect(page).toHaveURL(
-    new RegExp(`/projects/${projectId}/items/[0-9a-f-]+/edit$`),
-  );
+  const detailUrl = page.url();
+  await itemDetail.getByRole("button", { name: "詳細オプション" }).click();
+  await page.getByRole("menuitem", { name: "編集" }).click();
+  await expect(page).toHaveURL(detailUrl);
   await expect(
     page.getByRole("dialog").getByRole("form", {
       name: "タイムラインアイテム編集",
@@ -229,10 +233,6 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     .getByRole("form", { name: "タイムラインアイテム編集" });
   await itemOverlayEditForm.getByLabel("本文").fill("更新後の人物本文");
   await itemOverlayEditForm.getByRole("button", { name: "変更を保存" }).click();
-  await expect(
-    itemOverlayEditForm.getByRole("button", { name: "変更を保存" }),
-  ).toBeEnabled();
-  await page.goBack();
   await expect(page.getByRole("dialog").locator("h1")).toHaveText("夏目漱石");
   await expect(page.getByRole("dialog")).toContainText("更新後の人物本文");
   await page.goBack();
@@ -276,6 +276,7 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(page.getByRole("dialog")).toContainText("タイムラインアイテム");
   await page.goBack();
 
+  await page.getByRole("button", { name: "タイムライン操作を開く" }).click();
   const zoomSlider = page.getByLabel("ズーム段階");
   const viewport = page.getByTestId("timeline-viewport");
   await viewport.dispatchEvent("wheel", {

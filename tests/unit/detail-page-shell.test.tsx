@@ -1,12 +1,11 @@
 import { render, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { DetailPageShell } from "@/features/timeline-items/detail-page-shell";
+import { DetailEditShell } from "@/features/timeline-items/detail-edit-shell";
 
 describe("DetailPageShell", () => {
-  it("keeps search and timeline routes while toggling horizontal margins", async () => {
-    const user = userEvent.setup();
+  it("keeps search and timeline routes while placing detail options on the breadcrumb row", () => {
     const { container } = render(
       <DetailPageShell
         projectId="project-id"
@@ -14,7 +13,13 @@ describe("DetailPageShell", () => {
         returnTo="/search?q=猫"
         title="代表作刊行"
       >
-        <article>詳細</article>
+        <DetailEditShell
+          placement="page"
+          preferenceKey="/projects/project-id/items/item-id"
+          readOnly
+        >
+          <article>詳細</article>
+        </DetailEditShell>
       </DetailPageShell>,
     );
     const view = within(container);
@@ -26,10 +31,11 @@ describe("DetailPageShell", () => {
       view.getByRole("link", { name: "タイムラインを表示" }),
     ).toHaveAttribute("href", "/projects/project-id/timeline");
 
-    const toggle = view.getByRole("button", { name: "左右の余白を縮小" });
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
-    expect(container.firstElementChild).toHaveClass("max-w-[1400px]");
+    expect(view.getByRole("button", { name: "詳細オプション" })).toBeVisible();
+    expect(container.firstElementChild).toHaveClass("relative", "max-w-none");
+    expect(
+      view.queryByRole("button", { name: "左右の余白を縮小" }),
+    ).not.toBeInTheDocument();
   });
 
   it("uses the linked timeline item as the event breadcrumb parent", () => {

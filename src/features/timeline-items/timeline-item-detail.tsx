@@ -1,11 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Pencil } from "lucide-react";
-import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { DeleteTimelineItemDialog } from "@/features/timeline-items/delete-timeline-item-dialog";
 import {
@@ -144,12 +141,6 @@ export function TimelineItemDetail({
       ) : null}
       {!readOnly ? (
         <div className="flex flex-wrap gap-2 border-t pt-6">
-          <Button asChild>
-            <Link href={`/projects/${projectId}/items/${currentItem.id}/edit`}>
-              <Pencil aria-hidden="true" className="size-4" />
-              編集
-            </Link>
-          </Button>
           <DeleteTimelineItemDialog
             childEventCount={events.length}
             closeOverlayAfterDelete={closeOverlayAfterDelete}

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { TimelineItemDetail } from "@/features/timeline-items/timeline-item-detail";
+import { DetailEditShell } from "@/features/timeline-items/detail-edit-shell";
 import { DetailPageShell } from "@/features/timeline-items/detail-page-shell";
 import { ServiceError } from "@/lib/services/errors";
 import { ProjectService } from "@/lib/services/project-service";
@@ -39,17 +40,23 @@ export default async function PublicTimelineItemPage({
       timelineHref={`/public/${publicId}`}
       title={result.detail.item.title}
     >
-      <div className="rounded-xl bg-card ring-1 ring-foreground/10">
-        <TimelineItemDetail
-          eventBasePath={`/public/${publicId}`}
-          events={result.events.filter(
-            (event) => event.timelineItemId === itemId,
-          )}
-          item={result.detail.item}
-          projectId={result.publicProject.id}
-          readOnly
-        />
-      </div>
+      <DetailEditShell
+        placement="page"
+        preferenceKey={`/public/${publicId}/items/${itemId}`}
+        readOnly
+      >
+        <div className="rounded-xl bg-card ring-1 ring-foreground/10">
+          <TimelineItemDetail
+            eventBasePath={`/public/${publicId}`}
+            events={result.events.filter(
+              (event) => event.timelineItemId === itemId,
+            )}
+            item={result.detail.item}
+            projectId={result.publicProject.id}
+            readOnly
+          />
+        </div>
+      </DetailEditShell>
     </DetailPageShell>
   );
 }

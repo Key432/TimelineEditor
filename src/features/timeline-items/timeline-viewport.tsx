@@ -19,6 +19,7 @@ import {
   Minus,
   Pencil,
   Plus,
+  Settings2,
   SlidersHorizontal,
 } from "lucide-react";
 import {
@@ -797,6 +798,8 @@ export function TimelineViewport({
     endOrdinal: number;
   } | null>(null);
   const [timeSlicerVisible, setTimeSlicerVisible] = useState(false);
+  const [floatingControlsExpanded, setFloatingControlsExpanded] =
+    useState(false);
   const zoomLevel = useTimelineStore((state) => state.zoomLevel);
   const setZoomLevel = useTimelineStore((state) => state.setZoomLevel);
   const scrollLeft = useTimelineStore((state) => state.scrollLeft);
@@ -1730,88 +1733,110 @@ export function TimelineViewport({
               }px)`,
             }}
           >
-            <div
-              className="pointer-events-auto flex max-w-full flex-wrap items-center justify-end gap-1 rounded-lg border bg-card/95 p-1.5 shadow-lg backdrop-blur-sm"
-              data-testid="timeline-floating-controls"
+            <Button
+              aria-expanded={floatingControlsExpanded}
+              aria-label={
+                floatingControlsExpanded
+                  ? "タイムライン操作を閉じる"
+                  : "タイムライン操作を開く"
+              }
+              className="pointer-events-auto size-11 rounded-full border bg-card shadow-lg"
+              size="icon"
+              type="button"
+              variant="outline"
+              onClick={() =>
+                setFloatingControlsExpanded((expanded) => !expanded)
+              }
             >
-              <div className="flex h-8 items-center gap-1 rounded-md bg-muted/70 p-1">
-                <Button
-                  aria-label="縮小"
-                  className="size-6"
-                  disabled={zoomLevel === 0}
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={() => changeZoom(zoomLevel - 1)}
-                >
-                  <Minus aria-hidden="true" className="size-3.5" />
+              <Settings2 aria-hidden="true" />
+            </Button>
+            {floatingControlsExpanded ? (
+              <div
+                className="pointer-events-auto flex max-w-full flex-wrap items-center justify-end gap-1 rounded-lg border bg-card/95 p-1.5 shadow-lg backdrop-blur-sm"
+                data-testid="timeline-floating-controls"
+              >
+                <div className="flex h-8 items-center gap-1 rounded-md bg-muted/70 p-1">
+                  <Button
+                    aria-label="縮小"
+                    className="size-6"
+                    disabled={zoomLevel === 0}
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={() => changeZoom(zoomLevel - 1)}
+                  >
+                    <Minus aria-hidden="true" className="size-3.5" />
+                  </Button>
+                  <input
+                    aria-label="ズーム段階"
+                    className="w-20 accent-primary sm:w-28"
+                    max={ZOOM_LABELS.length - 1}
+                    min={0}
+                    step={1}
+                    type="range"
+                    value={zoomLevel}
+                    onChange={(event) => changeZoom(Number(event.target.value))}
+                  />
+                  <Button
+                    aria-label="拡大"
+                    className="size-6"
+                    disabled={zoomLevel === ZOOM_LABELS.length - 1}
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={() => changeZoom(zoomLevel + 1)}
+                  >
+                    <Plus aria-hidden="true" className="size-3.5" />
+                  </Button>
+                </div>
+                {zoomLevel > 0 ? (
+                  <Badge className="min-w-14 justify-center" variant="outline">
+                    {ZOOM_LABELS[zoomLevel]}
+                  </Badge>
+                ) : null}
+                <Button size="sm" variant="outline" onClick={fitRange}>
+                  <Maximize2 aria-hidden="true" className="size-4" />
+                  全体に合わせる
                 </Button>
-                <input
-                  aria-label="ズーム段階"
-                  className="w-20 accent-primary sm:w-28"
-                  max={ZOOM_LABELS.length - 1}
-                  min={0}
-                  step={1}
-                  type="range"
-                  value={zoomLevel}
-                  onChange={(event) => changeZoom(Number(event.target.value))}
-                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button aria-label="表示密度設定" size="sm" variant="ghost">
+                      <SlidersHorizontal
+                        aria-hidden="true"
+                        className="size-4"
+                      />
+                      {density === "comfortable" ? "標準" : "高密度"}
+                      <ChevronDown aria-hidden="true" className="size-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-40">
+                    <DropdownMenuLabel>表示密度</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={density}
+                      onValueChange={(value) =>
+                        setDensity(value as "compact" | "comfortable")
+                      }
+                    >
+                      <DropdownMenuRadioItem value="comfortable">
+                        標準
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="compact">
+                        高密度
+                      </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
-                  aria-label="拡大"
-                  className="size-6"
-                  disabled={zoomLevel === ZOOM_LABELS.length - 1}
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={() => changeZoom(zoomLevel + 1)}
+                  aria-label="期間強調表示"
+                  aria-pressed={timeSlicerVisible}
+                  size="sm"
+                  variant={timeSlicerVisible ? "secondary" : "ghost"}
+                  onClick={() => setTimeSlicerVisible((visible) => !visible)}
                 >
-                  <Plus aria-hidden="true" className="size-3.5" />
+                  <Clock3 aria-hidden="true" className="size-4" />
+                  期間強調
                 </Button>
               </div>
-              {zoomLevel > 0 ? (
-                <Badge className="min-w-14 justify-center" variant="outline">
-                  {ZOOM_LABELS[zoomLevel]}
-                </Badge>
-              ) : null}
-              <Button size="sm" variant="outline" onClick={fitRange}>
-                <Maximize2 aria-hidden="true" className="size-4" />
-                全体に合わせる
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button aria-label="表示密度設定" size="sm" variant="ghost">
-                    <SlidersHorizontal aria-hidden="true" className="size-4" />
-                    {density === "comfortable" ? "標準" : "高密度"}
-                    <ChevronDown aria-hidden="true" className="size-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-40">
-                  <DropdownMenuLabel>表示密度</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={density}
-                    onValueChange={(value) =>
-                      setDensity(value as "compact" | "comfortable")
-                    }
-                  >
-                    <DropdownMenuRadioItem value="comfortable">
-                      標準
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="compact">
-                      高密度
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button
-                aria-label="期間強調表示"
-                aria-pressed={timeSlicerVisible}
-                size="sm"
-                variant={timeSlicerVisible ? "secondary" : "ghost"}
-                onClick={() => setTimeSlicerVisible((visible) => !visible)}
-              >
-                <Clock3 aria-hidden="true" className="size-4" />
-                期間強調
-              </Button>
-            </div>
-            {timeSlicerVisible ? (
+            ) : null}
+            {floatingControlsExpanded && timeSlicerVisible ? (
               <section
                 aria-label="期間強調"
                 className="pointer-events-auto w-full space-y-2 rounded-lg border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm"

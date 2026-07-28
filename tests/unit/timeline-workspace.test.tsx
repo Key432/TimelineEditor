@@ -124,11 +124,50 @@ async function toggleTypeGrouping(user: TestUser) {
 }
 
 async function chooseDensity(user: TestUser, name: "標準" | "高密度") {
+  if (!screen.queryByRole("button", { name: "表示密度設定" })) {
+    await user.click(
+      screen.getByRole("button", { name: "タイムライン操作を開く" }),
+    );
+  }
   await user.click(screen.getByRole("button", { name: "表示密度設定" }));
   await user.click(screen.getByRole("menuitemradio", { name }));
 }
 
+async function openFloatingControls(user: TestUser) {
+  const open = screen.queryByRole("button", {
+    name: "タイムライン操作を開く",
+  });
+  if (open) await user.click(open);
+}
+
 describe("TimelineWorkspace", () => {
+  it("keeps the floating controls collapsed until the round controller is opened", async () => {
+    const user = userEvent.setup();
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 23 }}
+          initialItems={[
+            item("33333333-3333-4333-8333-333333333333", "夏目漱石", "range"),
+          ]}
+          itemTypes={[type]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    const controller = screen.getByRole("button", {
+      name: "タイムライン操作を開く",
+    });
+    expect(controller).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByTestId("timeline-floating-controls")).toBeNull();
+    await user.click(controller);
+    expect(
+      screen.getByRole("button", { name: "タイムライン操作を閉じる" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("timeline-floating-controls")).toBeVisible();
+  });
+
   it("removes editing controls in read-only mode", () => {
     render(
       <QueryProvider>
@@ -730,6 +769,7 @@ describe("TimelineWorkspace", () => {
     const laneIdsBeforeZoom = screen
       .getAllByTestId(/^compact-lane-/)
       .map((lane) => lane.dataset.testid);
+    await openFloatingControls(user);
     await user.click(screen.getByRole("button", { name: "拡大" }));
     expect(
       screen

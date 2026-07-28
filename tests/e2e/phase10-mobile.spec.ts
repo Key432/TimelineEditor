@@ -59,6 +59,7 @@ test("keeps mobile editing available while touch gestures never create an event 
     page.getByText("モバイル編集対象", { exact: true }),
   ).toBeVisible();
 
+  await page.getByRole("button", { name: "タイムライン操作を開く" }).click();
   const zoom = page.getByLabel("ズーム段階");
   await zoom.fill("1");
   const eventSurface = page.locator("[data-timeline-event-parent-id]").first();

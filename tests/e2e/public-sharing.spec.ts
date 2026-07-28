@@ -111,14 +111,38 @@ test("publishes for anonymous viewing and unpublishes immediately", async ({
     anonymousPage.getByRole("button", { name: /アイテムを追加/ }),
   ).toHaveCount(0);
 
-  for (const detailUrl of [
+  const publicDetailUrls = [
     `${publicUrl}/items/${item.id}`,
     `${publicUrl}/events/${event.id}`,
-  ]) {
+  ];
+  for (const [index, detailUrl] of publicDetailUrls.entries()) {
     await anonymousPage.goto(detailUrl);
+    await anonymousPage.getByRole("button", { name: "詳細オプション" }).click();
+    const mincho = anonymousPage.getByRole("menuitemradio", { name: "明朝" });
+    if (index === 0) {
+      await mincho.focus();
+      await anonymousPage.keyboard.press("Enter");
+    } else {
+      await expect(mincho).toHaveAttribute("aria-checked", "false");
+      await expect(
+        anonymousPage.getByRole("menuitemradio", { name: "ゴシック" }),
+      ).toHaveAttribute("aria-checked", "true");
+      await anonymousPage.keyboard.press("Escape");
+    }
+    await expect(
+      anonymousPage.locator(
+        index === 0
+          ? "[data-detail-font='mincho']"
+          : "[data-detail-font='gothic']",
+      ),
+    ).toBeVisible();
     const main = anonymousPage.locator("main");
     await expect(main).toHaveCSS("overflow-y", "auto");
     await main.evaluate((element) => {
+      const spacer = document.createElement("div");
+      spacer.setAttribute("aria-hidden", "true");
+      spacer.style.height = "200vh";
+      element.append(spacer);
       element.scrollTop = element.scrollHeight;
     });
     await expect

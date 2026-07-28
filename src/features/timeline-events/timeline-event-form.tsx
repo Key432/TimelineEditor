@@ -8,8 +8,6 @@ import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import {
   createTimelineEvent,
   timelineEventKeys,
@@ -29,6 +27,7 @@ import type {
 } from "@/features/timeline-items/types";
 import { ApproximateDateCheckbox } from "@/features/timeline-items/approximate-date-checkbox";
 import { HistoricalDateFields } from "@/features/timeline-items/historical-date-fields";
+import { EntityContentFields } from "@/features/timeline-items/entity-content-fields";
 
 export function TimelineEventForm({
   projectId,
@@ -179,41 +178,13 @@ export function TimelineEventForm({
           親項目の期間外です。没後刊行・回顧展などの場合はこのまま保存できます。
         </p>
       ) : null}
-      <Separator className="my-7" />
-      <div className="space-y-8">
-        <div className="space-y-2">
-          <Label htmlFor="event-description">本文</Label>
-          <Textarea
-            id="event-description"
-            className="min-h-44 resize-y border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-            placeholder="本文を入力…"
-            rows={7}
-            {...register("description")}
-          />
-        </div>
-        <Separator />
-        <div className="space-y-2">
-          <Label htmlFor="event-source">出典・参考文献</Label>
-          <Textarea
-            id="event-source"
-            className="min-h-28 resize-y border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-            placeholder="出典や参考文献を入力…"
-            rows={4}
-            {...register("sourceText")}
-          />
-        </div>
-        <Separator />
-        <div className="space-y-2">
-          <Label htmlFor="event-url">外部URL</Label>
-          <Input
-            id="event-url"
-            className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-            placeholder="https://example.com"
-            type="url"
-            {...register("externalUrl")}
-          />
-        </div>
-      </div>
+      <EntityContentFields
+        description={register("description")}
+        externalUrl={register("externalUrl")}
+        externalUrlError={errors.externalUrl}
+        idPrefix="event"
+        sourceText={register("sourceText")}
+      />
       {mutation.error ? (
         <p role="alert" className="text-sm text-destructive">
           {mutation.error.message}

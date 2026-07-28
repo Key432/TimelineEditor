@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 
 const mode = process.argv[2];
+const forwardedArgs = process.argv.slice(3);
 const pnpmCli = process.env.npm_execpath;
 
 if (!pnpmCli) {
@@ -79,12 +80,19 @@ if (
 switch (mode) {
   case "vitest":
     execute(
-      ["exec", "vitest", "run", "--config", "vitest.integration.config.ts"],
+      [
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.integration.config.ts",
+        ...forwardedArgs,
+      ],
       testEnv,
     );
     break;
   case "playwright":
-    execute(["exec", "playwright", "test"], testEnv);
+    execute(["exec", "playwright", "test", ...forwardedArgs], testEnv);
     break;
   case "migrations":
     execute(["exec", "supabase", "db", "reset"], testEnv);
