@@ -190,7 +190,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await detailDialog.getByRole("button", { name: "詳細オプション" }).click();
   await page
     .getByRole("menuitemradio", {
-      name: "ワイド（左右の余白を縮小）",
+      name: "ワイド",
     })
     .click();
   await expect(detailDialog.locator("[data-detail-width]")).toHaveAttribute(
@@ -323,16 +323,16 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
     if (route.request().method() === "DELETE") await deleteGate;
     await route.continue();
   });
-  page.once("dialog", (dialog) => void dialog.accept());
   await page
     .getByRole("dialog")
+    .getByRole("button", { name: "詳細オプション" })
+    .click();
+  await page.getByRole("menuitem", { name: "ゴミ箱へ移動" }).click();
+  await page
+    .getByRole("alertdialog")
     .getByRole("button", { name: "ゴミ箱へ移動" })
     .click();
-  await expect(
-    page.getByRole("status", {
-      name: "イベントをゴミ箱へ移動しています",
-    }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "移動中…" })).toBeDisabled();
   await expect(page).toHaveURL(
     new RegExp(`/projects/${project.id}/events/[0-9a-f-]+$`),
   );

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { MarkdownRenderer } from "@/features/markdown/markdown";
 import { DeleteTimelineItemDialog } from "@/features/timeline-items/delete-timeline-item-dialog";
 import { EntityHistoryDialog } from "@/features/history/entity-history-dialog";
 import {
@@ -29,14 +30,6 @@ function dateLabel(item: TimelineItem) {
         ? `終了時期不明${item.lastConfirmed ? `（最終確認 ${formatHistoricalDate(item.lastConfirmed)}）` : ""}`
         : formatApproximateHistoricalDate(item.end, item.isEndApproximate);
   return `${formatApproximateHistoricalDate(item.start, item.isStartApproximate)} — ${end}`;
-}
-
-function PlainText({ value }: { value: string | null }) {
-  return value ? (
-    <p className="whitespace-pre-wrap">{value}</p>
-  ) : (
-    <p className="text-muted-foreground">—</p>
-  );
 }
 
 function SourceText({ value }: { value: string | null }) {
@@ -119,7 +112,7 @@ export function TimelineItemDetail({
       </header>
       <Separator />
       <section className="min-h-28 text-base leading-7">
-        <PlainText value={currentItem.description} />
+        <MarkdownRenderer value={currentItem.description} />
       </section>
       <Separator />
       <section>
@@ -141,11 +134,12 @@ export function TimelineItemDetail({
         </p>
       ) : null}
       {!readOnly ? (
-        <div className="flex flex-wrap gap-2 border-t pt-6">
+        <>
           <EntityHistoryDialog
             entityId={currentItem.id}
             entityType="timeline_item"
             projectId={projectId}
+            triggerPlacement="detail-options"
           />
           <DeleteTimelineItemDialog
             closeOverlayAfterDelete={closeOverlayAfterDelete}
@@ -153,8 +147,9 @@ export function TimelineItemDetail({
             itemId={currentItem.id}
             projectId={projectId}
             title={currentItem.title}
+            triggerPlacement="detail-options"
           />
-        </div>
+        </>
       ) : null}
     </article>
   );

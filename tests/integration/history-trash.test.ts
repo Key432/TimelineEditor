@@ -163,7 +163,7 @@ describe("Phase L4 history, trash, and RLS", () => {
     expect(restoreHistory.data?.operation).toBe("restore");
   });
 
-  it("creates manual checkpoints and keeps only the newest 20 generations", async () => {
+  it("creates manual checkpoints and keeps only the newest 10 generations", async () => {
     const projectId = await createProject("history generations");
     const itemId = await createItem(projectId, "世代0");
     const checkpoint = await owner.rpc("create_entity_checkpoint", {
@@ -187,9 +187,9 @@ describe("Phase L4 history, trash, and RLS", () => {
       .eq("entity_id", itemId)
       .order("revision", { ascending: false });
     expect(history.error).toBeNull();
-    expect(history.data).toHaveLength(20);
+    expect(history.data).toHaveLength(10);
     expect(history.data?.[0]?.revision).toBe(23);
-    expect(history.data?.at(-1)?.revision).toBe(4);
+    expect(history.data?.at(-1)?.revision).toBe(14);
   });
 
   it("bounds large text history by generation and keeps its serialized delta below one MiB", async () => {
@@ -207,12 +207,12 @@ describe("Phase L4 history, trash, and RLS", () => {
       .select("changes")
       .eq("entity_id", itemId);
     expect(history.error).toBeNull();
-    expect(history.data).toHaveLength(20);
+    expect(history.data).toHaveLength(10);
     const serializedBytes = Buffer.byteLength(
       JSON.stringify(history.data),
       "utf8",
     );
-    expect(serializedBytes).toBeLessThan(1024 * 1024);
+    expect(serializedBytes).toBeLessThan(512 * 1024);
   });
 
   it("trashes and restores an item with its child event without exposing deleted public data", async () => {
@@ -320,34 +320,71 @@ describe("Phase L4 history, trash, and RLS", () => {
   it("permanently removes trash after the retention cleanup threshold", async () => {
     const projectId = await createProject("trash retention cleanup");
     const itemId = await createItem(projectId, "期限切れゴミ箱");
+    const retainedItemId = await createItem(projectId, "保持中ゴミ箱");
     const historyItemId = await createItem(projectId, "期限切れ履歴");
+    const retainedHistoryItemId = await createItem(projectId, "保持中履歴");
     const saved = await owner
       .from("timeline_items")
       .update({ title: "期限切れ履歴の更新版" })
       .eq("id", historyItemId);
     expect(saved.error).toBeNull();
+    const retainedSave = await owner
+      .from("timeline_items")
+      .update({ title: "保持中履歴の更新版" })
+      .eq("id", retainedHistoryItemId);
+    expect(retainedSave.error).toBeNull();
     const trashed = await owner.rpc("trash_timeline_item", {
       p_project_id: projectId,
       p_item_id: itemId,
     });
     expect(trashed.error).toBeNull();
+    const retainedTrash = await owner.rpc("trash_timeline_item", {
+      p_project_id: projectId,
+      p_item_id: retainedItemId,
+    });
+    expect(retainedTrash.error).toBeNull();
+    const now = Date.now();
+    const daysAgo = (days: number) =>
+      new Date(now - days * 24 * 60 * 60 * 1000).toISOString();
     const age = await admin
       .from("timeline_items")
-      .update({ deleted_at: "2026-01-01T00:00:00.000Z" })
+      .update({ deleted_at: daysAgo(6) })
       .eq("id", itemId);
     expect(age.error).toBeNull();
+    const retainTrashAge = await admin
+      .from("timeline_items")
+      .update({ deleted_at: daysAgo(4) })
+      .eq("id", retainedItemId);
+    expect(retainTrashAge.error).toBeNull();
     const ageHistory = await admin
       .from("entity_history")
-      .update({ created_at: "2026-01-01T00:00:00.000Z" })
+      .update({ created_at: daysAgo(11) })
       .eq("entity_id", historyItemId);
     expect(ageHistory.error).toBeNull();
+    const retainHistoryAge = await admin
+      .from("entity_history")
+      .update({ created_at: daysAgo(9) })
+      .eq("entity_id", retainedHistoryItemId);
+    expect(retainHistoryAge.error).toBeNull();
     const cleanup = await admin.rpc("run_timeline_retention_cleanup");
     expect(cleanup.error).toBeNull();
-    const [remainingTrash, remainingHistory] = await Promise.all([
+    const [
+      remainingTrash,
+      retainedTrashRows,
+      remainingHistory,
+      retainedHistory,
+    ] = await Promise.all([
       admin.from("timeline_items").select("id").eq("id", itemId),
+      admin.from("timeline_items").select("id").eq("id", retainedItemId),
       admin.from("entity_history").select("id").eq("entity_id", historyItemId),
+      admin
+        .from("entity_history")
+        .select("id")
+        .eq("entity_id", retainedHistoryItemId),
     ]);
     expect(remainingTrash.data).toEqual([]);
+    expect(retainedTrashRows.data).toEqual([{ id: retainedItemId }]);
     expect(remainingHistory.data).toEqual([]);
+    expect(retainedHistory.data).toHaveLength(1);
   });
 });

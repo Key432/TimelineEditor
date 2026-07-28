@@ -203,7 +203,12 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   );
   const rangeItemId = page.url().split("/").at(-1)!;
   const itemDetail = page.getByRole("dialog");
-  await expect(itemDetail.locator("h1")).toHaveText("夏目漱石");
+  await expect(
+    itemDetail.getByRole("article").getByRole("heading", {
+      level: 1,
+      name: "夏目漱石",
+    }),
+  ).toBeVisible();
   await expect(itemDetail).toContainText("明治・大正期の小説家");
   await expect(itemDetail.getByText("本文", { exact: true })).toHaveCount(0);
   await itemDetail.getByText("イベント 1件").click();
@@ -218,7 +223,12 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(page.getByRole("dialog")).toContainText("ロンドン留学");
   await page.goto(`/projects/${projectId}/timeline`);
   await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
-  await expect(itemDetail.locator("h1")).toHaveText("夏目漱石");
+  await expect(
+    itemDetail.getByRole("article").getByRole("heading", {
+      level: 1,
+      name: "夏目漱石",
+    }),
+  ).toBeVisible();
   const detailUrl = page.url();
   await itemDetail.getByRole("button", { name: "詳細オプション" }).click();
   await page.getByRole("menuitem", { name: "編集" }).click();
@@ -231,11 +241,34 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   const itemOverlayEditForm = page
     .getByRole("dialog")
     .getByRole("form", { name: "タイムラインアイテム編集" });
-  await itemOverlayEditForm.getByLabel("本文").fill("更新後の人物本文");
+  await itemOverlayEditForm
+    .getByLabel("本文")
+    .fill(
+      "# 更新後の人物本文\n\n**強調表示**\n\n> [!NOTE]\n> 即時プレビュー\n\n<script>alert('xss')</script>\n\n![非対応画像](https://example.com/image.png)",
+    );
+  await expect(
+    itemOverlayEditForm.getByRole("region", { name: "Markdownプレビュー" }),
+  ).toContainText("即時プレビュー");
+  await expect(itemOverlayEditForm.locator("script, img")).toHaveCount(0);
   await itemOverlayEditForm.getByRole("button", { name: "変更を保存" }).click();
-  await expect(page.getByRole("dialog").locator("h1")).toHaveText("夏目漱石");
-  await expect(page.getByRole("dialog")).toContainText("更新後の人物本文");
-  await itemDetail.getByRole("button", { name: "変更履歴" }).click();
+  await expect(
+    page.getByRole("dialog").getByRole("article").getByRole("heading", {
+      level: 1,
+      name: "夏目漱石",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("dialog").getByRole("heading", {
+      name: "更新後の人物本文",
+    }),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog").getByText("強調表示")).toHaveCSS(
+    "font-weight",
+    "700",
+  );
+  await expect(page.getByRole("dialog").locator("script, img")).toHaveCount(0);
+  await itemDetail.getByRole("button", { name: "詳細オプション" }).click();
+  await page.getByRole("menuitem", { name: "変更履歴" }).click();
   const historyDialog = page.getByRole("dialog", { name: "変更履歴" });
   await expect(historyDialog.getByText("本文", { exact: true })).toBeVisible();
   await expect(historyDialog.getByText("明治・大正期の小説家")).toBeVisible();
@@ -535,7 +568,9 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     name: "タイムラインアイテム編集",
   });
   await expect(editForm.getByText("詳細編集を開く")).toHaveCount(0);
-  await expect(editForm.getByLabel("本文")).toHaveValue("更新後の人物本文");
+  await expect(editForm.getByLabel("本文")).toHaveValue(
+    "# 更新後の人物本文\n\n**強調表示**\n\n> [!NOTE]\n> 即時プレビュー\n\n<script>alert('xss')</script>\n\n![非対応画像](https://example.com/image.png)",
+  );
   await expect(editForm.getByLabel("出典・参考文献")).toHaveValue(
     "人物事典 第一巻",
   );
@@ -556,7 +591,8 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await hiddenGroup.click();
   await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
   const deleteDetail = page.getByRole("dialog");
-  await deleteDetail.getByRole("button", { name: "ゴミ箱へ移動" }).click();
+  await deleteDetail.getByRole("button", { name: "詳細オプション" }).click();
+  await page.getByRole("menuitem", { name: "ゴミ箱へ移動" }).click();
   await page
     .getByRole("alertdialog")
     .getByRole("button", { name: "ゴミ箱へ移動" })

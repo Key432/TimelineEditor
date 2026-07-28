@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookmarkPlus, History, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +28,7 @@ import { timelineEventKeys } from "@/features/timeline-events/api";
 import { timelineItemKeys } from "@/features/timeline-items/api";
 import type { Json } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
+import { useRegisterDetailOption } from "@/features/timeline-items/detail-options-context";
 
 const FIELD_LABELS: Record<string, string> = {
   title: "タイトル",
@@ -129,12 +130,24 @@ export function EntityHistoryDialog({
   projectId,
   entityType,
   entityId,
+  triggerPlacement = "button",
 }: {
   projectId: string;
   entityType: HistoryEntityType;
   entityId: string;
+  triggerPlacement?: "button" | "detail-options";
 }) {
   const [open, setOpen] = useState(false);
+  const detailOption = useMemo(
+    () => ({
+      id: `history-${entityType}-${entityId}`,
+      label: "変更履歴",
+      icon: History,
+      onSelect: () => setOpen(true),
+    }),
+    [entityId, entityType],
+  );
+  useRegisterDetailOption(detailOption, triggerPlacement === "detail-options");
   const queryClient = useQueryClient();
   const key = historyKeys.entity(projectId, entityType, entityId);
   const history = useQuery({
@@ -169,12 +182,14 @@ export function EntityHistoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline">
-          <History aria-hidden="true" className="size-4" />
-          変更履歴
-        </Button>
-      </DialogTrigger>
+      {triggerPlacement === "detail-options" ? null : (
+        <DialogTrigger asChild>
+          <Button variant="outline">
+            <History aria-hidden="true" className="size-4" />
+            変更履歴
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>変更履歴</DialogTitle>

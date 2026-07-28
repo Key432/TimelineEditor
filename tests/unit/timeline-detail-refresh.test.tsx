@@ -9,6 +9,7 @@ import {
   type getTimelineEvent,
 } from "@/features/timeline-events/api";
 import { TimelineEventDetail } from "@/features/timeline-events/timeline-event-detail";
+import { DetailEditShell } from "@/features/timeline-items/detail-edit-shell";
 import type { TimelineEvent } from "@/features/timeline-events/types";
 import {
   timelineItemKeys,
@@ -190,25 +191,27 @@ describe("timeline detail refresh", () => {
         completeDeletion = resolve;
       }),
     );
-    vi.spyOn(window, "confirm").mockReturnValueOnce(true);
     const { Wrapper } = createWrapper();
     const user = userEvent.setup();
     render(
       <Wrapper>
-        <TimelineEventDetail
-          closeOverlayAfterDelete
-          event={event}
-          projectId={event.projectId}
-        />
+        <DetailEditShell
+          editor={<div>編集</div>}
+          preferenceKey="/projects/project-id/events/event-id"
+        >
+          <TimelineEventDetail
+            closeOverlayAfterDelete
+            event={event}
+            projectId={event.projectId}
+          />
+        </DetailEditShell>
       </Wrapper>,
     );
 
+    await user.click(screen.getByRole("button", { name: "詳細オプション" }));
+    await user.click(screen.getByRole("menuitem", { name: "ゴミ箱へ移動" }));
     await user.click(screen.getByRole("button", { name: "ゴミ箱へ移動" }));
-    expect(
-      screen.getByRole("status", {
-        name: "イベントをゴミ箱へ移動しています",
-      }),
-    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "移動中…" })).toBeDisabled();
     expect(mocks.replace).not.toHaveBeenCalled();
 
     completeDeletion?.();

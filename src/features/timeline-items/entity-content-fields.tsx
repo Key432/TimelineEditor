@@ -4,16 +4,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/features/markdown/markdown";
 
 export function EntityContentFields({
   idPrefix,
   description,
+  descriptionValue,
   sourceText,
   externalUrl,
   externalUrlError,
 }: {
   idPrefix: string;
   description: UseFormRegisterReturn;
+  descriptionValue: string;
   sourceText: UseFormRegisterReturn;
   externalUrl: UseFormRegisterReturn;
   externalUrlError?: FieldError;
@@ -22,16 +25,12 @@ export function EntityContentFields({
     <>
       <Separator className="my-7" />
       <div className="space-y-8">
-        <div className="space-y-2">
-          <Label htmlFor={`${idPrefix}-description`}>本文</Label>
-          <Textarea
-            id={`${idPrefix}-description`}
-            className="min-h-44 resize-y border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-            placeholder="本文を入力…"
-            rows={8}
-            {...description}
-          />
-        </div>
+        <MarkdownEditor
+          id={`${idPrefix}-description`}
+          label="本文"
+          registration={description}
+          value={descriptionValue}
+        />
         <Separator />
         <div className="space-y-2">
           <Label htmlFor={`${idPrefix}-source`}>出典・参考文献</Label>

@@ -14,79 +14,60 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { useRegisterDetailOption } from "@/features/timeline-items/detail-options-context";
-import { timelineEventKeys } from "@/features/timeline-events/api";
 import {
-  deleteTimelineItem,
-  timelineItemKeys,
-} from "@/features/timeline-items/api";
+  deleteTimelineEvent,
+  timelineEventKeys,
+} from "@/features/timeline-events/api";
+import { useRegisterDetailOption } from "@/features/timeline-items/detail-options-context";
+import { timelineItemKeys } from "@/features/timeline-items/api";
 
-export function DeleteTimelineItemDialog({
+export function DeleteTimelineEventDialog({
   projectId,
-  itemId,
+  eventId,
   title,
-  redirectAfterDelete = false,
   closeOverlayAfterDelete = false,
-  triggerPlacement = "button",
 }: {
   projectId: string;
-  itemId: string;
+  eventId: string;
   title: string;
-  redirectAfterDelete?: boolean;
   closeOverlayAfterDelete?: boolean;
-  triggerPlacement?: "button" | "detail-options";
 }) {
   const [open, setOpen] = useState(false);
   const detailOption = useMemo(
     () => ({
-      id: `trash-timeline-item-${itemId}`,
+      id: `trash-timeline-event-${eventId}`,
       label: "ゴミ箱へ移動",
       icon: Trash2,
       variant: "destructive" as const,
       onSelect: () => setOpen(true),
     }),
-    [itemId],
+    [eventId],
   );
-  useRegisterDetailOption(detailOption, triggerPlacement === "detail-options");
+  useRegisterDetailOption(detailOption, true);
   const router = useRouter();
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: () => deleteTimelineItem(projectId, itemId),
+    mutationFn: () => deleteTimelineEvent(projectId, eventId),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: timelineItemKeys.list(projectId),
-          exact: true,
-        }),
         queryClient.invalidateQueries({
           queryKey: timelineEventKeys.list(projectId),
           exact: true,
         }),
+        queryClient.invalidateQueries({
+          queryKey: timelineItemKeys.list(projectId),
+          exact: true,
+        }),
       ]);
       setOpen(false);
-      if (redirectAfterDelete) {
-        if (closeOverlayAfterDelete) {
-          router.back();
-        } else {
-          router.replace(`/projects/${projectId}/timeline`);
-        }
-      }
+      if (closeOverlayAfterDelete) router.back();
+      else router.replace(`/projects/${projectId}/timeline`);
     },
   });
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      {triggerPlacement === "detail-options" ? null : (
-        <AlertDialogTrigger asChild>
-          <Button variant="destructive">
-            <Trash2 aria-hidden="true" className="size-4" />
-            ゴミ箱へ移動
-          </Button>
-        </AlertDialogTrigger>
-      )}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>

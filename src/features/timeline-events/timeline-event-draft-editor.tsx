@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/features/markdown/markdown";
 import { ApproximateDateCheckbox } from "@/features/timeline-items/approximate-date-checkbox";
 import { HistoricalDateFields } from "@/features/timeline-items/historical-date-fields";
 import {
@@ -39,6 +40,7 @@ export function TimelineEventDraftEditor({
     defaultValues: value ?? emptyTimelineEventDraftValues(),
   });
   const date = useWatch({ control, name: "date" });
+  const description = useWatch({ control, name: "description" }) ?? "";
 
   useEffect(
     () => reset(value ?? emptyTimelineEventDraftValues()),
@@ -86,14 +88,13 @@ export function TimelineEventDraftEditor({
           </p>
         ) : null}
       </fieldset>
-      <div className="space-y-2">
-        <Label htmlFor={`${id}-description`}>本文</Label>
-        <Textarea
-          id={`${id}-description`}
-          rows={4}
-          {...register("description")}
-        />
-      </div>
+      <MarkdownEditor
+        id={`${id}-description`}
+        label="本文"
+        registration={register("description")}
+        rows={6}
+        value={description}
+      />
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor={`${id}-source`}>出典・参考文献</Label>

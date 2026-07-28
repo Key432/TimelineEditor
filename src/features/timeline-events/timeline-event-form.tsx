@@ -90,6 +90,7 @@ export function TimelineEventForm({
   });
   const parentId = useWatch({ control, name: "timelineItemId" });
   const date = useWatch({ control, name: "date" });
+  const description = useWatch({ control, name: "description" }) ?? "";
   const parent = rangeItems.find((item) => item.id === parentId);
   const parsedDate = date
     ? {
@@ -180,6 +181,7 @@ export function TimelineEventForm({
       ) : null}
       <EntityContentFields
         description={register("description")}
+        descriptionValue={description}
         externalUrl={register("externalUrl")}
         externalUrlError={errors.externalUrl}
         idPrefix="event"

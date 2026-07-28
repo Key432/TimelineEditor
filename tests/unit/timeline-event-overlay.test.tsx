@@ -82,7 +82,7 @@ describe("TimelineEventOverlay", () => {
     await user.click(options);
     await user.click(
       screen.getByRole("menuitemradio", {
-        name: "ワイド（左右の余白を縮小）",
+        name: "ワイド",
       }),
     );
     expect(screen.getByRole("dialog")).toHaveClass(

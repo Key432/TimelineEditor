@@ -52,7 +52,7 @@ describe("DetailEditShell", () => {
     await user.click(screen.getByRole("button", { name: "詳細オプション" }));
     await user.click(
       screen.getByRole("menuitemradio", {
-        name: "ワイド（左右の余白を縮小）",
+        name: "ワイド",
       }),
     );
     expect(container.firstElementChild).toHaveAttribute(
@@ -77,6 +77,22 @@ describe("DetailEditShell", () => {
       "data-detail-width",
       "maximized",
     );
+  });
+
+  it("keeps edit in the options menu and adds the primary edit action at the page bottom", async () => {
+    const user = userEvent.setup();
+    render(
+      <DetailEditShell
+        editor={<TestEditor />}
+        preferenceKey="/projects/project-id/items/actions-item"
+      >
+        <article>詳細本文</article>
+      </DetailEditShell>,
+    );
+
+    expect(screen.getByRole("button", { name: "編集" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "詳細オプション" }));
+    expect(screen.getByRole("menuitem", { name: "編集" })).toBeVisible();
   });
 
   it("confirms before discarding dirty edits", async () => {
@@ -163,7 +179,7 @@ describe("DetailEditShell", () => {
     await user.click(screen.getByRole("button", { name: "詳細オプション" }));
     await user.click(
       screen.getByRole("menuitemradio", {
-        name: "ワイド（左右の余白を縮小）",
+        name: "ワイド",
       }),
     );
 

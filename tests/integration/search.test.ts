@@ -102,7 +102,7 @@ describe("PGroonga search synchronization and RLS", () => {
         project_id: projectId,
         type_id: itemType.id,
         title: "夏目漱石",
-        description: "明治時代の小説家",
+        description: "# 明治時代の**小説家**",
         source_text: "文学史資料",
         temporal_type: "range",
         manual_order: 0,
@@ -119,12 +119,30 @@ describe("PGroonga search synchronization and RLS", () => {
         project_id: projectId,
         timeline_item_id: item.id,
         title: "代表作刊行",
-        description: "吾輩は猫であるを発表",
+        description:
+          "> [!NOTE]\n> [吾輩は猫である](https://example.com/cat)を発表",
         event_year: 1905,
       })
       .select("id")
       .single();
     if (eventError) throw eventError;
+
+    const indexedMarkdown = await admin
+      .from("search_documents")
+      .select("entity_id, content")
+      .in("entity_id", [item.id, event.id]);
+    expect(indexedMarkdown.error).toBeNull();
+    const itemContent = indexedMarkdown.data?.find(
+      (row) => row.entity_id === item.id,
+    )?.content;
+    const eventContent = indexedMarkdown.data?.find(
+      (row) => row.entity_id === event.id,
+    )?.content;
+    expect(itemContent).toContain("明治時代の 小説家");
+    expect(itemContent).not.toContain("**");
+    expect(eventContent).toContain("吾輩は猫である");
+    expect(eventContent).not.toContain("[!NOTE]");
+    expect(eventContent).not.toContain("https://example.com/cat");
 
     const itemSearch = await owner.rpc("search_global_documents", {
       p_query: "漱石",

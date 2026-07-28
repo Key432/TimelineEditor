@@ -157,6 +157,7 @@ export function TimelineItemForm({
   const endDateStatus = useWatch({ control, name: "endDateStatus" });
   const colorOverride = useWatch({ control, name: "colorOverride" });
   const selectedTypeId = useWatch({ control, name: "typeId" });
+  const description = useWatch({ control, name: "description" }) ?? "";
   const [eventDrafts, setEventDrafts] = useState<TimelineEventDraftValues[]>(
     [],
   );
@@ -540,6 +541,7 @@ export function TimelineItemForm({
 
       <EntityContentFields
         description={register("description")}
+        descriptionValue={description}
         externalUrl={register("externalUrl")}
         externalUrlError={errors.externalUrl}
         idPrefix={formId}
