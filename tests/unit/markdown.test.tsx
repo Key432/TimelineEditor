@@ -133,14 +133,16 @@ describe("MarkdownEditor", () => {
 
     const editor = screen.getByRole("textbox", { name: "本文" });
     expect(editor).toHaveClass(
-      "rounded-lg",
-      "border",
+      "border-0",
       "bg-transparent",
-      "px-2.5",
+      "px-0",
       "py-2",
       "text-base",
       "md:text-sm",
+      "shadow-none",
+      "focus-visible:ring-0",
     );
+    expect(editor).not.toHaveClass("border");
     expect(screen.queryByRole("button", { name: "分割" })).toBeNull();
     expect(
       screen.queryByRole("region", { name: "Markdownプレビュー" }),
@@ -153,15 +155,22 @@ describe("MarkdownEditor", () => {
     expect(screen.queryByRole("textbox", { name: "本文" })).toBeNull();
     const preview = screen.getByRole("region", { name: "Markdownプレビュー" });
     expect(preview).toHaveClass(
-      "rounded-lg",
-      "border",
+      "border-0",
       "bg-transparent",
-      "px-2.5",
+      "px-0",
       "py-2",
       "text-base",
       "md:text-sm",
+      "shadow-none",
     );
+    expect(preview).not.toHaveClass("border");
     expect(screen.getByText("即時").tagName).toBe("STRONG");
+    expect(
+      screen.queryByText(/HTML・画像・埋め込みは表示されません/),
+    ).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Markdown記法ヘルプ" }),
+    ).toHaveAttribute("href", "/help/markdown");
 
     await user.click(screen.getByRole("button", { name: "編集" }));
     expect(screen.getByRole("textbox", { name: "本文" })).toBeVisible();

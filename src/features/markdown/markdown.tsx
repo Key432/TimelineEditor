@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   cloneElement,
   isValidElement,
@@ -250,7 +251,7 @@ export function MarkdownRenderer({
 type EditorMode = "edit" | "preview";
 
 const MARKDOWN_FIELD_CLASS =
-  "min-h-64 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base md:text-sm dark:bg-transparent";
+  "min-h-64 w-full border-0 bg-transparent px-0 py-2 text-base shadow-none focus-visible:ring-0 md:text-sm dark:bg-transparent";
 
 export function MarkdownEditor({
   id,
@@ -272,23 +273,28 @@ export function MarkdownEditor({
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor={id}>{label}</Label>
-        <div
-          aria-label="Markdown表示モード"
-          className="flex gap-1"
-          role="group"
-        >
-          {(["edit", "preview"] as const).map((candidate) => (
-            <Button
-              key={candidate}
-              aria-pressed={mode === candidate}
-              size="sm"
-              type="button"
-              variant={mode === candidate ? "secondary" : "ghost"}
-              onClick={() => setMode(candidate)}
-            >
-              {candidate === "edit" ? "編集" : "プレビュー"}
-            </Button>
-          ))}
+        <div className="flex flex-wrap items-center gap-1">
+          <Button asChild size="sm" variant="link">
+            <Link href="/help/markdown">Markdown記法ヘルプ</Link>
+          </Button>
+          <div
+            aria-label="Markdown表示モード"
+            className="flex gap-1"
+            role="group"
+          >
+            {(["edit", "preview"] as const).map((candidate) => (
+              <Button
+                key={candidate}
+                aria-pressed={mode === candidate}
+                size="sm"
+                type="button"
+                variant={mode === candidate ? "secondary" : "ghost"}
+                onClick={() => setMode(candidate)}
+              >
+                {candidate === "edit" ? "編集" : "プレビュー"}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
       {mode === "edit" ? (
@@ -312,10 +318,6 @@ export function MarkdownEditor({
           />
         </div>
       )}
-      <p className="text-xs text-muted-foreground">
-        HTML・画像・埋め込みは表示されません。外部リンクは http / https
-        のみ利用できます。
-      </p>
     </div>
   );
 }
