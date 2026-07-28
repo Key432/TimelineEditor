@@ -1,7 +1,6 @@
 "use client";
 
 import { TimelineEventSection } from "@/features/timeline-events/timeline-event-section";
-import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import { DeleteTimelineItemDialog } from "@/features/timeline-items/delete-timeline-item-dialog";
 import { TimelineItemForm } from "@/features/timeline-items/timeline-item-form";
 import { useDetailEditorActions } from "@/features/timeline-items/detail-editor-context";
@@ -16,7 +15,6 @@ export function TimelineItemDetailEditor({
   item,
   itemTypes,
   rangeItems,
-  events,
   currentYear,
   closeOverlayAfterDelete = false,
 }: {
@@ -24,7 +22,6 @@ export function TimelineItemDetailEditor({
   item: TimelineItem;
   itemTypes: TimelineItemType[];
   rangeItems: TimelineItemSummary[];
-  events: TimelineEventSummary[];
   currentYear: number;
   closeOverlayAfterDelete?: boolean;
 }) {
@@ -48,7 +45,6 @@ export function TimelineItemDetailEditor({
       ) : null}
       <div className="border-t pt-6">
         <DeleteTimelineItemDialog
-          childEventCount={events.length}
           closeOverlayAfterDelete={closeOverlayAfterDelete}
           redirectAfterDelete
           itemId={item.id}

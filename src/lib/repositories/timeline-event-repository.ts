@@ -150,6 +150,7 @@ export class TimelineEventRepository {
         "id, project_id, timeline_item_id, title, event_year, event_month, event_day, event_era, event_precision, event_original_text, event_calendar, is_approximate, created_at, updated_at",
       )
       .eq("project_id", projectId)
+      .is("deleted_at", null)
       .order("event_year")
       .order("event_month")
       .order("event_day")
@@ -181,6 +182,7 @@ export class TimelineEventRepository {
       .select(DETAIL_COLUMNS)
       .eq("project_id", projectId)
       .eq("id", eventId)
+      .is("deleted_at", null)
       .maybeSingle();
     if (error) throw error;
     return data ? mapEvent(data as unknown as JoinedRow) : null;
@@ -202,6 +204,7 @@ export class TimelineEventRepository {
       .update(persistenceValues(input))
       .eq("project_id", projectId)
       .eq("id", eventId)
+      .is("deleted_at", null)
       .select(DETAIL_COLUMNS)
       .maybeSingle();
     if (error) throw error;
@@ -209,13 +212,11 @@ export class TimelineEventRepository {
   }
 
   async delete(projectId: string, eventId: string) {
-    const { data, error } = await this.client
-      .from("timeline_events")
-      .delete()
-      .eq("project_id", projectId)
-      .eq("id", eventId)
-      .select("id");
+    const { data, error } = await this.client.rpc("trash_timeline_event", {
+      p_project_id: projectId,
+      p_event_id: eventId,
+    });
     if (error) throw error;
-    return data.length === 1;
+    return data;
   }
 }

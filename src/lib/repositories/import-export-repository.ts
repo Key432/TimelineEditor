@@ -48,6 +48,7 @@ export class ImportExportRepository {
         .from("timeline_items")
         .select("*")
         .eq("project_id", projectId)
+        .is("deleted_at", null)
         .order("manual_order")
         .order("id")
         .range(from, from + 999);
@@ -64,6 +65,7 @@ export class ImportExportRepository {
         .from("timeline_events")
         .select("*")
         .eq("project_id", projectId)
+        .is("deleted_at", null)
         .order("event_year")
         .order("event_month")
         .order("event_day")

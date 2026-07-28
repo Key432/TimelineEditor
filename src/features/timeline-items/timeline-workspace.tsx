@@ -160,7 +160,6 @@ function ItemEditor({
   onEditItemTypes,
   allItems,
   currentDate,
-  childEventCount,
 }: {
   projectId: string;
   itemId: string;
@@ -170,7 +169,6 @@ function ItemEditor({
   onEditItemTypes?: () => void;
   allItems: TimelineItemSummary[];
   currentDate: HistoricalDate;
-  childEventCount: number;
 }) {
   const { data: item, error } = useQuery({
     queryKey: timelineItemKeys.detail(projectId, itemId),
@@ -203,7 +201,6 @@ function ItemEditor({
         </p>
       )}
       <DeleteTimelineItemDialog
-        childEventCount={childEventCount}
         itemId={item.id}
         projectId={projectId}
         title={item.title}
@@ -796,10 +793,6 @@ function TimelineWorkspaceContent({
                 <ItemEditor
                   allItems={items}
                   currentDate={currentDate}
-                  childEventCount={
-                    events.filter((event) => event.timelineItemId === editor)
-                      .length
-                  }
                   itemId={editor}
                   itemTypes={currentItemTypes}
                   projectId={project.id}

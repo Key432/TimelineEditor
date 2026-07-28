@@ -54,7 +54,6 @@ export default async function TimelineItemPage({
         editor={
           <TimelineItemDetailEditor
             currentYear={new Date().getUTCFullYear()}
-            events={relatedEvents}
             item={item}
             itemTypes={listing.itemTypes}
             projectId={projectId}

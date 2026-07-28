@@ -27,14 +27,12 @@ export function DeleteTimelineItemDialog({
   projectId,
   itemId,
   title,
-  childEventCount = 0,
   redirectAfterDelete = false,
   closeOverlayAfterDelete = false,
 }: {
   projectId: string;
   itemId: string;
   title: string;
-  childEventCount?: number;
   redirectAfterDelete?: boolean;
   closeOverlayAfterDelete?: boolean;
 }) {
@@ -70,17 +68,16 @@ export function DeleteTimelineItemDialog({
       <AlertDialogTrigger asChild>
         <Button variant="destructive">
           <Trash2 aria-hidden="true" className="size-4" />
-          完全削除
+          ゴミ箱へ移動
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>「{title}」を完全削除しますか？</AlertDialogTitle>
+          <AlertDialogTitle>
+            「{title}」をゴミ箱へ移動しますか？
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            この操作は取り消せません。
-            {childEventCount > 0
-              ? ` 紐づくイベントアイテム${childEventCount}件も完全に削除されます。`
-              : " 紐づくイベントアイテムはありません。"}
+            ゴミ箱から復元できます。
           </AlertDialogDescription>
         </AlertDialogHeader>
         {mutation.error ? (
@@ -99,7 +96,7 @@ export function DeleteTimelineItemDialog({
               mutation.mutate();
             }}
           >
-            {mutation.isPending ? "削除中…" : "完全削除"}
+            {mutation.isPending ? "移動中…" : "ゴミ箱へ移動"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

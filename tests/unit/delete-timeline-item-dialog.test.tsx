@@ -57,10 +57,10 @@ describe("DeleteTimelineItemDialog", () => {
       </QueryClientProvider>,
     );
 
-    await user.click(screen.getByRole("button", { name: "完全削除" }));
+    await user.click(screen.getByRole("button", { name: "ゴミ箱へ移動" }));
     const confirmation = screen.getByRole("alertdialog");
     await user.click(
-      within(confirmation).getByRole("button", { name: "完全削除" }),
+      within(confirmation).getByRole("button", { name: "ゴミ箱へ移動" }),
     );
 
     await waitFor(() => expect(mocks.back).toHaveBeenCalledOnce());

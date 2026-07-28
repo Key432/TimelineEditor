@@ -235,6 +235,16 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await itemOverlayEditForm.getByRole("button", { name: "変更を保存" }).click();
   await expect(page.getByRole("dialog").locator("h1")).toHaveText("夏目漱石");
   await expect(page.getByRole("dialog")).toContainText("更新後の人物本文");
+  await itemDetail.getByRole("button", { name: "変更履歴" }).click();
+  const historyDialog = page.getByRole("dialog", { name: "変更履歴" });
+  await expect(historyDialog.getByText("本文", { exact: true })).toBeVisible();
+  await expect(historyDialog.getByText("明治・大正期の小説家")).toBeVisible();
+  await expect(historyDialog.getByText("更新後の人物本文")).toBeVisible();
+  await historyDialog
+    .getByRole("button", { name: "チェックポイントを作成" })
+    .click();
+  await expect(historyDialog.getByText("手動チェックポイント")).toBeVisible();
+  await historyDialog.getByRole("button", { name: "閉じる" }).click();
   await page.goBack();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
@@ -546,19 +556,33 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await hiddenGroup.click();
   await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
   const deleteDetail = page.getByRole("dialog");
-  await deleteDetail.getByRole("button", { name: "完全削除" }).click();
+  await deleteDetail.getByRole("button", { name: "ゴミ箱へ移動" }).click();
   await page
     .getByRole("alertdialog")
-    .getByRole("button", { name: "完全削除" })
+    .getByRole("button", { name: "ゴミ箱へ移動" })
     .click();
   await expect(page).toHaveURL(
     new RegExp(`/projects/${projectId}/timeline(?:\\?.*)?$`),
   );
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("夏目漱石", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "設定", exact: true }).click();
+  const trashSettings = page.getByRole("dialog", {
+    name: "プロジェクト設定",
+  });
+  const trashEntry = trashSettings
+    .getByRole("listitem")
+    .filter({ hasText: "夏目漱石" });
+  await expect(trashEntry).toBeVisible();
+  await trashEntry.getByRole("button", { name: "復元" }).click();
+  await expect(trashEntry).toBeHidden();
+  await trashSettings.getByRole("button", { name: "閉じる" }).click();
   await page.reload();
   await expect(page.getByLabel(/時点型マーカー/)).toBeVisible();
-  await expect(page.getByText(/目盛り year/)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "非表示にした項目 1件" }),
+  ).toBeVisible();
+  await expect(page.getByText(/目盛り decade/)).toBeVisible();
   expect(hydrationWarnings).toEqual([]);
 });
 

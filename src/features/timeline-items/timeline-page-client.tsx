@@ -37,6 +37,7 @@ import {
 import { TimelineWorkspace } from "@/features/timeline-items/timeline-workspace";
 import { timelineItemKeys } from "@/features/timeline-items/api";
 import { cn } from "@/lib/utils";
+import { TrashManager } from "@/features/history/trash-manager";
 
 type Panel = "settings" | "item-types" | "import-export" | null;
 
@@ -201,6 +202,7 @@ export function TimelinePageClient({
                     onChanged={setActiveProject}
                   />
                 </div>
+                <TrashManager projectId={project.id} />
                 <div className="space-y-3 border-t border-destructive/30 pt-6">
                   <h2 className="font-medium text-destructive">危険な操作</h2>
                   <p className="text-sm text-muted-foreground">

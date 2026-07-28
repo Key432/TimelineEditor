@@ -15,6 +15,7 @@ import {
 } from "@/features/timeline-events/api";
 import type { TimelineEvent } from "@/features/timeline-events/types";
 import { formatApproximateHistoricalDate } from "@/features/timeline-items/historical-date";
+import { EntityHistoryDialog } from "@/features/history/entity-history-dialog";
 
 function DetailText({ value }: { value: string | null }) {
   return value ? (
@@ -89,7 +90,7 @@ export function TimelineEventDetail({
   return (
     <>
       {deletion.isPending ? (
-        <OperationBlockingOverlay message="イベントを削除しています" />
+        <OperationBlockingOverlay message="イベントをゴミ箱へ移動しています" />
       ) : null}
       <article
         className="space-y-8 px-6 py-8 sm:px-10 sm:py-10"
@@ -137,20 +138,25 @@ export function TimelineEventDetail({
         ) : null}
         {!readOnly ? (
           <div className="flex flex-wrap gap-2 border-t pt-6">
+            <EntityHistoryDialog
+              entityId={currentEvent.id}
+              entityType="timeline_event"
+              projectId={projectId}
+            />
             <Button
               variant="destructive"
               disabled={deletion.isPending}
               onClick={() => {
                 if (
                   window.confirm(
-                    `「${currentEvent.title}」を完全に削除しますか？`,
+                    `「${currentEvent.title}」をゴミ箱へ移動しますか？`,
                   )
                 )
                   deletion.mutate();
               }}
             >
               <Trash2 className="size-4" aria-hidden="true" />
-              完全削除
+              ゴミ箱へ移動
             </Button>
           </div>
         ) : null}

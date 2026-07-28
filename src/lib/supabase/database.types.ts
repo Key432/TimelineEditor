@@ -150,6 +150,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      entity_history: {
+        Row: {
+          id: string;
+          project_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          entity_id: string;
+          revision: number;
+          operation_group_id: string;
+          changes: Json;
+          operation: "update" | "restore" | "checkpoint";
+          is_checkpoint: boolean;
+          actor_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          entity_id: string;
+          revision: number;
+          operation_group_id?: string;
+          changes?: Json;
+          operation?: "update" | "restore" | "checkpoint";
+          is_checkpoint?: boolean;
+          actor_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          entity_type?: "timeline_item" | "timeline_event";
+          entity_id?: string;
+          revision?: number;
+          operation_group_id?: string;
+          changes?: Json;
+          operation?: "update" | "restore" | "checkpoint";
+          is_checkpoint?: boolean;
+          actor_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       timeline_events: {
         Row: {
           id: string;
@@ -169,6 +211,9 @@ export type Database = {
           description: string | null;
           source_text: string | null;
           external_url: string | null;
+          deleted_at: string | null;
+          deleted_by: string | null;
+          trash_group_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -188,6 +233,9 @@ export type Database = {
           description?: string | null;
           source_text?: string | null;
           external_url?: string | null;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
+          trash_group_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -207,6 +255,9 @@ export type Database = {
           description?: string | null;
           source_text?: string | null;
           external_url?: string | null;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
+          trash_group_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -249,6 +300,9 @@ export type Database = {
           is_end_approximate: boolean;
           end_uncertainty_years: number | null;
           is_point_approximate: boolean;
+          deleted_at: string | null;
+          deleted_by: string | null;
+          trash_group_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -284,6 +338,9 @@ export type Database = {
           is_end_approximate?: boolean;
           end_uncertainty_years?: number | null;
           is_point_approximate?: boolean;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
+          trash_group_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -319,6 +376,9 @@ export type Database = {
           is_end_approximate?: boolean;
           end_uncertainty_years?: number | null;
           is_point_approximate?: boolean;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
+          trash_group_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -437,6 +497,55 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      create_entity_checkpoint: {
+        Args: {
+          p_project_id: string;
+          p_entity_type: "timeline_item" | "timeline_event";
+          p_entity_id: string;
+        };
+        Returns: Database["public"]["Tables"]["entity_history"]["Row"];
+      };
+      purge_trashed_entity: {
+        Args: {
+          p_project_id: string;
+          p_entity_type: "timeline_item" | "timeline_event";
+          p_entity_id: string;
+        };
+        Returns: boolean;
+      };
+      restore_entity_history: {
+        Args: {
+          p_project_id: string;
+          p_history_id: string;
+        };
+        Returns: boolean;
+      };
+      restore_trashed_entity: {
+        Args: {
+          p_project_id: string;
+          p_entity_type: "timeline_item" | "timeline_event";
+          p_entity_id: string;
+        };
+        Returns: boolean;
+      };
+      run_timeline_retention_cleanup: {
+        Args: never;
+        Returns: undefined;
+      };
+      trash_timeline_event: {
+        Args: {
+          p_project_id: string;
+          p_event_id: string;
+        };
+        Returns: boolean;
+      };
+      trash_timeline_item: {
+        Args: {
+          p_project_id: string;
+          p_item_id: string;
+        };
+        Returns: boolean;
+      };
       import_project_data: {
         Args: {
           p_target_project_id: string | null;

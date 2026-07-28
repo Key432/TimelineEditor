@@ -14,6 +14,7 @@ import {
 import { DeleteProjectDialog } from "@/features/projects/delete-project-dialog";
 import { ProjectForm } from "@/features/projects/project-form";
 import { ProjectSharing } from "@/features/projects/project-sharing";
+import { TrashManager } from "@/features/history/trash-manager";
 import { ServiceError } from "@/lib/services/errors";
 import { ProjectService } from "@/lib/services/project-service";
 import { createClient } from "@/lib/supabase/server";
@@ -107,6 +108,18 @@ export default async function ProjectSettingsPage({
               対象種別を管理
             </Link>
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">ゴミ箱</CardTitle>
+          <CardDescription>
+            削除したタイムラインアイテムとイベントアイテムを管理します。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TrashManager projectId={project.id} />
         </CardContent>
       </Card>
 

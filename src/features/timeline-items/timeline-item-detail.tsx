@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { DeleteTimelineItemDialog } from "@/features/timeline-items/delete-timeline-item-dialog";
+import { EntityHistoryDialog } from "@/features/history/entity-history-dialog";
 import {
   formatApproximateHistoricalDate,
   formatHistoricalDate,
@@ -141,8 +142,12 @@ export function TimelineItemDetail({
       ) : null}
       {!readOnly ? (
         <div className="flex flex-wrap gap-2 border-t pt-6">
+          <EntityHistoryDialog
+            entityId={currentItem.id}
+            entityType="timeline_item"
+            projectId={projectId}
+          />
           <DeleteTimelineItemDialog
-            childEventCount={events.length}
             closeOverlayAfterDelete={closeOverlayAfterDelete}
             redirectAfterDelete
             itemId={currentItem.id}

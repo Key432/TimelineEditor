@@ -41,7 +41,6 @@ export default async function TimelineItemModalPage({
           <TimelineItemDetailEditor
             closeOverlayAfterDelete
             currentYear={new Date().getUTCFullYear()}
-            events={relatedEvents}
             item={item}
             itemTypes={listing.itemTypes}
             projectId={projectId}

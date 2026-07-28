@@ -187,6 +187,7 @@ export class TimelineItemRepository {
       .from("timeline_items")
       .select(LIST_COLUMNS)
       .eq("project_id", projectId)
+      .is("deleted_at", null)
       .order("manual_order")
       .order("id");
     if (error) throw error;
@@ -209,6 +210,7 @@ export class TimelineItemRepository {
       .select("*, timeline_item_types (*)")
       .eq("project_id", projectId)
       .eq("id", itemId)
+      .is("deleted_at", null)
       .maybeSingle();
     if (error) throw error;
     return data ? mapItem(data as unknown as JoinedRow) : null;
@@ -219,6 +221,7 @@ export class TimelineItemRepository {
       .from("timeline_items")
       .select("manual_order")
       .eq("project_id", projectId)
+      .is("deleted_at", null)
       .order("manual_order", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -278,6 +281,7 @@ export class TimelineItemRepository {
       .update(persistenceValues(input))
       .eq("project_id", projectId)
       .eq("id", itemId)
+      .is("deleted_at", null)
       .select("*, timeline_item_types (*)")
       .maybeSingle();
     if (error) throw error;
@@ -300,13 +304,11 @@ export class TimelineItemRepository {
   }
 
   async delete(projectId: string, itemId: string) {
-    const { data, error } = await this.client
-      .from("timeline_items")
-      .delete()
-      .eq("project_id", projectId)
-      .eq("id", itemId)
-      .select("id");
+    const { data, error } = await this.client.rpc("trash_timeline_item", {
+      p_project_id: projectId,
+      p_item_id: itemId,
+    });
     if (error) throw error;
-    return data.length === 1;
+    return data;
   }
 }
