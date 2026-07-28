@@ -1,4 +1,5 @@
 import type { HistoricalDate } from "@/features/timeline-items/types";
+import type { SourceCitation } from "@/features/sources/types";
 
 export type TimelineEventParent = {
   id: string;
@@ -19,6 +20,7 @@ export type TimelineEvent = {
   isApproximate: boolean;
   description: string | null;
   sourceText: string | null;
+  citations?: SourceCitation[];
   externalUrl: string | null;
   parent: TimelineEventParent;
   createdAt: string;

@@ -18,6 +18,7 @@ import {
   timelineItemKeys,
 } from "@/features/timeline-items/api";
 import type { TimelineItem } from "@/features/timeline-items/types";
+import { SourceDisplay } from "@/features/sources/source-display";
 
 function dateLabel(item: TimelineItem) {
   if (item.temporalType === "point") {
@@ -30,35 +31,6 @@ function dateLabel(item: TimelineItem) {
         ? `終了時期不明${item.lastConfirmed ? `（最終確認 ${formatHistoricalDate(item.lastConfirmed)}）` : ""}`
         : formatApproximateHistoricalDate(item.end, item.isEndApproximate);
   return `${formatApproximateHistoricalDate(item.start, item.isStartApproximate)} — ${end}`;
-}
-
-function SourceText({ value }: { value: string | null }) {
-  if (!value) return <p className="text-muted-foreground">—</p>;
-  return (
-    <p className="whitespace-pre-wrap">
-      {value.split(/(https?:\/\/[^\s]+)/g).map((part, index) => {
-        if (!part.startsWith("http://") && !part.startsWith("https://")) {
-          return part;
-        }
-        try {
-          const url = new URL(part);
-          return (
-            <a
-              key={`${url.href}-${index}`}
-              className="text-primary underline underline-offset-4"
-              href={url.href}
-              rel="noreferrer"
-              target="_blank"
-            >
-              {part}
-            </a>
-          );
-        } catch {
-          return part;
-        }
-      })}
-    </p>
-  );
 }
 
 export function TimelineItemDetail({
@@ -119,6 +91,7 @@ export function TimelineItemDetail({
       <Separator />
       <section className="min-h-28 text-base leading-7">
         <MarkdownRenderer
+          citations={currentItem.citations}
           internalLinkBasePath={internalLinkBasePath}
           projectId={projectId}
           value={currentItem.description}
@@ -129,7 +102,12 @@ export function TimelineItemDetail({
         <h2 className="mb-3 text-sm font-medium text-muted-foreground">
           出典・参考文献
         </h2>
-        <SourceText value={currentItem.sourceText} />
+        <SourceDisplay
+          citations={currentItem.citations}
+          projectId={projectId}
+          readOnly={readOnly}
+          sourceText={currentItem.sourceText}
+        />
       </section>
       {currentItem.externalUrl ? (
         <p>

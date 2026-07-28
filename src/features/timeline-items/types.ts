@@ -1,4 +1,5 @@
 import type { TimelineItemType } from "@/features/item-types/types";
+import type { SourceCitation } from "@/features/sources/types";
 
 export const TEMPORAL_TYPES = ["range", "point"] as const;
 export type TemporalType = (typeof TEMPORAL_TYPES)[number];
@@ -54,6 +55,7 @@ export type TimelineItem = {
   aliases: string[];
   description: string | null;
   sourceText: string | null;
+  citations?: SourceCitation[];
   externalUrl: string | null;
   temporalType: TemporalType;
   colorOverride: string | null;

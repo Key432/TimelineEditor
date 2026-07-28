@@ -7,6 +7,7 @@ import type {
 } from "@/features/timeline-events/types";
 import type { TimelineEventValues } from "@/features/timeline-events/validation";
 import type { Database } from "@/lib/supabase/database.types";
+import { SourceRepository } from "@/lib/repositories/source-repository";
 
 type Client = SupabaseClient<Database>;
 type EventRow = Database["public"]["Tables"]["timeline_events"]["Row"];
@@ -143,7 +144,11 @@ const DETAIL_COLUMNS = `
 `;
 
 export class TimelineEventRepository {
-  constructor(private readonly client: Client) {}
+  private readonly sources: SourceRepository;
+
+  constructor(private readonly client: Client) {
+    this.sources = new SourceRepository(client);
+  }
 
   async list(projectId: string): Promise<TimelineEventSummary[]> {
     const { data, error } = await this.client
@@ -187,7 +192,15 @@ export class TimelineEventRepository {
       .is("deleted_at", null)
       .maybeSingle();
     if (error) throw error;
-    return data ? mapEvent(data as unknown as JoinedRow) : null;
+    if (!data) return null;
+    return {
+      ...mapEvent(data as unknown as JoinedRow),
+      citations: await this.sources.listForEntity(
+        projectId,
+        "timeline_event",
+        eventId,
+      ),
+    };
   }
 
   async create(projectId: string, input: TimelineEventValues) {
@@ -197,7 +210,21 @@ export class TimelineEventRepository {
       .select(DETAIL_COLUMNS)
       .single();
     if (error) throw error;
-    return mapEvent(data as unknown as JoinedRow);
+    const event = mapEvent(data as unknown as JoinedRow);
+    await this.sources.replaceForEntity(
+      projectId,
+      "timeline_event",
+      event.id,
+      input.citations,
+    );
+    return {
+      ...event,
+      citations: await this.sources.listForEntity(
+        projectId,
+        "timeline_event",
+        event.id,
+      ),
+    };
   }
 
   async update(projectId: string, eventId: string, input: TimelineEventValues) {
@@ -210,7 +237,21 @@ export class TimelineEventRepository {
       .select(DETAIL_COLUMNS)
       .maybeSingle();
     if (error) throw error;
-    return data ? mapEvent(data as unknown as JoinedRow) : null;
+    if (!data) return null;
+    await this.sources.replaceForEntity(
+      projectId,
+      "timeline_event",
+      eventId,
+      input.citations,
+    );
+    return {
+      ...mapEvent(data as unknown as JoinedRow),
+      citations: await this.sources.listForEntity(
+        projectId,
+        "timeline_event",
+        eventId,
+      ),
+    };
   }
 
   async delete(projectId: string, eventId: string) {

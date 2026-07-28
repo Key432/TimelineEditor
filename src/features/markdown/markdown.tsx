@@ -29,6 +29,7 @@ import {
   renderInternalLinks,
 } from "@/features/internal-links/markdown";
 import type { InternalLinkCandidate } from "@/features/internal-links/types";
+import type { SourceCitation } from "@/features/sources/types";
 import { cn } from "@/lib/utils";
 
 const ALLOWED_ELEMENTS = [
@@ -130,6 +131,13 @@ function safeExternalUrl(href: string | undefined) {
 
 const COMPONENTS: Components = {
   a({ children, href }) {
+    if (href?.startsWith("#")) {
+      return (
+        <a className="text-primary underline underline-offset-4" href={href}>
+          {children}
+        </a>
+      );
+    }
     if (href?.startsWith("/") && !href.startsWith("//")) {
       return (
         <Link className="text-primary underline underline-offset-4" href={href}>
@@ -236,6 +244,7 @@ const COMPONENTS: Components = {
 };
 
 function safeUrlTransform(url: string) {
+  if (url.startsWith("#")) return url;
   if (url.startsWith("/") && !url.startsWith("//")) return url;
   return safeExternalUrl(url) ?? "";
 }
@@ -246,12 +255,14 @@ export function MarkdownRenderer({
   className,
   projectId,
   internalLinkBasePath,
+  citations = [],
 }: {
   value: string | null;
   emptyLabel?: string;
   className?: string;
   projectId?: string;
   internalLinkBasePath?: string;
+  citations?: SourceCitation[];
 }) {
   const [resolvedLinks, setResolvedLinks] = useState<{
     key: string;
@@ -304,6 +315,18 @@ export function MarkdownRenderer({
       </div>
     );
   }
+  const linkedValue =
+    projectId && citations.length
+      ? citations.reduce((content, citation) => {
+          const key = citation.source.citationKey;
+          if (!key) return content;
+          const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          return content.replace(
+            new RegExp(`\\[@${escaped}\\]`, "g"),
+            `[${key}](${internalLinkBasePath?.startsWith("/public/") ? "" : `/projects/${projectId}/sources`}#source-${citation.sourceId})`,
+          );
+        }, value)
+      : value;
   return (
     <div className={cn("markdown-body min-w-0", className)}>
       <ReactMarkdown
@@ -317,11 +340,11 @@ export function MarkdownRenderer({
       >
         {projectId && resolvedLinks.key === resolutionKey
           ? renderInternalLinks(
-              value,
+              linkedValue,
               resolvedLinks.targets,
               internalLinkBasePath ?? `/projects/${projectId}`,
             )
-          : value}
+          : linkedValue}
       </ReactMarkdown>
     </div>
   );

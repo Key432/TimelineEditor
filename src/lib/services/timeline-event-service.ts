@@ -4,6 +4,7 @@ import { z } from "zod";
 import { timelineEventSchema } from "@/features/timeline-events/validation";
 import { TimelineEventRepository } from "@/lib/repositories/timeline-event-repository";
 import { TimelineItemRepository } from "@/lib/repositories/timeline-item-repository";
+import { SourceRepository } from "@/lib/repositories/source-repository";
 import { ServiceError } from "@/lib/services/errors";
 import { ProjectService } from "@/lib/services/project-service";
 import type { Database } from "@/lib/supabase/database.types";
@@ -21,11 +22,23 @@ export class TimelineEventService {
   private readonly repository: TimelineEventRepository;
   private readonly items: TimelineItemRepository;
   private readonly projects: ProjectService;
+  private readonly sources: SourceRepository;
 
   constructor(client: SupabaseClient<Database>) {
     this.repository = new TimelineEventRepository(client);
     this.items = new TimelineItemRepository(client);
     this.projects = new ProjectService(client);
+    this.sources = new SourceRepository(client);
+  }
+
+  private async requireSources(projectId: string, sourceIds: string[]) {
+    if (!(await this.sources.allBelongToProject(projectId, sourceIds))) {
+      throw new ServiceError(
+        "選択した資料が見つかりません。",
+        400,
+        "SOURCE_NOT_FOUND",
+      );
+    }
   }
 
   private parseEventId(eventId: string) {
@@ -84,6 +97,10 @@ export class TimelineEventService {
     const result = timelineEventSchema.safeParse(input);
     if (!result.success) throw validationError(result.error);
     await this.requireRangeParent(project.id, result.data.timelineItemId);
+    await this.requireSources(
+      project.id,
+      result.data.citations.map((citation) => citation.sourceId),
+    );
     return this.repository.create(project.id, result.data);
   }
 
@@ -92,6 +109,10 @@ export class TimelineEventService {
     const result = timelineEventSchema.safeParse(input);
     if (!result.success) throw validationError(result.error);
     await this.requireRangeParent(project.id, result.data.timelineItemId);
+    await this.requireSources(
+      project.id,
+      result.data.citations.map((citation) => citation.sourceId),
+    );
     const hasPreviousTitle = result.data.aliases.some(
       (alias) =>
         alias.localeCompare(currentEvent.title, "ja", {

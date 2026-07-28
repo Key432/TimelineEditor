@@ -12,6 +12,7 @@ import {
 } from "@/features/timeline-items/validation";
 import { ItemTypeRepository } from "@/lib/repositories/item-type-repository";
 import { TimelineItemRepository } from "@/lib/repositories/timeline-item-repository";
+import { SourceRepository } from "@/lib/repositories/source-repository";
 import { ServiceError } from "@/lib/services/errors";
 import { ProjectService } from "@/lib/services/project-service";
 import type { Database } from "@/lib/supabase/database.types";
@@ -29,11 +30,23 @@ export class TimelineItemService {
   private readonly repository: TimelineItemRepository;
   private readonly itemTypes: ItemTypeRepository;
   private readonly projects: ProjectService;
+  private readonly sources: SourceRepository;
 
   constructor(client: SupabaseClient<Database>) {
     this.repository = new TimelineItemRepository(client);
     this.itemTypes = new ItemTypeRepository(client);
     this.projects = new ProjectService(client);
+    this.sources = new SourceRepository(client);
+  }
+
+  private async requireSources(projectId: string, sourceIds: string[]) {
+    if (!(await this.sources.allBelongToProject(projectId, sourceIds))) {
+      throw new ServiceError(
+        "選択した資料が見つかりません。",
+        400,
+        "SOURCE_NOT_FOUND",
+      );
+    }
   }
 
   private parseItemId(itemId: string) {
@@ -95,6 +108,10 @@ export class TimelineItemService {
     const result = timelineItemSchema.safeParse(rawItem);
     if (!result.success) throw validationError(result.error);
     await this.requireItemType(project.id, result.data.typeId);
+    await this.requireSources(
+      project.id,
+      result.data.citations.map((citation) => citation.sourceId),
+    );
 
     const events: TimelineEventDraftValues[] = [];
     const failedEvents: TimelineEventCreationFailure[] = [];
@@ -150,6 +167,10 @@ export class TimelineItemService {
     const result = timelineItemSchema.safeParse(input);
     if (!result.success) throw validationError(result.error);
     await this.requireItemType(project.id, result.data.typeId);
+    await this.requireSources(
+      project.id,
+      result.data.citations.map((citation) => citation.sourceId),
+    );
     const hasPreviousTitle = result.data.aliases.some(
       (alias) =>
         alias.localeCompare(currentItem.title, "ja", {

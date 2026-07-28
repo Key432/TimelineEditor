@@ -6,6 +6,7 @@ import {
   isValidHistoricalDate,
 } from "@/features/timeline-items/historical-date";
 import type { HistoricalDate } from "@/features/timeline-items/types";
+import { sourceCitationsSchema } from "@/features/sources/validation";
 
 const nullableText = (max: number, message: string) =>
   z
@@ -129,6 +130,7 @@ const baseTimelineItemSchema = z.object({
   addPreviousTitleToAliases: z.boolean().default(false),
   description: nullableText(20000, "本文は20000文字以内で入力してください。"),
   sourceText: nullableText(10000, "出典は10000文字以内で入力してください。"),
+  citations: sourceCitationsSchema,
   externalUrl: z
     .string()
     .trim()
@@ -249,6 +251,7 @@ export function emptyTimelineItemValues(typeId = ""): TimelineItemInput {
     addPreviousTitleToAliases: false,
     description: "",
     sourceText: "",
+    citations: [],
     externalUrl: "",
     temporalType: "range",
     colorOverride: null,

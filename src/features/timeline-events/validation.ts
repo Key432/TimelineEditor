@@ -9,6 +9,7 @@ import type {
   HistoricalDate,
   TimelineItem,
 } from "@/features/timeline-items/types";
+import { sourceCitationsSchema } from "@/features/sources/validation";
 
 const eventDateSchema = historicalDateSchema;
 
@@ -33,6 +34,7 @@ export const timelineEventSchema = z.object({
   isApproximate: z.boolean(),
   description: nullableText(20000, "本文は20000文字以内で入力してください。"),
   sourceText: nullableText(10000, "出典は10000文字以内で入力してください。"),
+  citations: sourceCitationsSchema,
   externalUrl: z
     .string()
     .trim()
@@ -81,6 +83,7 @@ export function emptyTimelineEventValues(
     isApproximate: false,
     description: "",
     sourceText: "",
+    citations: [],
     externalUrl: "",
   };
 }
@@ -102,6 +105,7 @@ export function emptyTimelineEventDraftValues(): TimelineEventDraftInput {
     isApproximate: false,
     description: "",
     sourceText: "",
+    citations: [],
     externalUrl: "",
   };
 }

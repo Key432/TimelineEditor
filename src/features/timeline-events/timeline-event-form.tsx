@@ -60,6 +60,15 @@ export function TimelineEventForm({
         isApproximate: event.isApproximate,
         description: event.description ?? "",
         sourceText: event.sourceText ?? "",
+        citations: (event.citations ?? []).map(
+          ({ sourceId, pages, chapter, quote, notes }) => ({
+            sourceId,
+            pages: pages ?? "",
+            chapter: chapter ?? "",
+            quote: quote ?? "",
+            notes: notes ?? "",
+          }),
+        ),
         externalUrl: event.externalUrl ?? "",
       }
     : emptyTimelineEventValues(initialParentId, initialDate ?? null);
@@ -97,6 +106,7 @@ export function TimelineEventForm({
   const description = useWatch({ control, name: "description" }) ?? "";
   const aliases = useWatch({ control, name: "aliases" }) ?? [];
   const title = useWatch({ control, name: "title" }) ?? "";
+  const citations = useWatch({ control, name: "citations" }) ?? [];
   const parent = rangeItems.find((item) => item.id === parentId);
   const parsedDate = date
     ? {
@@ -204,6 +214,7 @@ export function TimelineEventForm({
         </p>
       ) : null}
       <EntityContentFields
+        citations={citations}
         description={register("description")}
         descriptionValue={description}
         externalUrl={register("externalUrl")}
@@ -211,6 +222,12 @@ export function TimelineEventForm({
         idPrefix="event"
         sourceText={register("sourceText")}
         projectId={projectId}
+        onCitationsChange={(next) =>
+          setValue("citations", next, {
+            shouldDirty: true,
+            shouldValidate: true,
+          })
+        }
       />
       {mutation.error ? (
         <p role="alert" className="text-sm text-destructive">

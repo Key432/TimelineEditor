@@ -87,6 +87,11 @@ describe("TimelineItemForm", () => {
     expect(screen.getByLabelText("出典・参考文献")).toBeVisible();
     expect(screen.getByLabelText("外部URL")).toBeVisible();
     expect(screen.queryByLabelText(/概要/)).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "自由記述" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: "詳細登録" })).toBeVisible();
   });
 
   it("carries the entered start date across temporal format changes", async () => {

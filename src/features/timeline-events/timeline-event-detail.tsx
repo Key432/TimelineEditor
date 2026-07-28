@@ -13,35 +13,7 @@ import {
 import type { TimelineEvent } from "@/features/timeline-events/types";
 import { formatApproximateHistoricalDate } from "@/features/timeline-items/historical-date";
 import { EntityHistoryDialog } from "@/features/history/entity-history-dialog";
-
-function SourceText({ value }: { value: string | null }) {
-  if (!value) return <p className="text-muted-foreground">—</p>;
-  return (
-    <p className="whitespace-pre-wrap">
-      {value.split(/(https?:\/\/[^\s]+)/g).map((part, index) => {
-        if (!part.startsWith("http://") && !part.startsWith("https://")) {
-          return part;
-        }
-        try {
-          const url = new URL(part);
-          return (
-            <a
-              key={`${url.href}-${index}`}
-              className="text-primary underline"
-              href={url.href}
-              rel="noreferrer"
-              target="_blank"
-            >
-              {part}
-            </a>
-          );
-        } catch {
-          return part;
-        }
-      })}
-    </p>
-  );
-}
+import { SourceDisplay } from "@/features/sources/source-display";
 
 export function TimelineEventDetail({
   projectId,
@@ -90,6 +62,7 @@ export function TimelineEventDetail({
       <Separator />
       <section className="min-h-28 text-base leading-7">
         <MarkdownRenderer
+          citations={currentEvent.citations}
           internalLinkBasePath={internalLinkBasePath}
           projectId={projectId}
           value={currentEvent.description}
@@ -100,7 +73,12 @@ export function TimelineEventDetail({
         <h2 className="mb-3 text-sm font-medium text-muted-foreground">
           出典・参考文献
         </h2>
-        <SourceText value={currentEvent.sourceText} />
+        <SourceDisplay
+          citations={currentEvent.citations}
+          projectId={projectId}
+          readOnly={readOnly}
+          sourceText={currentEvent.sourceText}
+        />
       </section>
       {currentEvent.externalUrl ? (
         <p>

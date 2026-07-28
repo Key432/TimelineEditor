@@ -1,4 +1,4 @@
-import { ArrowLeft, FileArchive, Tags } from "lucide-react";
+import { ArrowLeft, BookOpen, FileArchive, Tags } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -42,6 +42,23 @@ export default async function ProjectSettingsPage({
           一覧へ戻る
         </Link>
       </Button>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">出典・参考文献</CardTitle>
+          <CardDescription>
+            再利用できる資料マスタと、項目ごとの引用箇所を管理します。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href={`/projects/${project.id}/sources`}>
+              <BookOpen aria-hidden="true" className="size-4" />
+              出典・参考文献を管理
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">入出力</CardTitle>

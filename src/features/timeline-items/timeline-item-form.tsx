@@ -67,6 +67,15 @@ function defaults(
     addPreviousTitleToAliases: false,
     description: item.description ?? "",
     sourceText: item.sourceText ?? "",
+    citations: (item.citations ?? []).map(
+      ({ sourceId, pages, chapter, quote, notes }) => ({
+        sourceId,
+        pages: pages ?? "",
+        chapter: chapter ?? "",
+        quote: quote ?? "",
+        notes: notes ?? "",
+      }),
+    ),
     externalUrl: item.externalUrl ?? "",
     temporalType: item.temporalType,
     colorOverride: item.colorOverride,
@@ -163,6 +172,7 @@ export function TimelineItemForm({
   const description = useWatch({ control, name: "description" }) ?? "";
   const aliases = useWatch({ control, name: "aliases" }) ?? [];
   const title = useWatch({ control, name: "title" }) ?? "";
+  const citations = useWatch({ control, name: "citations" }) ?? [];
   const [eventDrafts, setEventDrafts] = useState<TimelineEventDraftValues[]>(
     [],
   );
@@ -565,6 +575,7 @@ export function TimelineItemForm({
       ) : null}
 
       <EntityContentFields
+        citations={citations}
         description={register("description")}
         descriptionValue={description}
         externalUrl={register("externalUrl")}
@@ -572,6 +583,12 @@ export function TimelineItemForm({
         idPrefix={formId}
         sourceText={register("sourceText")}
         projectId={projectId}
+        onCitationsChange={(next) =>
+          setValue("citations", next, {
+            shouldDirty: true,
+            shouldValidate: true,
+          })
+        }
       />
 
       {isDirty && !mutation.isPending ? (

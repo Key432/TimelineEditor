@@ -212,6 +212,72 @@ export type Database = {
         >;
         Relationships: [];
       };
+      sources: {
+        Row: {
+          id: string;
+          project_id: string;
+          title: string;
+          authors: string[];
+          publisher: string | null;
+          publication_year: number | null;
+          isbn: string | null;
+          url: string | null;
+          accessed_on: string | null;
+          citation_key: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          title: string;
+          authors?: string[];
+          publisher?: string | null;
+          publication_year?: number | null;
+          isbn?: string | null;
+          url?: string | null;
+          accessed_on?: string | null;
+          citation_key?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["sources"]["Insert"]>;
+        Relationships: [];
+      };
+      source_citations: {
+        Row: {
+          id: string;
+          project_id: string;
+          source_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          entity_id: string;
+          pages: string | null;
+          chapter: string | null;
+          quote: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          source_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          entity_id: string;
+          pages?: string | null;
+          chapter?: string | null;
+          quote?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["source_citations"]["Insert"]
+        >;
+        Relationships: [];
+      };
       timeline_events: {
         Row: {
           id: string;
@@ -523,6 +589,15 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      replace_source_citations: {
+        Args: {
+          p_project_id: string;
+          p_entity_type: "timeline_item" | "timeline_event";
+          p_entity_id: string;
+          p_citations?: Json;
+        };
+        Returns: undefined;
+      };
       get_internal_link_candidates: {
         Args: { p_project_id: string; p_query?: string };
         Returns: {

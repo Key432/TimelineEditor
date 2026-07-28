@@ -10,6 +10,7 @@ import type {
 } from "@/features/timeline-items/types";
 import type { TimelineItemValues } from "@/features/timeline-items/validation";
 import type { Database, Json } from "@/lib/supabase/database.types";
+import { SourceRepository } from "@/lib/repositories/source-repository";
 
 type Client = SupabaseClient<Database>;
 type ItemRow = Database["public"]["Tables"]["timeline_items"]["Row"];
@@ -182,7 +183,11 @@ function parseFailures(value: Json): TimelineEventCreationFailure[] {
 }
 
 export class TimelineItemRepository {
-  constructor(private readonly client: Client) {}
+  private readonly sources: SourceRepository;
+
+  constructor(private readonly client: Client) {
+    this.sources = new SourceRepository(client);
+  }
 
   async list(projectId: string): Promise<TimelineItemSummary[]> {
     const { data, error } = await this.client
@@ -215,7 +220,15 @@ export class TimelineItemRepository {
       .is("deleted_at", null)
       .maybeSingle();
     if (error) throw error;
-    return data ? mapItem(data as unknown as JoinedRow) : null;
+    if (!data) return null;
+    return {
+      ...mapItem(data as unknown as JoinedRow),
+      citations: await this.sources.listForEntity(
+        projectId,
+        "timeline_item",
+        itemId,
+      ),
+    };
   }
 
   async create(projectId: string, input: TimelineItemValues) {
@@ -268,6 +281,12 @@ export class TimelineItemRepository {
     if (error) throw error;
     const result = data[0];
     if (!result) throw new Error("Timeline item batch result is missing.");
+    await this.sources.replaceForEntity(
+      projectId,
+      "timeline_item",
+      result.item_id,
+      input.citations,
+    );
     const item = await this.findById(projectId, result.item_id);
     if (!item) throw new Error("Created timeline item could not be loaded.");
     return {
@@ -287,7 +306,21 @@ export class TimelineItemRepository {
       .select("*, timeline_item_types (*)")
       .maybeSingle();
     if (error) throw error;
-    return data ? mapItem(data as unknown as JoinedRow) : null;
+    if (!data) return null;
+    await this.sources.replaceForEntity(
+      projectId,
+      "timeline_item",
+      itemId,
+      input.citations,
+    );
+    return {
+      ...mapItem(data as unknown as JoinedRow),
+      citations: await this.sources.listForEntity(
+        projectId,
+        "timeline_item",
+        itemId,
+      ),
+    };
   }
 
   async move(

@@ -183,6 +183,44 @@ describe("MarkdownRenderer", () => {
       "noreferrer noopener",
     );
   });
+
+  it("links an attached citation key without changing unknown keys", () => {
+    render(
+      <MarkdownRenderer
+        projectId="22222222-2222-4222-8222-222222222222"
+        value="参照 [@known2024] と [@unknown]"
+        citations={[
+          {
+            sourceId: "11111111-1111-4111-8111-111111111111",
+            source: {
+              id: "11111111-1111-4111-8111-111111111111",
+              projectId: "22222222-2222-4222-8222-222222222222",
+              title: "資料",
+              authors: [],
+              publisher: null,
+              publicationYear: null,
+              isbn: null,
+              url: null,
+              accessedOn: null,
+              citationKey: "known2024",
+              notes: null,
+              createdAt: "2026-01-01T00:00:00Z",
+              updatedAt: "2026-01-01T00:00:00Z",
+            },
+            pages: null,
+            chapter: null,
+            quote: null,
+            notes: null,
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "known2024" })).toHaveAttribute(
+      "href",
+      "/projects/22222222-2222-4222-8222-222222222222/sources#source-11111111-1111-4111-8111-111111111111",
+    );
+    expect(screen.getByText(/\[@unknown\]/)).toBeVisible();
+  });
 });
 
 describe("MarkdownEditor", () => {

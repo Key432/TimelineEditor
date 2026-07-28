@@ -83,6 +83,18 @@ export default function MarkdownHelpPage() {
 
         <section className="space-y-3">
           <div className="space-y-1">
+            <h2 className="text-xl font-semibold">出典の引用キー</h2>
+            <p className="text-sm text-muted-foreground">
+              詳細出典で登録した引用キーを本文から参照します。項目へ関連付け済みの資料だけがリンクになります。
+            </p>
+          </div>
+          <pre className="overflow-x-auto rounded-lg bg-foreground p-4 text-sm text-background">
+            <code>[@yamada2024]</code>
+          </pre>
+        </section>
+
+        <section className="space-y-3">
+          <div className="space-y-1">
             <h2 className="text-xl font-semibold">プロジェクト内リンク</h2>
             <p className="text-sm text-muted-foreground">
               本文で [[
