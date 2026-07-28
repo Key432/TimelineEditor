@@ -46,6 +46,24 @@ describe("TimelineItemForm", () => {
     expect(screen.getByLabelText("別名")).toBeVisible();
   });
 
+  it("keeps a typed Japanese comma so multiple aliases can be entered", async () => {
+    const user = userEvent.setup();
+    render(
+      <QueryProvider>
+        <TimelineItemForm
+          itemTypes={[itemType]}
+          projectId={itemType.projectId}
+        />
+      </QueryProvider>,
+    );
+
+    await user.click(screen.getByText("別名（任意）"));
+    const aliases = screen.getByLabelText("別名");
+    await user.type(aliases, "夏目漱石、夏目金之助");
+
+    expect(aliases).toHaveValue("夏目漱石、夏目金之助");
+  });
+
   it("opens item type management and keeps content fields visually separate", async () => {
     const user = userEvent.setup();
     const onEditItemTypes = vi.fn();

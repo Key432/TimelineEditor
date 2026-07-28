@@ -1,7 +1,17 @@
+"use client";
+
 import { ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+function parseAliases(value: string) {
+  return value
+    .split(/[、,\n]/)
+    .map((alias) => alias.trim())
+    .filter(Boolean);
+}
 
 export function EntityAliasFields({
   id,
@@ -14,6 +24,17 @@ export function EntityAliasFields({
   error?: string;
   onChange: (aliases: string[]) => void;
 }) {
+  const canonicalValue = aliases.join("、");
+  const [inputValue, setInputValue] = useState(canonicalValue);
+  const lastEmittedValue = useRef(canonicalValue);
+
+  useEffect(() => {
+    if (canonicalValue !== lastEmittedValue.current) {
+      setInputValue(canonicalValue);
+    }
+    lastEmittedValue.current = canonicalValue;
+  }, [canonicalValue]);
+
   return (
     <details
       className="group rounded-lg border bg-muted/15"
@@ -39,15 +60,14 @@ export function EntityAliasFields({
           aria-describedby={`${id}-hint${error ? ` ${id}-error` : ""}`}
           aria-invalid={Boolean(error)}
           placeholder="原語名、旧名、筆名など（読点区切り）"
-          value={aliases.join("、")}
-          onChange={(event) =>
-            onChange(
-              event.target.value
-                .split(/[、,\n]/)
-                .map((alias) => alias.trim())
-                .filter(Boolean),
-            )
-          }
+          value={inputValue}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            const nextAliases = parseAliases(nextValue);
+            setInputValue(nextValue);
+            lastEmittedValue.current = nextAliases.join("、");
+            onChange(nextAliases);
+          }}
         />
         <p id={`${id}-hint`} className="text-xs text-muted-foreground">
           複数ある場合は読点で区切ります。検索と内部リンク候補に使われます。
