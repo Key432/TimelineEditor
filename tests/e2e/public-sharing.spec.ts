@@ -86,7 +86,13 @@ test("publishes for anonymous viewing and unpublishes immediately", async ({
   if (eventError) throw eventError;
 
   await page.getByRole("button", { name: "公開する" }).click();
+  const publishResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/api/projects/${projectId}/publish`) &&
+      response.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "公開する" }).last().click();
+  expect((await publishResponsePromise).status()).toBe(200);
   const publicUrl = await page.getByLabel("共有URL").inputValue();
 
   await page.goto("/projects");
@@ -116,6 +122,8 @@ test("publishes for anonymous viewing and unpublishes immediately", async ({
     `${publicUrl}/events/${event.id}`,
   ];
   for (const [index, detailUrl] of publicDetailUrls.entries()) {
+    const detailResponse = await anonymousPage.request.get(detailUrl);
+    expect(detailResponse.status()).toBe(200);
     await anonymousPage.goto(detailUrl);
     await anonymousPage.getByRole("button", { name: "詳細オプション" }).click();
     const mincho = anonymousPage.getByRole("menuitemradio", { name: "明朝" });
@@ -152,7 +160,13 @@ test("publishes for anonymous viewing and unpublishes immediately", async ({
 
   await page.goto(`/projects/${projectId}/settings`);
   await page.getByRole("button", { name: "非公開にする" }).click();
+  const unpublishResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/api/projects/${projectId}/unpublish`) &&
+      response.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "非公開にする" }).last().click();
+  expect((await unpublishResponsePromise).status()).toBe(200);
   await expect(page.getByRole("button", { name: "公開する" })).toBeVisible();
   const hiddenResponse = await anonymousPage.reload();
   expect(hiddenResponse?.status()).toBe(404);

@@ -247,6 +247,10 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
       "# 更新後の人物本文\n\n**強調表示**\n\n> [!NOTE]\n> 即時プレビュー\n\n<script>alert('xss')</script>\n\n![非対応画像](https://example.com/image.png)",
     );
   await expect(
+    itemOverlayEditForm.getByRole("button", { name: "分割" }),
+  ).toHaveCount(0);
+  await itemOverlayEditForm.getByRole("button", { name: "プレビュー" }).click();
+  await expect(
     itemOverlayEditForm.getByRole("region", { name: "Markdownプレビュー" }),
   ).toContainText("即時プレビュー");
   await expect(itemOverlayEditForm.locator("script, img")).toHaveCount(0);

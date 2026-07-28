@@ -247,7 +247,10 @@ export function MarkdownRenderer({
   );
 }
 
-type EditorMode = "edit" | "split" | "preview";
+type EditorMode = "edit" | "preview";
+
+const MARKDOWN_FIELD_CLASS =
+  "min-h-64 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base md:text-sm dark:bg-transparent";
 
 export function MarkdownEditor({
   id,
@@ -262,7 +265,7 @@ export function MarkdownEditor({
   value: string;
   rows?: number;
 }) {
-  const [mode, setMode] = useState<EditorMode>("split");
+  const [mode, setMode] = useState<EditorMode>("edit");
   const deferredValue = useDeferredValue(value);
 
   return (
@@ -274,7 +277,7 @@ export function MarkdownEditor({
           className="flex gap-1"
           role="group"
         >
-          {(["edit", "split", "preview"] as const).map((candidate) => (
+          {(["edit", "preview"] as const).map((candidate) => (
             <Button
               key={candidate}
               aria-pressed={mode === candidate}
@@ -283,46 +286,32 @@ export function MarkdownEditor({
               variant={mode === candidate ? "secondary" : "ghost"}
               onClick={() => setMode(candidate)}
             >
-              {candidate === "edit"
-                ? "編集"
-                : candidate === "split"
-                  ? "分割"
-                  : "プレビュー"}
+              {candidate === "edit" ? "編集" : "プレビュー"}
             </Button>
           ))}
         </div>
       </div>
-      <div
-        className={cn(
-          "overflow-hidden rounded-md border bg-background",
-          mode === "split" && "grid md:grid-cols-2",
-        )}
-      >
-        {mode !== "preview" ? (
-          <Textarea
-            {...registration}
-            id={id}
-            className="min-h-64 resize-y rounded-none border-0 bg-transparent font-mono text-sm shadow-none focus-visible:ring-0"
-            placeholder="Markdownで本文を入力…"
-            rows={rows}
+      {mode === "edit" ? (
+        <Textarea
+          {...registration}
+          id={id}
+          className={cn(MARKDOWN_FIELD_CLASS, "resize-y")}
+          placeholder="Markdownで本文を入力…"
+          rows={rows}
+        />
+      ) : (
+        <div
+          aria-label="Markdownプレビュー"
+          className={cn(MARKDOWN_FIELD_CLASS, "overflow-auto")}
+          role="region"
+        >
+          <MarkdownRenderer
+            className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+            emptyLabel="入力するとここにプレビューが表示されます。"
+            value={deferredValue}
           />
-        ) : null}
-        {mode !== "edit" ? (
-          <div
-            aria-label="Markdownプレビュー"
-            className={cn(
-              "min-h-64 overflow-auto p-4",
-              mode === "split" && "border-t md:border-t-0 md:border-l",
-            )}
-            role="region"
-          >
-            <MarkdownRenderer
-              emptyLabel="入力するとここにプレビューが表示されます。"
-              value={deferredValue}
-            />
-          </div>
-        ) : null}
-      </div>
+        </div>
+      )}
       <p className="text-xs text-muted-foreground">
         HTML・画像・埋め込みは表示されません。外部リンクは http / https
         のみ利用できます。

@@ -126,17 +126,43 @@ describe("MarkdownRenderer", () => {
 });
 
 describe("MarkdownEditor", () => {
-  it("updates the split preview while typing and switches views", async () => {
+  it("switches between matching edit and preview fields", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<TestMarkdownEditor onChange={onChange} />);
 
-    await user.type(screen.getByRole("textbox", { name: "本文" }), "**即時**");
+    const editor = screen.getByRole("textbox", { name: "本文" });
+    expect(editor).toHaveClass(
+      "rounded-lg",
+      "border",
+      "bg-transparent",
+      "px-2.5",
+      "py-2",
+      "text-base",
+      "md:text-sm",
+    );
+    expect(screen.queryByRole("button", { name: "分割" })).toBeNull();
+    expect(
+      screen.queryByRole("region", { name: "Markdownプレビュー" }),
+    ).toBeNull();
+
+    await user.type(editor, "**即時**");
     expect(onChange).toHaveBeenCalled();
-    expect(screen.getByText("即時").tagName).toBe("STRONG");
 
     await user.click(screen.getByRole("button", { name: "プレビュー" }));
     expect(screen.queryByRole("textbox", { name: "本文" })).toBeNull();
+    const preview = screen.getByRole("region", { name: "Markdownプレビュー" });
+    expect(preview).toHaveClass(
+      "rounded-lg",
+      "border",
+      "bg-transparent",
+      "px-2.5",
+      "py-2",
+      "text-base",
+      "md:text-sm",
+    );
+    expect(screen.getByText("即時").tagName).toBe("STRONG");
+
     await user.click(screen.getByRole("button", { name: "編集" }));
     expect(screen.getByRole("textbox", { name: "本文" })).toBeVisible();
   });
