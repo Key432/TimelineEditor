@@ -1,7 +1,8 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { FileArchive, Settings, Tags } from "lucide-react";
+import { BookOpen, FileArchive, Settings, Tags } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -103,6 +104,12 @@ export function TimelinePageClient({
           >
             <Tags aria-hidden="true" className="size-4" />
             対象種別
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/projects/${project.id}/sources`}>
+              <BookOpen aria-hidden="true" className="size-4" />
+              出典・参考文献
+            </Link>
           </Button>
           <Button
             size="sm"

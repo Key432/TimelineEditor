@@ -31,9 +31,9 @@ export default async function SourcesPage({
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <Button asChild size="sm" variant="ghost">
-        <Link href={`/projects/${projectId}/settings`}>
+        <Link href={`/projects/${projectId}/timeline`}>
           <ArrowLeft aria-hidden="true" className="size-4" />
-          プロジェクト設定へ
+          タイムラインへ
         </Link>
       </Button>
       <Card>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { ChevronDown, Plus, Save, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -157,65 +157,83 @@ function SourceRow({
       queryClient.invalidateQueries({ queryKey: sourceKeys.list(projectId) }),
   });
   return (
-    <li id={`source-${source.id}`} className="space-y-4 rounded-xl border p-4">
-      <SourceFields
-        prefix={`source-${source.id}`}
-        value={draft}
-        onChange={setDraft}
-      />
-      <div>
-        <p className="mb-2 text-sm font-medium">参照中の項目</p>
-        {source.references.length ? (
-          <ul className="flex flex-wrap gap-2">
-            {source.references.map((reference) => (
-              <li key={`${reference.entityType}:${reference.entityId}`}>
-                <Button asChild size="sm" variant="outline">
-                  <Link
-                    href={`/projects/${projectId}/${reference.entityType === "timeline_item" ? "items" : "events"}/${reference.entityId}`}
-                  >
-                    {reference.title}
-                  </Link>
-                </Button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            まだ参照されていません。
-          </p>
-        )}
-      </div>
-      {(save.error ?? remove.error) ? (
-        <p role="alert" className="text-sm text-destructive">
-          {(save.error ?? remove.error)?.message}
-        </p>
-      ) : null}
-      <div className="flex justify-end gap-2">
-        <Button
-          disabled={remove.isPending}
-          type="button"
-          variant="outline"
-          onClick={() => {
-            if (
-              window.confirm(
-                `「${source.title}」を削除しますか？ 関連付けも解除されます。`,
-              )
-            )
-              remove.mutate();
-          }}
-        >
-          <Trash2 aria-hidden="true" className="size-4" />
-          削除
-        </Button>
-        <Button
-          disabled={save.isPending}
-          type="button"
-          onClick={() => save.mutate()}
-        >
-          <Save aria-hidden="true" className="size-4" />
-          保存
-        </Button>
-      </div>
+    <li
+      id={`source-${source.id}`}
+      className="rounded-xl border target:ring-2 target:ring-primary/50"
+    >
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-4 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0">
+            <span className="block font-medium">{source.title}</span>
+            <span className="block truncate text-sm text-muted-foreground">
+              {source.authors.length ? source.authors.join("、") : "著者未登録"}
+            </span>
+          </span>
+          <span className="shrink-0 transition-transform group-open:rotate-180">
+            <ChevronDown aria-hidden="true" className="size-4" />
+          </span>
+        </summary>
+        <div className="space-y-4 border-t p-4">
+          <SourceFields
+            prefix={`source-${source.id}`}
+            value={draft}
+            onChange={setDraft}
+          />
+          <div>
+            <p className="mb-2 text-sm font-medium">参照中の項目</p>
+            {source.references.length ? (
+              <ul className="flex flex-wrap gap-2">
+                {source.references.map((reference) => (
+                  <li key={`${reference.entityType}:${reference.entityId}`}>
+                    <Button asChild size="sm" variant="outline">
+                      <Link
+                        href={`/projects/${projectId}/${reference.entityType === "timeline_item" ? "items" : "events"}/${reference.entityId}`}
+                      >
+                        {reference.title}
+                      </Link>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                まだ参照されていません。
+              </p>
+            )}
+          </div>
+          {(save.error ?? remove.error) ? (
+            <p role="alert" className="text-sm text-destructive">
+              {(save.error ?? remove.error)?.message}
+            </p>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <Button
+              disabled={remove.isPending}
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `「${source.title}」を削除しますか？ 関連付けも解除されます。`,
+                  )
+                )
+                  remove.mutate();
+              }}
+            >
+              <Trash2 aria-hidden="true" className="size-4" />
+              削除
+            </Button>
+            <Button
+              disabled={save.isPending}
+              type="button"
+              onClick={() => save.mutate()}
+            >
+              <Save aria-hidden="true" className="size-4" />
+              保存
+            </Button>
+          </div>
+        </div>
+      </details>
     </li>
   );
 }

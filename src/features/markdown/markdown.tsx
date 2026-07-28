@@ -79,6 +79,8 @@ const CALLOUT_LABELS = {
   CAUTION: "注意",
 } as const;
 
+const SOURCE_MANAGER_LINK_PATTERN = /^\/projects\/[^/]+\/sources#source-[^/]+$/;
+
 type CalloutType = keyof typeof CALLOUT_LABELS;
 
 function textContent(node: ReactNode): string {
@@ -129,6 +131,10 @@ function safeExternalUrl(href: string | undefined) {
   }
 }
 
+function isSourceManagerLink(href: string) {
+  return SOURCE_MANAGER_LINK_PATTERN.test(href);
+}
+
 const COMPONENTS: Components = {
   a({ children, href }) {
     if (href?.startsWith("#")) {
@@ -139,6 +145,13 @@ const COMPONENTS: Components = {
       );
     }
     if (href?.startsWith("/") && !href.startsWith("//")) {
+      if (isSourceManagerLink(href)) {
+        return (
+          <a className="text-primary underline underline-offset-4" href={href}>
+            {children}
+          </a>
+        );
+      }
       return (
         <Link className="text-primary underline underline-offset-4" href={href}>
           {children}
