@@ -7,6 +7,7 @@ import {
 } from "@/features/timeline-items/historical-date";
 import type { HistoricalDate } from "@/features/timeline-items/types";
 import { sourceCitationsSchema } from "@/features/sources/validation";
+import { customFieldEntriesSchema } from "@/features/classification/validation";
 
 const nullableText = (max: number, message: string) =>
   z
@@ -127,6 +128,8 @@ const baseTimelineItemSchema = z.object({
     .min(1, "名称を入力してください。")
     .max(200, "名称は200文字以内で入力してください。"),
   aliases: entityAliasesSchema.default([]),
+  tagIds: z.array(z.uuid()).max(100).default([]),
+  customFields: customFieldEntriesSchema.default([]),
   addPreviousTitleToAliases: z.boolean().default(false),
   description: nullableText(20000, "本文は20000文字以内で入力してください。"),
   sourceText: nullableText(10000, "出典は10000文字以内で入力してください。"),
@@ -248,6 +251,8 @@ export function emptyTimelineItemValues(typeId = ""): TimelineItemInput {
     typeId,
     title: "",
     aliases: [],
+    tagIds: [],
+    customFields: [],
     addPreviousTitleToAliases: false,
     description: "",
     sourceText: "",

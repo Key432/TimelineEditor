@@ -3,16 +3,19 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TimelineFilterPanel } from "@/features/timeline-items/timeline-filter-panel";
 import { DEFAULT_TIMELINE_FILTERS } from "@/features/timeline-items/timeline-filters";
+import { QueryProvider } from "@/components/query-provider";
 
 describe("TimelineFilterPanel", () => {
   it("keeps IME composition local until Japanese input is committed", () => {
     const onChange = vi.fn();
     render(
-      <TimelineFilterPanel
-        filters={DEFAULT_TIMELINE_FILTERS}
-        itemTypes={[]}
-        onChange={onChange}
-      />,
+      <QueryProvider>
+        <TimelineFilterPanel
+          filters={DEFAULT_TIMELINE_FILTERS}
+          itemTypes={[]}
+          onChange={onChange}
+        />
+      </QueryProvider>,
     );
 
     const query = screen.getByLabelText("タイムライン内検索");

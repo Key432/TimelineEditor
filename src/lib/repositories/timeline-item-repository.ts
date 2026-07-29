@@ -11,11 +11,17 @@ import type {
 import type { TimelineItemValues } from "@/features/timeline-items/validation";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { SourceRepository } from "@/lib/repositories/source-repository";
+import { ClassificationRepository } from "@/lib/repositories/classification-repository";
+import type { Tag } from "@/features/classification/types";
 
 type Client = SupabaseClient<Database>;
 type ItemRow = Database["public"]["Tables"]["timeline_items"]["Row"];
 type ItemTypeRow = Database["public"]["Tables"]["timeline_item_types"]["Row"];
-type JoinedRow = ItemRow & { timeline_item_types: ItemTypeRow };
+type TagRow = Database["public"]["Tables"]["tags"]["Row"];
+type JoinedRow = ItemRow & {
+  timeline_item_types: ItemTypeRow;
+  timeline_item_tags?: { tags: TagRow }[];
+};
 
 const LIST_COLUMNS = `
   id, project_id, type_id, title, temporal_type, color_override,
@@ -25,8 +31,21 @@ const LIST_COLUMNS = `
   end_month, end_day, is_end_approximate, end_uncertainty_years,
   end_era, end_precision, end_original_text, end_calendar,
   is_point_approximate, created_at, updated_at,
-  timeline_item_types (*)
+  timeline_item_types (*), timeline_item_tags (tags (*))
 `;
+
+function mapTag(row: TagRow): Tag {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    name: row.name,
+    color: row.color,
+    description: row.description,
+    usageCount: 0,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
 
 function mapItemType(row: ItemTypeRow): TimelineItemType {
   return {
@@ -84,6 +103,8 @@ function mapItem(row: JoinedRow): TimelineItem {
     itemType: mapItemType(row.timeline_item_types),
     title: row.title,
     aliases: row.aliases,
+    tags: (row.timeline_item_tags ?? []).map((entry) => mapTag(entry.tags)),
+    customFields: [],
     description: row.description,
     sourceText: row.source_text,
     externalUrl: row.external_url,
@@ -184,9 +205,11 @@ function parseFailures(value: Json): TimelineEventCreationFailure[] {
 
 export class TimelineItemRepository {
   private readonly sources: SourceRepository;
+  private readonly classification: ClassificationRepository;
 
   constructor(private readonly client: Client) {
     this.sources = new SourceRepository(client);
+    this.classification = new ClassificationRepository(client);
   }
 
   async list(projectId: string): Promise<TimelineItemSummary[]> {
@@ -214,7 +237,7 @@ export class TimelineItemRepository {
   ): Promise<TimelineItem | null> {
     const { data, error } = await this.client
       .from("timeline_items")
-      .select("*, timeline_item_types (*)")
+      .select("*, timeline_item_types (*), timeline_item_tags (tags (*))")
       .eq("project_id", projectId)
       .eq("id", itemId)
       .is("deleted_at", null)
@@ -223,6 +246,11 @@ export class TimelineItemRepository {
     if (!data) return null;
     return {
       ...mapItem(data as unknown as JoinedRow),
+      customFields: await this.classification.listValues(
+        projectId,
+        "timeline_item",
+        itemId,
+      ),
       citations: await this.sources.listForEntity(
         projectId,
         "timeline_item",
@@ -253,7 +281,7 @@ export class TimelineItemRepository {
         temporal_type: input.temporalType,
         manual_order: (last?.manual_order ?? -1) + 1,
       })
-      .select("*, timeline_item_types (*)")
+      .select("*, timeline_item_types (*), timeline_item_tags (tags (*))")
       .single();
     if (error) throw error;
     return mapItem(data as unknown as JoinedRow);
@@ -309,7 +337,7 @@ export class TimelineItemRepository {
       .eq("id", itemId)
       .eq("updated_at", expectedUpdatedAt)
       .is("deleted_at", null)
-      .select("*, timeline_item_types (*)")
+      .select("*, timeline_item_types (*), timeline_item_tags (tags (*))")
       .maybeSingle();
     if (error) throw error;
     if (!data) return null;

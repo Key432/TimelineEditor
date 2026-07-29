@@ -98,6 +98,9 @@ export class ImportExportService {
         minimumTimeUnit: "year",
       },
       itemTypes: [],
+      tags: [],
+      eventTypes: [],
+      customFields: [],
       timelineItems: [],
       timelineEvents: [],
     });

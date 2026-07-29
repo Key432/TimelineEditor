@@ -1,5 +1,10 @@
 import type { HistoricalDate } from "@/features/timeline-items/types";
 import type { SourceCitation } from "@/features/sources/types";
+import type {
+  CustomFieldEntry,
+  EventType,
+  Tag,
+} from "@/features/classification/types";
 
 export type TimelineEventParent = {
   id: string;
@@ -14,6 +19,10 @@ export type TimelineEvent = {
   id: string;
   projectId: string;
   timelineItemId: string;
+  eventTypeId?: string | null;
+  eventType?: EventType | null;
+  tags?: Tag[];
+  customFields?: CustomFieldEntry[];
   title: string;
   aliases: string[];
   date: HistoricalDate;
@@ -29,5 +38,10 @@ export type TimelineEvent = {
 
 export type TimelineEventSummary = Omit<
   TimelineEvent,
-  "description" | "sourceText" | "externalUrl" | "parent" | "aliases"
+  | "description"
+  | "sourceText"
+  | "externalUrl"
+  | "parent"
+  | "aliases"
+  | "customFields"
 >;

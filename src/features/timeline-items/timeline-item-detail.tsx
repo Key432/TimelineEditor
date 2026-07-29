@@ -19,6 +19,7 @@ import {
 } from "@/features/timeline-items/api";
 import type { TimelineItem } from "@/features/timeline-items/types";
 import { SourceDisplay } from "@/features/sources/source-display";
+import { EntityMetadataDisplay } from "@/features/classification/entity-metadata-display";
 
 function dateLabel(item: TimelineItem) {
   if (item.temporalType === "point") {
@@ -86,6 +87,11 @@ export function TimelineItemDetail({
           <dd>
             {currentItem.aliases.length ? currentItem.aliases.join("、") : "—"}
           </dd>
+          <EntityMetadataDisplay
+            projectId={projectId}
+            tags={currentItem.tags}
+            customFields={currentItem.customFields}
+          />
         </dl>
       </header>
       <Separator />

@@ -8,6 +8,7 @@ import { SourceRepository } from "@/lib/repositories/source-repository";
 import { ServiceError } from "@/lib/services/errors";
 import { ProjectService } from "@/lib/services/project-service";
 import type { Database } from "@/lib/supabase/database.types";
+import { ClassificationService } from "@/lib/services/classification-service";
 
 function validationError(error: z.ZodError) {
   return new ServiceError(
@@ -23,12 +24,14 @@ export class TimelineEventService {
   private readonly items: TimelineItemRepository;
   private readonly projects: ProjectService;
   private readonly sources: SourceRepository;
+  private readonly classification: ClassificationService;
 
   constructor(client: SupabaseClient<Database>) {
     this.repository = new TimelineEventRepository(client);
     this.items = new TimelineItemRepository(client);
     this.projects = new ProjectService(client);
     this.sources = new SourceRepository(client);
+    this.classification = new ClassificationService(client);
   }
 
   private async requireSources(projectId: string, sourceIds: string[]) {
@@ -97,11 +100,30 @@ export class TimelineEventService {
     const result = timelineEventSchema.safeParse(input);
     if (!result.success) throw validationError(result.error);
     await this.requireRangeParent(project.id, result.data.timelineItemId);
+    await this.classification.requireEventType(
+      project.id,
+      result.data.eventTypeId,
+    );
+    const metadata = await this.classification.validateEntityMetadata(
+      project.id,
+      "timeline_event",
+      result.data.eventTypeId,
+      result.data.tagIds,
+      result.data.customFields,
+    );
     await this.requireSources(
       project.id,
       result.data.citations.map((citation) => citation.sourceId),
     );
-    return this.repository.create(project.id, result.data);
+    const event = await this.repository.create(project.id, result.data);
+    await this.classification.attachEntityMetadata(
+      project.id,
+      "timeline_event",
+      event.id,
+      metadata.tagIds,
+      metadata.customFields,
+    );
+    return (await this.repository.findById(project.id, event.id))!;
   }
 
   async update(projectId: string, eventId: string, input: unknown) {
@@ -120,6 +142,17 @@ export class TimelineEventService {
     const result = timelineEventSchema.safeParse(updateRequest.data.values);
     if (!result.success) throw validationError(result.error);
     await this.requireRangeParent(project.id, result.data.timelineItemId);
+    await this.classification.requireEventType(
+      project.id,
+      result.data.eventTypeId,
+    );
+    const metadata = await this.classification.validateEntityMetadata(
+      project.id,
+      "timeline_event",
+      result.data.eventTypeId,
+      result.data.tagIds,
+      result.data.customFields,
+    );
     await this.requireSources(
       project.id,
       result.data.citations.map((citation) => citation.sourceId),
@@ -151,7 +184,14 @@ export class TimelineEventService {
         "TIMELINE_EVENT_CONFLICT",
       );
     }
-    return event;
+    await this.classification.attachEntityMetadata(
+      project.id,
+      "timeline_event",
+      event.id,
+      metadata.tagIds,
+      metadata.customFields,
+    );
+    return (await this.repository.findById(project.id, event.id))!;
   }
 
   async delete(projectId: string, eventId: string) {

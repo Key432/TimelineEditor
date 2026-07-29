@@ -1,5 +1,6 @@
 import type { TimelineItemType } from "@/features/item-types/types";
 import type { SourceCitation } from "@/features/sources/types";
+import type { CustomFieldEntry, Tag } from "@/features/classification/types";
 
 export const TEMPORAL_TYPES = ["range", "point"] as const;
 export type TemporalType = (typeof TEMPORAL_TYPES)[number];
@@ -53,6 +54,8 @@ export type TimelineItem = {
   itemType: TimelineItemType;
   title: string;
   aliases: string[];
+  tags?: Tag[];
+  customFields?: CustomFieldEntry[];
   description: string | null;
   sourceText: string | null;
   citations?: SourceCitation[];
@@ -77,7 +80,7 @@ export type TimelineItem = {
 
 export type TimelineItemSummary = Omit<
   TimelineItem,
-  "description" | "sourceText" | "externalUrl" | "aliases"
+  "description" | "sourceText" | "externalUrl" | "aliases" | "customFields"
 >;
 
 export type TimelineEventCreationFailure = {

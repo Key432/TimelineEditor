@@ -8,6 +8,9 @@ import {
 const filtersSchema = z.object({
   query: z.string().max(200),
   typeIds: z.array(z.uuid()).max(100),
+  tagIds: z.array(z.uuid()).max(100).default([]),
+  tagMode: z.enum(["and", "or"]).default("or"),
+  eventTypeIds: z.array(z.uuid()).max(100).default([]),
   fromYear: z.number().int().min(1).nullable(),
   toYear: z.number().int().min(1).nullable(),
   hasEvents: z.enum(["all", "yes", "no"]),

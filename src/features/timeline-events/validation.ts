@@ -10,6 +10,7 @@ import type {
   TimelineItem,
 } from "@/features/timeline-items/types";
 import { sourceCitationsSchema } from "@/features/sources/validation";
+import { customFieldEntriesSchema } from "@/features/classification/validation";
 
 const eventDateSchema = historicalDateSchema;
 
@@ -23,6 +24,9 @@ const nullableText = (max: number, message: string) =>
 
 export const timelineEventSchema = z.object({
   timelineItemId: z.uuid("親項目を選択してください。"),
+  eventTypeId: z.uuid().nullable().default(null),
+  tagIds: z.array(z.uuid()).max(100).default([]),
+  customFields: customFieldEntriesSchema.default([]),
   title: z
     .string()
     .trim()
@@ -53,6 +57,9 @@ export const timelineEventSchema = z.object({
 
 export const timelineEventDraftSchema = timelineEventSchema.omit({
   timelineItemId: true,
+  eventTypeId: true,
+  tagIds: true,
+  customFields: true,
 });
 
 export type TimelineEventInput = z.input<typeof timelineEventSchema>;
@@ -68,6 +75,9 @@ export function emptyTimelineEventValues(
 ): TimelineEventInput {
   return {
     timelineItemId,
+    eventTypeId: null,
+    tagIds: [],
+    customFields: [],
     title: "",
     aliases: [],
     addPreviousTitleToAliases: false,

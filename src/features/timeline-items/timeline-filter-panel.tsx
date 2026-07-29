@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { TimelineItemType } from "@/features/item-types/types";
+import { useClassification } from "@/features/classification/entity-classification-fields";
+import { MarkerShapeIcon } from "@/features/classification/marker-shape";
 import {
   DEFAULT_TIMELINE_FILTERS,
   type TimelineFilters,
@@ -22,13 +24,16 @@ import {
 export function TimelineFilterPanel({
   filters,
   itemTypes,
+  projectId,
   onChange,
 }: {
   filters: TimelineFilters;
   itemTypes: TimelineItemType[];
+  projectId?: string;
   onChange: (filters: TimelineFilters) => void;
 }) {
   const [queryDraft, setQueryDraft] = useState(filters.query);
+  const classification = useClassification(projectId ?? "");
   const isComposing = useRef(false);
   const update = (values: Partial<TimelineFilters>) =>
     onChange({ ...filters, ...values });
@@ -78,6 +83,79 @@ export function TimelineFilterPanel({
                 className="size-2.5 rounded-full"
                 style={{ backgroundColor: type.defaultColor }}
               />
+              {type.name}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">タグ</legend>
+        <div className="flex rounded-lg bg-muted p-1" role="group">
+          <Button
+            aria-pressed={filters.tagMode === "or"}
+            className="flex-1"
+            size="sm"
+            type="button"
+            variant={filters.tagMode === "or" ? "secondary" : "ghost"}
+            onClick={() => update({ tagMode: "or" })}
+          >
+            いずれか（OR）
+          </Button>
+          <Button
+            aria-pressed={filters.tagMode === "and"}
+            className="flex-1"
+            size="sm"
+            type="button"
+            variant={filters.tagMode === "and" ? "secondary" : "ghost"}
+            onClick={() => update({ tagMode: "and" })}
+          >
+            すべて（AND）
+          </Button>
+        </div>
+        <div className="grid grid-cols-2 gap-2 rounded-lg border p-3">
+          {classification.data?.tags.map((tag) => (
+            <label key={tag.id} className="flex items-center gap-2 text-sm">
+              <input
+                checked={filters.tagIds.includes(tag.id)}
+                className="size-4 accent-primary"
+                type="checkbox"
+                onChange={(event) =>
+                  update({
+                    tagIds: event.target.checked
+                      ? [...filters.tagIds, tag.id]
+                      : filters.tagIds.filter((id) => id !== tag.id),
+                  })
+                }
+              />
+              <span
+                className="size-3 rounded-sm"
+                style={{ backgroundColor: tag.color }}
+              />
+              {tag.name}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">イベント種別</legend>
+        <div className="grid grid-cols-2 gap-2 rounded-lg border p-3">
+          {classification.data?.eventTypes.map((type) => (
+            <label key={type.id} className="flex items-center gap-2 text-sm">
+              <input
+                checked={filters.eventTypeIds.includes(type.id)}
+                className="size-4 accent-primary"
+                type="checkbox"
+                onChange={(event) =>
+                  update({
+                    eventTypeIds: event.target.checked
+                      ? [...filters.eventTypeIds, type.id]
+                      : filters.eventTypeIds.filter((id) => id !== type.id),
+                  })
+                }
+              />
+              <MarkerShapeIcon color={type.color} shape={type.markerShape} />
               {type.name}
             </label>
           ))}

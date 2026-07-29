@@ -6,6 +6,8 @@ import type {
 } from "@/features/import-export/schema";
 import { IMPORT_SCHEMA_VERSION } from "@/features/import-export/schema";
 import type { Database, Json } from "@/lib/supabase/database.types";
+import { ClassificationRepository } from "@/lib/repositories/classification-repository";
+import type { CustomFieldEntry } from "@/features/classification/types";
 
 type Client = SupabaseClient<Database>;
 
@@ -22,8 +24,36 @@ const date = (
     ? null
     : { year, month, day, era, precision, originalText, calendar };
 
+function mapCustomValue(
+  row: Database["public"]["Tables"]["custom_field_values"]["Row"],
+): CustomFieldEntry {
+  const value =
+    row.text_value ??
+    row.number_value ??
+    row.boolean_value ??
+    row.multi_value ??
+    (row.date_year !== null
+      ? {
+          era: row.date_era!,
+          precision: row.date_precision!,
+          year: row.date_year,
+          month: row.date_month,
+          day: row.date_day,
+          originalText: row.date_original_text,
+          calendar: row.date_calendar!,
+        }
+      : {
+          entityType: row.reference_entity_type!,
+          entityId: row.reference_entity_id!,
+        });
+  return { fieldId: row.field_id, value };
+}
+
 export class ImportExportRepository {
-  constructor(private readonly client: Client) {}
+  private readonly classification: ClassificationRepository;
+  constructor(private readonly client: Client) {
+    this.classification = new ClassificationRepository(client);
+  }
 
   private async listItemTypes(projectId: string) {
     const rows: Database["public"]["Tables"]["timeline_item_types"]["Row"][] =
@@ -77,28 +107,110 @@ export class ImportExportRepository {
     }
   }
 
+  private async listItemTagLinks(projectId: string) {
+    const rows: Database["public"]["Tables"]["timeline_item_tags"]["Row"][] =
+      [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await this.client
+        .from("timeline_item_tags")
+        .select("*")
+        .eq("project_id", projectId)
+        .range(from, from + 999);
+      if (error) throw error;
+      rows.push(...data);
+      if (data.length < 1000) return rows;
+    }
+  }
+  private async listEventTagLinks(projectId: string) {
+    const rows: Database["public"]["Tables"]["timeline_event_tags"]["Row"][] =
+      [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await this.client
+        .from("timeline_event_tags")
+        .select("*")
+        .eq("project_id", projectId)
+        .range(from, from + 999);
+      if (error) throw error;
+      rows.push(...data);
+      if (data.length < 1000) return rows;
+    }
+  }
+  private async listCustomValues(projectId: string) {
+    const rows: Database["public"]["Tables"]["custom_field_values"]["Row"][] =
+      [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await this.client
+        .from("custom_field_values")
+        .select("*")
+        .eq("project_id", projectId)
+        .range(from, from + 999);
+      if (error) throw error;
+      rows.push(...data);
+      if (data.length < 1000) return rows;
+    }
+  }
+
   async export(projectId: string): Promise<ProjectBackup | null> {
-    const [projectResult, settingsResult, types, items, events] =
-      await Promise.all([
-        this.client
-          .from("projects")
-          .select("*")
-          .eq("id", projectId)
-          .maybeSingle(),
-        this.client
-          .from("project_settings")
-          .select("*")
-          .eq("project_id", projectId)
-          .maybeSingle(),
-        this.listItemTypes(projectId),
-        this.listItems(projectId),
-        this.listEvents(projectId),
-      ]);
+    const [
+      projectResult,
+      settingsResult,
+      types,
+      items,
+      events,
+      tags,
+      eventTypes,
+      customFields,
+      itemTagLinks,
+      eventTagLinks,
+      customValues,
+    ] = await Promise.all([
+      this.client
+        .from("projects")
+        .select("*")
+        .eq("id", projectId)
+        .maybeSingle(),
+      this.client
+        .from("project_settings")
+        .select("*")
+        .eq("project_id", projectId)
+        .maybeSingle(),
+      this.listItemTypes(projectId),
+      this.listItems(projectId),
+      this.listEvents(projectId),
+      this.classification.listTags(projectId),
+      this.classification.listEventTypes(projectId),
+      this.classification.listDefinitions(projectId),
+      this.listItemTagLinks(projectId),
+      this.listEventTagLinks(projectId),
+      this.listCustomValues(projectId),
+    ]);
     for (const result of [projectResult, settingsResult])
       if (result.error) throw result.error;
     const project = projectResult.data;
     const settings = settingsResult.data;
     if (!project || !settings) return null;
+    const itemTags = new Map<string, string[]>();
+    for (const link of itemTagLinks)
+      itemTags.set(link.timeline_item_id, [
+        ...(itemTags.get(link.timeline_item_id) ?? []),
+        link.tag_id,
+      ]);
+    const eventTags = new Map<string, string[]>();
+    for (const link of eventTagLinks)
+      eventTags.set(link.timeline_event_id, [
+        ...(eventTags.get(link.timeline_event_id) ?? []),
+        link.tag_id,
+      ]);
+    const itemValues = new Map<string, CustomFieldEntry[]>();
+    const eventValues = new Map<string, CustomFieldEntry[]>();
+    for (const value of customValues) {
+      const target =
+        value.entity_type === "timeline_item" ? itemValues : eventValues;
+      target.set(value.entity_id, [
+        ...(target.get(value.entity_id) ?? []),
+        mapCustomValue(value),
+      ]);
+    }
     return {
       schemaVersion: IMPORT_SCHEMA_VERSION,
       appVersion: "0.1.0",
@@ -127,11 +239,54 @@ export class ImportExportRepository {
         sortOrder: type.sort_order,
         isVisible: type.is_visible,
       })),
+      tags: tags.map(({ id, name, color, description }) => ({
+        id,
+        name,
+        color,
+        description,
+      })),
+      eventTypes: eventTypes.map(
+        ({ id, name, color, markerShape, description, sortOrder }) => ({
+          id,
+          name,
+          color,
+          markerShape,
+          description,
+          sortOrder,
+        }),
+      ),
+      customFields: customFields.map(
+        ({
+          id,
+          entityType,
+          scope,
+          targetTypeId,
+          name,
+          fieldType,
+          isRequired,
+          options,
+          description,
+          sortOrder,
+        }) => ({
+          id,
+          entityType,
+          scope,
+          targetTypeId,
+          name,
+          fieldType,
+          isRequired,
+          options,
+          description,
+          sortOrder,
+        }),
+      ),
       timelineItems: items.map((item) => ({
         id: item.id,
         typeId: item.type_id,
         title: item.title,
         aliases: item.aliases,
+        tagIds: itemTags.get(item.id) ?? [],
+        customFields: itemValues.get(item.id) ?? [],
         description: item.description,
         sourceText: item.source_text,
         externalUrl: item.external_url,
@@ -193,6 +348,9 @@ export class ImportExportRepository {
         timelineItemId: event.timeline_item_id,
         title: event.title,
         aliases: event.aliases,
+        eventTypeId: event.event_type_id,
+        tagIds: eventTags.get(event.id) ?? [],
+        customFields: eventValues.get(event.id) ?? [],
         date: {
           era: event.event_era,
           precision: event.event_precision,

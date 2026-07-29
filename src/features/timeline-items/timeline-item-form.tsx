@@ -7,6 +7,10 @@ import { useCallback, useEffect, useId, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
+import {
+  CustomFieldsEditor,
+  TagMultiSelect,
+} from "@/features/classification/entity-classification-fields";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LocalDraftStatusView } from "@/features/autosave/local-draft-status";
@@ -66,6 +70,8 @@ function defaults(
     typeId: item.typeId,
     title: item.title,
     aliases: item.aliases,
+    tagIds: (item.tags ?? []).map((tag) => tag.id),
+    customFields: item.customFields ?? [],
     addPreviousTitleToAliases: false,
     description: item.description ?? "",
     sourceText: item.sourceText ?? "",
@@ -177,6 +183,8 @@ export function TimelineItemForm({
   const aliases = useWatch({ control, name: "aliases" }) ?? [];
   const title = useWatch({ control, name: "title" }) ?? "";
   const citations = useWatch({ control, name: "citations" }) ?? [];
+  const tagIds = useWatch({ control, name: "tagIds" }) ?? [];
+  const customFields = useWatch({ control, name: "customFields" }) ?? [];
   const [eventDrafts, setEventDrafts] = useState<TimelineEventDraftValues[]>(
     [],
   );
@@ -352,6 +360,26 @@ export function TimelineItemForm({
           </Button>
         ) : null}
       </div>
+
+      <TagMultiSelect
+        projectId={projectId}
+        value={tagIds}
+        onChange={(next) =>
+          setValue("tagIds", next, { shouldDirty: true, shouldValidate: true })
+        }
+      />
+      <CustomFieldsEditor
+        projectId={projectId}
+        entityType="timeline_item"
+        targetTypeId={selectedTypeId || null}
+        value={customFields}
+        onChange={(next) =>
+          setValue("customFields", next, {
+            shouldDirty: true,
+            shouldValidate: true,
+          })
+        }
+      />
 
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">時間形式</legend>

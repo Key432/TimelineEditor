@@ -682,7 +682,13 @@ function TimelineWorkspaceContent({
                 allItems={items}
                 currentDate={currentDate}
                 groups={displayGroups}
-                events={events}
+                events={
+                  filters.mode === "hide" && activeFilters
+                    ? events.filter((event) =>
+                        filterResult.visibleEventIds.has(event.id),
+                      )
+                    : events
+                }
                 dimmedItemIds={dimmedItemIds}
                 highlightedEventIds={filterResult.matchingEventIds}
                 layoutMode={layoutMode}
@@ -758,6 +764,7 @@ function TimelineWorkspaceContent({
           <TimelineFilterPanel
             filters={filters}
             itemTypes={currentItemTypes}
+            projectId={project.id}
             onChange={(nextFilters) => onFiltersChange?.(nextFilters)}
           />
         </SheetContent>

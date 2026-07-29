@@ -14,6 +14,7 @@ import type { TimelineEvent } from "@/features/timeline-events/types";
 import { formatApproximateHistoricalDate } from "@/features/timeline-items/historical-date";
 import { EntityHistoryDialog } from "@/features/history/entity-history-dialog";
 import { SourceDisplay } from "@/features/sources/source-display";
+import { EntityMetadataDisplay } from "@/features/classification/entity-metadata-display";
 
 export function TimelineEventDetail({
   projectId,
@@ -57,6 +58,12 @@ export function TimelineEventDetail({
               ? currentEvent.aliases.join("、")
               : "—"}
           </dd>
+          <EntityMetadataDisplay
+            projectId={projectId}
+            tags={currentEvent.tags}
+            eventType={currentEvent.eventType}
+            customFields={currentEvent.customFields}
+          />
         </dl>
       </header>
       <Separator />

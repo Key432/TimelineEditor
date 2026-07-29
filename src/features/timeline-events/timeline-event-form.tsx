@@ -31,6 +31,11 @@ import { ApproximateDateCheckbox } from "@/features/timeline-items/approximate-d
 import { HistoricalDateFields } from "@/features/timeline-items/historical-date-fields";
 import { EntityContentFields } from "@/features/timeline-items/entity-content-fields";
 import { EntityAliasFields } from "@/features/timeline-items/entity-alias-fields";
+import {
+  CustomFieldsEditor,
+  EventTypeSelect,
+  TagMultiSelect,
+} from "@/features/classification/entity-classification-fields";
 
 export function TimelineEventForm({
   projectId,
@@ -55,6 +60,9 @@ export function TimelineEventForm({
   const defaults: TimelineEventInput = event
     ? {
         timelineItemId: event.timelineItemId,
+        eventTypeId: event.eventTypeId,
+        tagIds: (event.tags ?? []).map((tag) => tag.id),
+        customFields: event.customFields ?? [],
         title: event.title,
         aliases: event.aliases,
         addPreviousTitleToAliases: false,
@@ -129,6 +137,9 @@ export function TimelineEventForm({
   const aliases = useWatch({ control, name: "aliases" }) ?? [];
   const title = useWatch({ control, name: "title" }) ?? "";
   const citations = useWatch({ control, name: "citations" }) ?? [];
+  const eventTypeId = useWatch({ control, name: "eventTypeId" }) ?? null;
+  const tagIds = useWatch({ control, name: "tagIds" }) ?? [];
+  const customFields = useWatch({ control, name: "customFields" }) ?? [];
   const parent = rangeItems.find((item) => item.id === parentId);
   const parsedDate = date
     ? {
@@ -202,6 +213,35 @@ export function TimelineEventForm({
           変更前のタイトル「{event.title}」を別名へ追加
         </label>
       ) : null}
+      <EventTypeSelect
+        projectId={projectId}
+        value={eventTypeId}
+        onChange={(next) =>
+          setValue("eventTypeId", next, {
+            shouldDirty: true,
+            shouldValidate: true,
+          })
+        }
+      />
+      <TagMultiSelect
+        projectId={projectId}
+        value={tagIds}
+        onChange={(next) =>
+          setValue("tagIds", next, { shouldDirty: true, shouldValidate: true })
+        }
+      />
+      <CustomFieldsEditor
+        projectId={projectId}
+        entityType="timeline_event"
+        targetTypeId={eventTypeId}
+        value={customFields}
+        onChange={(next) =>
+          setValue("customFields", next, {
+            shouldDirty: true,
+            shouldValidate: true,
+          })
+        }
+      />
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">日付</legend>
         <HistoricalDateFields

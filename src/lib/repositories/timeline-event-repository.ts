@@ -8,6 +8,8 @@ import type {
 import type { TimelineEventValues } from "@/features/timeline-events/validation";
 import type { Database } from "@/lib/supabase/database.types";
 import { SourceRepository } from "@/lib/repositories/source-repository";
+import { ClassificationRepository } from "@/lib/repositories/classification-repository";
+import type { EventType, Tag } from "@/features/classification/types";
 
 type Client = SupabaseClient<Database>;
 type EventRow = Database["public"]["Tables"]["timeline_events"]["Row"];
@@ -31,7 +33,42 @@ type ParentRow = Pick<
   | "end_original_text"
   | "end_calendar"
 >;
-type JoinedRow = EventRow & { timeline_items: ParentRow };
+type EventTypeRow = Database["public"]["Tables"]["event_types"]["Row"];
+type TagRow = Database["public"]["Tables"]["tags"]["Row"];
+type JoinedRow = EventRow & {
+  timeline_items: ParentRow;
+  event_types: EventTypeRow | null;
+  timeline_event_tags?: { tags: TagRow }[];
+};
+
+function mapTag(row: TagRow): Tag {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    name: row.name,
+    color: row.color,
+    description: row.description,
+    usageCount: 0,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+function mapEventType(row: EventTypeRow | null): EventType | null {
+  return row
+    ? {
+        id: row.id,
+        projectId: row.project_id,
+        name: row.name,
+        color: row.color,
+        markerShape: row.marker_shape,
+        description: row.description,
+        sortOrder: row.sort_order,
+        usageCount: 0,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }
+    : null;
+}
 
 function parentDate(
   year: number | null,
@@ -94,6 +131,10 @@ function mapEvent(row: JoinedRow): TimelineEvent {
     id: row.id,
     projectId: row.project_id,
     timelineItemId: row.timeline_item_id,
+    eventTypeId: row.event_type_id,
+    eventType: mapEventType(row.event_types),
+    tags: (row.timeline_event_tags ?? []).map((entry) => mapTag(entry.tags)),
+    customFields: [],
     title: row.title,
     aliases: row.aliases,
     date: {
@@ -118,6 +159,7 @@ function mapEvent(row: JoinedRow): TimelineEvent {
 function persistenceValues(input: TimelineEventValues) {
   return {
     timeline_item_id: input.timelineItemId,
+    event_type_id: input.eventTypeId,
     title: input.title,
     aliases: input.aliases,
     event_year: input.date.year,
@@ -135,7 +177,7 @@ function persistenceValues(input: TimelineEventValues) {
 }
 
 const DETAIL_COLUMNS = `
-  *, timeline_items (
+  *, event_types (*), timeline_event_tags (tags (*)), timeline_items (
     id, title, start_year, start_month, start_day, end_date_status,
     start_era, start_precision, start_original_text, start_calendar,
     end_year, end_month, end_day, end_era, end_precision,
@@ -145,16 +187,18 @@ const DETAIL_COLUMNS = `
 
 export class TimelineEventRepository {
   private readonly sources: SourceRepository;
+  private readonly classification: ClassificationRepository;
 
   constructor(private readonly client: Client) {
     this.sources = new SourceRepository(client);
+    this.classification = new ClassificationRepository(client);
   }
 
   async list(projectId: string): Promise<TimelineEventSummary[]> {
     const { data, error } = await this.client
       .from("timeline_events")
       .select(
-        "id, project_id, timeline_item_id, title, event_year, event_month, event_day, event_era, event_precision, event_original_text, event_calendar, is_approximate, created_at, updated_at",
+        "id, project_id, timeline_item_id, event_type_id, title, event_year, event_month, event_day, event_era, event_precision, event_original_text, event_calendar, is_approximate, created_at, updated_at, event_types (*), timeline_event_tags (tags (*))",
       )
       .eq("project_id", projectId)
       .is("deleted_at", null)
@@ -163,10 +207,13 @@ export class TimelineEventRepository {
       .order("event_day")
       .order("id");
     if (error) throw error;
-    return data.map((row) => ({
+    return (data as unknown as JoinedRow[]).map((row) => ({
       id: row.id,
       projectId: row.project_id,
       timelineItemId: row.timeline_item_id,
+      eventTypeId: row.event_type_id,
+      eventType: mapEventType(row.event_types),
+      tags: (row.timeline_event_tags ?? []).map((entry) => mapTag(entry.tags)),
       title: row.title,
       date: {
         era: row.event_era,
@@ -195,6 +242,11 @@ export class TimelineEventRepository {
     if (!data) return null;
     return {
       ...mapEvent(data as unknown as JoinedRow),
+      customFields: await this.classification.listValues(
+        projectId,
+        "timeline_event",
+        eventId,
+      ),
       citations: await this.sources.listForEntity(
         projectId,
         "timeline_event",

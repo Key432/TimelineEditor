@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { BookOpen, FileArchive, Settings, Tags } from "lucide-react";
+import { BookOpen, FileArchive, Settings, Tags, Shapes } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -39,8 +39,10 @@ import { TimelineWorkspace } from "@/features/timeline-items/timeline-workspace"
 import { timelineItemKeys } from "@/features/timeline-items/api";
 import { cn } from "@/lib/utils";
 import { TrashManager } from "@/features/history/trash-manager";
+import { ClassificationManager } from "@/features/classification/classification-manager";
 
-type Panel = "settings" | "item-types" | "import-export" | null;
+type Panel =
+  "settings" | "item-types" | "classification" | "import-export" | null;
 
 export function TimelinePageClient({
   project,
@@ -105,6 +107,14 @@ export function TimelinePageClient({
             <Tags aria-hidden="true" className="size-4" />
             対象種別
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setPanel("classification")}
+          >
+            <Shapes aria-hidden="true" className="size-4" />
+            分類・フィールド
+          </Button>
           <Button asChild size="sm" variant="outline">
             <Link href={`/projects/${project.id}/sources`}>
               <BookOpen aria-hidden="true" className="size-4" />
@@ -168,7 +178,7 @@ export function TimelinePageClient({
         <SheetContent
           className={cn(
             "w-full overflow-y-auto",
-            panel === "item-types"
+            panel === "item-types" || panel === "classification"
               ? "sm:!w-[calc(100vw-4rem)] sm:!max-w-5xl"
               : "sm:max-w-3xl",
           )}
@@ -179,14 +189,18 @@ export function TimelinePageClient({
                 ? "プロジェクト設定"
                 : panel === "item-types"
                   ? "対象種別"
-                  : "インポート／エクスポート"}
+                  : panel === "classification"
+                    ? "分類・カスタムフィールド"
+                    : "インポート／エクスポート"}
             </SheetTitle>
             <SheetDescription>
               {panel === "settings"
                 ? "名前、説明、タイムラインの初期表示を変更します。"
                 : panel === "item-types"
                   ? "分類、既定色、表示順、表示状態を管理します。"
-                  : "プロジェクトデータを保存または取り込みます。"}
+                  : panel === "classification"
+                    ? "タグ、イベント種別、用途固有の型付きフィールドを管理します。"
+                    : "プロジェクトデータを保存または取り込みます。"}
             </SheetDescription>
           </SheetHeader>
           <div className="space-y-8 px-4 pb-6">
@@ -225,6 +239,11 @@ export function TimelinePageClient({
               <ItemTypeManager
                 initialItemTypes={itemTypes}
                 projectId={project.id}
+              />
+            ) : panel === "classification" ? (
+              <ClassificationManager
+                projectId={project.id}
+                itemTypes={itemTypes}
               />
             ) : panel === "import-export" ? (
               <ImportExportManager

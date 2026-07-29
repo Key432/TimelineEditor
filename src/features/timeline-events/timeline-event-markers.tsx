@@ -28,6 +28,10 @@ import {
 } from "@/features/timeline-items/historical-date";
 import { TimelineEntityTooltip } from "@/features/timeline-items/timeline-entity-tooltip";
 import { overlapsViewport } from "@/features/timeline-items/timeline-math";
+import {
+  markerShapeStyle,
+  markerTextColor,
+} from "@/features/classification/marker-shape";
 
 type EventMarker = {
   event: TimelineEventSummary;
@@ -202,11 +206,17 @@ function SingleEventMarker({
       title={marker.event.title}
     >
       <button
-        aria-label={`イベントアイテム ${marker.event.title} ${formatHistoricalDate(marker.event.date)}`}
+        aria-label={`イベントアイテム ${marker.event.title} ${formatHistoricalDate(marker.event.date)}${marker.event.eventType ? ` ${marker.event.eventType.name}` : ""}`}
         className={`focus-visible:ring-focus absolute top-1/2 z-30 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-secondary shadow-sm transition-[box-shadow,transform] hover:z-40 hover:scale-125 hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-40 focus-visible:scale-125 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none data-[pointer-overlap=true]:z-40 data-[pointer-overlap=true]:scale-125 data-[pointer-overlap=true]:ring-4 data-[pointer-overlap=true]:ring-primary ${highlighted ? "ring-4 ring-secondary ring-offset-2 ring-offset-background" : ""}`}
         data-timeline-event-marker="true"
         data-search-match={highlighted ? "true" : undefined}
-        style={{ left: marker.x }}
+        style={{
+          left: marker.x,
+          ...(marker.event.eventType
+            ? markerShapeStyle(marker.event.eventType.markerShape)
+            : {}),
+          backgroundColor: marker.event.eventType?.color,
+        }}
         type="button"
         onClick={(event) => {
           event.stopPropagation();
@@ -235,6 +245,11 @@ function EventClusterMarker({
     () => group.markers.map((marker) => marker.value).sort(sortEvents),
     [group.markers],
   );
+  const eventTypeIds = new Set(
+    events.map((event) => event.eventTypeId ?? "none"),
+  );
+  const sharedType = eventTypeIds.size === 1 ? events[0]?.eventType : null;
+  const mixedTypes = eventTypeIds.size > 1;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -244,7 +259,14 @@ function EventClusterMarker({
           data-timeline-event-marker="true"
           data-search-match={highlighted ? "true" : undefined}
           data-testid="timeline-event-cluster"
-          style={{ left: group.x }}
+          style={{
+            left: group.x,
+            ...(sharedType ? markerShapeStyle(sharedType.markerShape) : {}),
+            backgroundColor: mixedTypes ? "#6B7280" : sharedType?.color,
+            color: markerTextColor(
+              mixedTypes ? "#6B7280" : (sharedType?.color ?? "#FF3399"),
+            ),
+          }}
           type="button"
           onClick={(event) => {
             event.stopPropagation();

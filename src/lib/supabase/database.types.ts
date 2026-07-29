@@ -310,11 +310,210 @@ export type Database = {
         >;
         Relationships: [];
       };
+      tags: {
+        Row: {
+          id: string;
+          project_id: string;
+          name: string;
+          normalized_name: string;
+          color: string;
+          description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          name: string;
+          color?: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          name?: string;
+          color?: string;
+          description?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      event_types: {
+        Row: {
+          id: string;
+          project_id: string;
+          name: string;
+          normalized_name: string;
+          color: string;
+          marker_shape:
+            "circle" | "square" | "diamond" | "triangle" | "star" | "hexagon";
+          description: string | null;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          name: string;
+          color?: string;
+          marker_shape?:
+            "circle" | "square" | "diamond" | "triangle" | "star" | "hexagon";
+          description?: string | null;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["event_types"]["Insert"]>;
+        Relationships: [];
+      };
+      timeline_item_tags: {
+        Row: {
+          project_id: string;
+          timeline_item_id: string;
+          tag_id: string;
+          created_at: string;
+        };
+        Insert: {
+          project_id: string;
+          timeline_item_id: string;
+          tag_id: string;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["timeline_item_tags"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      timeline_event_tags: {
+        Row: {
+          project_id: string;
+          timeline_event_id: string;
+          tag_id: string;
+          created_at: string;
+        };
+        Insert: {
+          project_id: string;
+          timeline_event_id: string;
+          tag_id: string;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["timeline_event_tags"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      custom_field_definitions: {
+        Row: {
+          id: string;
+          project_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          scope: "project" | "type";
+          target_type_id: string | null;
+          name: string;
+          normalized_name: string;
+          field_type:
+            | "text"
+            | "multiline"
+            | "number"
+            | "boolean"
+            | "single_select"
+            | "multi_select"
+            | "url"
+            | "historical_date"
+            | "entity_reference";
+          is_required: boolean;
+          options: string[];
+          description: string | null;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          scope?: "project" | "type";
+          target_type_id?: string | null;
+          name: string;
+          field_type:
+            | "text"
+            | "multiline"
+            | "number"
+            | "boolean"
+            | "single_select"
+            | "multi_select"
+            | "url"
+            | "historical_date"
+            | "entity_reference";
+          is_required?: boolean;
+          options?: string[];
+          description?: string | null;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["custom_field_definitions"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      custom_field_values: {
+        Row: {
+          project_id: string;
+          field_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          entity_id: string;
+          text_value: string | null;
+          number_value: number | null;
+          boolean_value: boolean | null;
+          multi_value: string[] | null;
+          date_era: "ce" | "bce" | null;
+          date_precision:
+            "day" | "month" | "year" | "decade" | "century" | null;
+          date_year: number | null;
+          date_month: number | null;
+          date_day: number | null;
+          date_original_text: string | null;
+          date_calendar: string | null;
+          reference_entity_type: "timeline_item" | "timeline_event" | null;
+          reference_entity_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          project_id: string;
+          field_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          entity_id: string;
+          text_value?: string | null;
+          number_value?: number | null;
+          boolean_value?: boolean | null;
+          multi_value?: string[] | null;
+          date_era?: "ce" | "bce" | null;
+          date_precision?:
+            "day" | "month" | "year" | "decade" | "century" | null;
+          date_year?: number | null;
+          date_month?: number | null;
+          date_day?: number | null;
+          date_original_text?: string | null;
+          date_calendar?: string | null;
+          reference_entity_type?: "timeline_item" | "timeline_event" | null;
+          reference_entity_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["custom_field_values"]["Insert"]
+        >;
+        Relationships: [];
+      };
       timeline_events: {
         Row: {
           id: string;
           project_id: string;
           timeline_item_id: string;
+          event_type_id: string | null;
           title: string;
           aliases: string[];
           event_year: number;
@@ -340,6 +539,7 @@ export type Database = {
           id?: string;
           project_id: string;
           timeline_item_id: string;
+          event_type_id?: string | null;
           title: string;
           aliases?: string[];
           event_year: number;
@@ -363,6 +563,7 @@ export type Database = {
           id?: string;
           project_id?: string;
           timeline_item_id?: string;
+          event_type_id?: string | null;
           title?: string;
           aliases?: string[];
           event_year?: number;
@@ -621,6 +822,14 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      merge_tags: {
+        Args: {
+          p_project_id: string;
+          p_source_tag_id: string;
+          p_target_tag_id: string;
+        };
+        Returns: undefined;
+      };
       replace_source_citations: {
         Args: {
           p_project_id: string;

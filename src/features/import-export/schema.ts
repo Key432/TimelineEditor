@@ -7,12 +7,18 @@ import {
   LEGACY_UNVERSIONED_SCHEMA_VERSION,
   unsupportedSchemaVersionMessage,
 } from "@/lib/data-compatibility";
+import { customFieldEntrySchema } from "@/features/classification/validation";
+import {
+  CUSTOM_FIELD_TYPES,
+  MARKER_SHAPES,
+} from "@/features/classification/types";
 
 export const IMPORT_SCHEMA_VERSION = DATA_COMPATIBILITY_BASELINE.json.version;
 export const importSectionSchema = z.enum([
   "itemTypes",
   "timelineItems",
   "timelineEvents",
+  "classification",
 ]);
 
 const nullableString = z.string().nullable();
@@ -42,6 +48,8 @@ const itemSchema = z.object({
   typeId: z.uuid(),
   title: z.string(),
   aliases: z.array(z.string().trim().min(1).max(200)).max(20),
+  tagIds: z.array(z.uuid()).max(100).default([]),
+  customFields: z.array(customFieldEntrySchema).max(100).default([]),
   description: nullableString,
   sourceText: nullableString,
   externalUrl: nullableString,
@@ -66,6 +74,9 @@ const eventSchema = z.object({
   timelineItemId: z.uuid(),
   title: z.string(),
   aliases: z.array(z.string().trim().min(1).max(200)).max(20),
+  eventTypeId: z.uuid().nullable().default(null),
+  tagIds: z.array(z.uuid()).max(100).default([]),
+  customFields: z.array(customFieldEntrySchema).max(100).default([]),
   date: historicalDate.unwrap(),
   isApproximate: z.boolean(),
   description: nullableString,
@@ -95,6 +106,47 @@ export const projectBackupSchema = z
       minimumTimeUnit: z.enum(["year", "month", "day"]),
     }),
     itemTypes: z.array(itemTypeSchema).max(1000),
+    tags: z
+      .array(
+        z.object({
+          id: z.uuid(),
+          name: z.string().trim().min(1).max(100),
+          color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+          description: nullableString,
+        }),
+      )
+      .max(1000)
+      .default([]),
+    eventTypes: z
+      .array(
+        z.object({
+          id: z.uuid(),
+          name: z.string().trim().min(1).max(100),
+          color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+          markerShape: z.enum(MARKER_SHAPES),
+          description: nullableString,
+          sortOrder: z.number().int().min(0),
+        }),
+      )
+      .max(1000)
+      .default([]),
+    customFields: z
+      .array(
+        z.object({
+          id: z.uuid(),
+          entityType: z.enum(["timeline_item", "timeline_event"]),
+          scope: z.enum(["project", "type"]),
+          targetTypeId: z.uuid().nullable(),
+          name: z.string().trim().min(1).max(100),
+          fieldType: z.enum(CUSTOM_FIELD_TYPES),
+          isRequired: z.boolean(),
+          options: z.array(z.string().trim().min(1).max(100)).max(100),
+          description: nullableString,
+          sortOrder: z.number().int().min(0),
+        }),
+      )
+      .max(1000)
+      .default([]),
     timelineItems: z.array(itemSchema).max(5000),
     timelineEvents: z.array(eventSchema).max(50000),
     importSections: z.array(importSectionSchema).min(1).optional(),
@@ -109,10 +161,31 @@ export const projectBackupSchema = z
     }
     const typeIds = new Set(backup.itemTypes.map((type) => type.id));
     const itemIds = new Set(backup.timelineItems.map((item) => item.id));
+    const eventIds = new Set(backup.timelineEvents.map((event) => event.id));
+    const tagIds = new Set(backup.tags.map((tag) => tag.id));
+    const eventTypeIds = new Set(backup.eventTypes.map((type) => type.id));
+    const fields = new Map(
+      backup.customFields.map((field) => [field.id, field]),
+    );
     const validatesTypes =
       !backup.importSections || backup.importSections.includes("itemTypes");
     const validatesItems =
       !backup.importSections || backup.importSections.includes("timelineItems");
+    const validatesClassification =
+      !backup.importSections ||
+      backup.importSections.includes("classification");
+    for (const [index, field] of backup.customFields.entries())
+      if (
+        field.scope === "type" &&
+        !(field.entityType === "timeline_item" ? typeIds : eventTypeIds).has(
+          field.targetTypeId!,
+        )
+      )
+        context.addIssue({
+          code: "custom",
+          path: ["customFields", index, "targetTypeId"],
+          message: "カスタムフィールドの対象種別が見つかりません。",
+        });
     for (const [index, item] of backup.timelineItems.entries()) {
       if (validatesTypes && !typeIds.has(item.typeId))
         context.addIssue({
@@ -127,6 +200,37 @@ export const projectBackupSchema = z
           path: ["timelineItems", index],
           message: parsed.error.issues[0]?.message ?? "項目が不正です。",
         });
+      if (validatesClassification && item.tagIds.some((id) => !tagIds.has(id)))
+        context.addIssue({
+          code: "custom",
+          path: ["timelineItems", index, "tagIds"],
+          message: "タグが見つかりません。",
+        });
+      for (const entry of item.customFields) {
+        const field = fields.get(entry.fieldId);
+        if (
+          validatesClassification &&
+          (!field || field.entityType !== "timeline_item")
+        )
+          context.addIssue({
+            code: "custom",
+            path: ["timelineItems", index, "customFields"],
+            message: "カスタムフィールドが見つかりません。",
+          });
+        if (
+          typeof entry.value === "object" &&
+          !Array.isArray(entry.value) &&
+          "entityId" in entry.value &&
+          !(
+            entry.value.entityType === "timeline_item" ? itemIds : eventIds
+          ).has(entry.value.entityId)
+        )
+          context.addIssue({
+            code: "custom",
+            path: ["timelineItems", index, "customFields"],
+            message: "参照先が見つかりません。",
+          });
+      }
     }
     for (const [index, event] of backup.timelineEvents.entries()) {
       if (validatesItems && !itemIds.has(event.timelineItemId))
@@ -142,6 +246,47 @@ export const projectBackupSchema = z
           path: ["timelineEvents", index],
           message: parsed.error.issues[0]?.message ?? "イベントが不正です。",
         });
+      if (
+        validatesClassification &&
+        event.eventTypeId &&
+        !eventTypeIds.has(event.eventTypeId)
+      )
+        context.addIssue({
+          code: "custom",
+          path: ["timelineEvents", index, "eventTypeId"],
+          message: "イベント種別が見つかりません。",
+        });
+      if (validatesClassification && event.tagIds.some((id) => !tagIds.has(id)))
+        context.addIssue({
+          code: "custom",
+          path: ["timelineEvents", index, "tagIds"],
+          message: "タグが見つかりません。",
+        });
+      for (const entry of event.customFields) {
+        const field = fields.get(entry.fieldId);
+        if (
+          validatesClassification &&
+          (!field || field.entityType !== "timeline_event")
+        )
+          context.addIssue({
+            code: "custom",
+            path: ["timelineEvents", index, "customFields"],
+            message: "カスタムフィールドが見つかりません。",
+          });
+        if (
+          typeof entry.value === "object" &&
+          !Array.isArray(entry.value) &&
+          "entityId" in entry.value &&
+          !(
+            entry.value.entityType === "timeline_item" ? itemIds : eventIds
+          ).has(entry.value.entityId)
+        )
+          context.addIssue({
+            code: "custom",
+            path: ["timelineEvents", index, "customFields"],
+            message: "参照先が見つかりません。",
+          });
+      }
     }
   });
 
@@ -222,6 +367,31 @@ function migrateVersionTwo(input: Record<string, unknown>) {
   };
 }
 
+function migrateVersionThree(input: Record<string, unknown>) {
+  const addMetadata = (value: unknown, event = false) =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? {
+          ...(value as Record<string, unknown>),
+          ...(event ? { eventTypeId: null } : {}),
+          tagIds: [],
+          customFields: [],
+        }
+      : value;
+  return {
+    ...input,
+    schemaVersion: 4,
+    tags: [],
+    eventTypes: [],
+    customFields: [],
+    timelineItems: Array.isArray(input.timelineItems)
+      ? input.timelineItems.map((value) => addMetadata(value))
+      : input.timelineItems,
+    timelineEvents: Array.isArray(input.timelineEvents)
+      ? input.timelineEvents.map((value) => addMetadata(value, true))
+      : input.timelineEvents,
+  };
+}
+
 const importMigrations: Record<number, ImportMigration> = {
   [LEGACY_UNVERSIONED_SCHEMA_VERSION]: (input) => ({
     ...input,
@@ -229,6 +399,7 @@ const importMigrations: Record<number, ImportMigration> = {
   }),
   1: migrateVersionOne,
   2: migrateVersionTwo,
+  3: migrateVersionThree,
 };
 
 export type ImportMigrationResult = {
@@ -289,12 +460,14 @@ export function migrateProjectBackup(input: unknown): ImportMigrationResult {
     errors: [],
     warnings:
       inputVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION
-        ? ["旧JSON形式をスキーマバージョン3へ移行しました。"]
+        ? ["旧JSON形式をスキーマバージョン4へ移行しました。"]
         : inputVersion === 1
-          ? ["JSONスキーマバージョン1をバージョン3へ移行しました。"]
+          ? ["JSONスキーマバージョン1をバージョン4へ移行しました。"]
           : inputVersion === 2
-            ? ["JSONスキーマバージョン2をバージョン3へ移行しました。"]
-            : [],
+            ? ["JSONスキーマバージョン2をバージョン4へ移行しました。"]
+            : inputVersion === 3
+              ? ["JSONスキーマバージョン3をバージョン4へ移行しました。"]
+              : [],
   };
 }
 

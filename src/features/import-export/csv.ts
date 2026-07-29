@@ -14,6 +14,7 @@ const BOM = "\uFEFF";
 const PRIMARY_COLOR = "#00B0B0";
 const CSV_VERSION_PREFIX = "# timeline-editor-schema-version=";
 const CSV_MANIFEST_NAME = "manifest.json";
+const CLASSIFICATION_NAME = "classification.json";
 const README = `# Timeline Editor CSV
 
 CSVスキーマバージョン: ${IMPORT_SCHEMA_VERSION}
@@ -50,6 +51,7 @@ CSVスキーマバージョン: ${IMPORT_SCHEMA_VERSION}
 - is_end_approximate: 期間終了日のあいまいフラグ。TRUE/FALSE。
 - end_uncertainty_years: 期間終了日の不確かさ（年）。任意。
 - is_point_approximate: 時点の日付のあいまいフラグ。TRUE/FALSE。
+- tag_ids_json/custom_fields_json: タグIDと型付きカスタム値のJSON配列。
 
 ### timeline-events.csv
 
@@ -65,6 +67,11 @@ CSVスキーマバージョン: ${IMPORT_SCHEMA_VERSION}
 - description: 説明本文。任意。
 - source_text: 出典・参考文献。任意。
 - external_url: 外部URL。任意。
+- event_type_id/tag_ids_json/custom_fields_json: イベント種別ID、タグID、型付きカスタム値。
+
+### classification.json
+
+タグ、イベント種別、カスタムフィールド定義を保持する。ZIP全体での往復時に使用する。
 
 ### item-types.csv
 
@@ -170,6 +177,8 @@ export function createCsvArchive(backup: ProjectBackup) {
       "is_end_approximate",
       "end_uncertainty_years",
       "is_point_approximate",
+      "tag_ids_json",
+      "custom_fields_json",
     ],
     backup.timelineItems.map((item) => [
       item.id,
@@ -194,6 +203,8 @@ export function createCsvArchive(backup: ProjectBackup) {
       item.isEndApproximate,
       item.endUncertaintyYears,
       item.isPointApproximate,
+      JSON.stringify(item.tagIds),
+      JSON.stringify(item.customFields),
     ]),
   );
   const titleById = new Map(
@@ -217,6 +228,9 @@ export function createCsvArchive(backup: ProjectBackup) {
       "description",
       "source_text",
       "external_url",
+      "event_type_id",
+      "tag_ids_json",
+      "custom_fields_json",
     ],
     backup.timelineEvents.map((event) => [
       event.id,
@@ -229,6 +243,9 @@ export function createCsvArchive(backup: ProjectBackup) {
       event.description,
       event.sourceText,
       event.externalUrl,
+      event.eventTypeId,
+      JSON.stringify(event.tagIds),
+      JSON.stringify(event.customFields),
     ]),
   );
   return createStoredZip([
@@ -248,6 +265,18 @@ export function createCsvArchive(backup: ProjectBackup) {
     { name: "timeline-items.csv", content: items },
     { name: "timeline-events.csv", content: events },
     { name: "item-types.csv", content: types },
+    {
+      name: CLASSIFICATION_NAME,
+      content: JSON.stringify(
+        {
+          tags: backup.tags,
+          eventTypes: backup.eventTypes,
+          customFields: backup.customFields,
+        },
+        null,
+        2,
+      ),
+    },
     { name: "README.md", content: BOM + README.replaceAll("\n", "\r\n") },
   ]);
 }
@@ -317,6 +346,15 @@ const parseAliases = (value: string | undefined) => {
     return Array.isArray(parsed)
       ? parsed.filter((alias): alias is string => typeof alias === "string")
       : [];
+  } catch {
+    return [];
+  }
+};
+const parseJsonArray = (value: string | undefined) => {
+  if (!value?.trim()) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -449,11 +487,13 @@ export function parseCsvImport(
       throw new Error("CSVスキーマバージョンが不正です。");
     }
     if (schemaVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION) {
-      warnings.push("旧CSV形式をスキーマバージョン3へ移行しました。");
+      warnings.push("旧CSV形式をスキーマバージョン4へ移行しました。");
     } else if (schemaVersion === 1) {
-      warnings.push("CSVスキーマバージョン1をバージョン3へ移行しました。");
+      warnings.push("CSVスキーマバージョン1をバージョン4へ移行しました。");
     } else if (schemaVersion === 2) {
-      warnings.push("CSVスキーマバージョン2をバージョン3へ移行しました。");
+      warnings.push("CSVスキーマバージョン2をバージョン4へ移行しました。");
+    } else if (schemaVersion === 3) {
+      warnings.push("CSVスキーマバージョン3をバージョン4へ移行しました。");
     } else if (schemaVersion !== IMPORT_SCHEMA_VERSION) {
       throw new Error(
         `CSVスキーマバージョン${schemaVersion}の移行処理がありません。`,
@@ -541,6 +581,8 @@ export function parseCsvImport(
           row.end_date_status === "unknown" ? date(row, "end") : null,
         point: row.temporal_type === "point" ? date(row, "start") : null,
         isPointApproximate: boolean(row.is_point_approximate),
+        tagIds: parseJsonArray(row.tag_ids_json),
+        customFields: parseJsonArray(row.custom_fields_json),
       };
     });
     const timelineEvents = rawEvents.flatMap((row, index) => {
@@ -583,6 +625,9 @@ export function parseCsvImport(
           description: nullable(row.description),
           sourceText: nullable(row.source_text),
           externalUrl: nullable(row.external_url),
+          eventTypeId: nullable(row.event_type_id),
+          tagIds: parseJsonArray(row.tag_ids_json),
+          customFields: parseJsonArray(row.custom_fields_json),
         },
       ];
     });
@@ -600,8 +645,20 @@ export function parseCsvImport(
           "timeline-events.csv": "timelineEvents",
         })[name],
     );
+    if (files.has(CLASSIFICATION_NAME)) importSections.push("classification");
     if (createdItemTypeCount > 0 && !importSections.includes("itemTypes"))
       importSections.unshift("itemTypes");
+    const classification = files.has(CLASSIFICATION_NAME)
+      ? (JSON.parse(files.get(CLASSIFICATION_NAME)!) as {
+          tags?: unknown;
+          eventTypes?: unknown;
+          customFields?: unknown;
+        })
+      : {
+          tags: base.tags,
+          eventTypes: base.eventTypes,
+          customFields: base.customFields,
+        };
     const preview = previewBackup({
       schemaVersion: IMPORT_SCHEMA_VERSION,
       appVersion: base.appVersion,
@@ -609,6 +666,9 @@ export function parseCsvImport(
       project: base.project,
       settings: base.settings,
       itemTypes,
+      tags: classification.tags ?? [],
+      eventTypes: classification.eventTypes ?? [],
+      customFields: classification.customFields ?? [],
       timelineItems,
       timelineEvents,
       importSections,

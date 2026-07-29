@@ -16,6 +16,7 @@ import { SourceRepository } from "@/lib/repositories/source-repository";
 import { ServiceError } from "@/lib/services/errors";
 import { ProjectService } from "@/lib/services/project-service";
 import type { Database } from "@/lib/supabase/database.types";
+import { ClassificationService } from "@/lib/services/classification-service";
 
 function validationError(error: z.ZodError) {
   return new ServiceError(
@@ -31,12 +32,14 @@ export class TimelineItemService {
   private readonly itemTypes: ItemTypeRepository;
   private readonly projects: ProjectService;
   private readonly sources: SourceRepository;
+  private readonly classification: ClassificationService;
 
   constructor(client: SupabaseClient<Database>) {
     this.repository = new TimelineItemRepository(client);
     this.itemTypes = new ItemTypeRepository(client);
     this.projects = new ProjectService(client);
     this.sources = new SourceRepository(client);
+    this.classification = new ClassificationService(client);
   }
 
   private async requireSources(projectId: string, sourceIds: string[]) {
@@ -108,6 +111,13 @@ export class TimelineItemService {
     const result = timelineItemSchema.safeParse(rawItem);
     if (!result.success) throw validationError(result.error);
     await this.requireItemType(project.id, result.data.typeId);
+    const metadata = await this.classification.validateEntityMetadata(
+      project.id,
+      "timeline_item",
+      result.data.typeId,
+      result.data.tagIds,
+      result.data.customFields,
+    );
     await this.requireSources(
       project.id,
       result.data.citations.map((citation) => citation.sourceId),
@@ -156,8 +166,20 @@ export class TimelineItemService {
       result.data,
       events,
     );
+    await this.classification.attachEntityMetadata(
+      project.id,
+      "timeline_item",
+      created.item.id,
+      metadata.tagIds,
+      metadata.customFields,
+    );
+    const createdItem = (await this.repository.findById(
+      project.id,
+      created.item.id,
+    ))!;
     return {
       ...created,
+      item: createdItem,
       failedEvents: [...failedEvents, ...created.failedEvents],
     };
   }
@@ -178,6 +200,13 @@ export class TimelineItemService {
     const result = timelineItemSchema.safeParse(updateRequest.data.values);
     if (!result.success) throw validationError(result.error);
     await this.requireItemType(project.id, result.data.typeId);
+    const metadata = await this.classification.validateEntityMetadata(
+      project.id,
+      "timeline_item",
+      result.data.typeId,
+      result.data.tagIds,
+      result.data.customFields,
+    );
     await this.requireSources(
       project.id,
       result.data.citations.map((citation) => citation.sourceId),
@@ -209,7 +238,14 @@ export class TimelineItemService {
         "TIMELINE_ITEM_CONFLICT",
       );
     }
-    return item;
+    await this.classification.attachEntityMetadata(
+      project.id,
+      "timeline_item",
+      item.id,
+      metadata.tagIds,
+      metadata.customFields,
+    );
+    return (await this.repository.findById(project.id, item.id))!;
   }
 
   async move(projectId: string, itemId: string, input: unknown) {
