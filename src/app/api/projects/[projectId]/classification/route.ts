@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { apiErrorResponse } from "@/lib/api-response";
 import { ClassificationService } from "@/lib/services/classification-service";
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePublicProjectById } from "@/lib/public-revalidation";
 
 type Context = { params: Promise<{ projectId: string }> };
 
@@ -24,22 +25,23 @@ export async function POST(request: Request, context: Context) {
       kind?: string;
       values?: unknown;
     } | null;
-    const service = new ClassificationService(await createClient());
+    const client = await createClient();
+    const service = new ClassificationService(client);
+    let result: Record<string, unknown> | null = null;
     if (body?.kind === "tag")
-      return NextResponse.json(
-        { tag: await service.createTag(projectId, body.values) },
-        { status: 201 },
-      );
+      result = { tag: await service.createTag(projectId, body.values) };
     if (body?.kind === "eventType")
-      return NextResponse.json(
-        { eventType: await service.createEventType(projectId, body.values) },
-        { status: 201 },
-      );
+      result = {
+        eventType: await service.createEventType(projectId, body.values),
+      };
     if (body?.kind === "customField")
-      return NextResponse.json(
-        { customField: await service.createDefinition(projectId, body.values) },
-        { status: 201 },
-      );
+      result = {
+        customField: await service.createDefinition(projectId, body.values),
+      };
+    if (result) {
+      await revalidatePublicProjectById(client, projectId);
+      return NextResponse.json(result, { status: 201 });
+    }
     return NextResponse.json(
       { error: { message: "分類種別を指定してください。" } },
       { status: 400 },

@@ -99,7 +99,7 @@ export class HistoryRepository {
   }
 
   async listTrash(projectId: string): Promise<TrashEntry[]> {
-    const [itemsResult, eventsResult] = await Promise.all([
+    const [itemsResult, eventsResult, parentLinksResult] = await Promise.all([
       this.client
         .from("timeline_items")
         .select("id, title, deleted_at")
@@ -107,13 +107,24 @@ export class HistoryRepository {
         .not("deleted_at", "is", null),
       this.client
         .from("timeline_events")
-        .select("id, title, deleted_at, timeline_item_id")
+        .select("id, title, deleted_at")
         .eq("project_id", projectId)
         .not("deleted_at", "is", null),
+      this.client
+        .from("timeline_event_item_links")
+        .select("timeline_event_id, timeline_item_id")
+        .eq("project_id", projectId),
     ]);
     if (itemsResult.error) throw itemsResult.error;
     if (eventsResult.error) throw eventsResult.error;
+    if (parentLinksResult.error) throw parentLinksResult.error;
     const deletedItemIds = new Set(itemsResult.data.map((item) => item.id));
+    const parentIdsByEvent = new Map<string, string[]>();
+    for (const link of parentLinksResult.data)
+      parentIdsByEvent.set(link.timeline_event_id, [
+        ...(parentIdsByEvent.get(link.timeline_event_id) ?? []),
+        link.timeline_item_id,
+      ]);
     return [
       ...itemsResult.data.map((item) => ({
         entityType: "timeline_item" as const,
@@ -122,7 +133,11 @@ export class HistoryRepository {
         deletedAt: item.deleted_at!,
       })),
       ...eventsResult.data
-        .filter((event) => !deletedItemIds.has(event.timeline_item_id))
+        .filter((event) =>
+          (parentIdsByEvent.get(event.id) ?? []).every(
+            (parentId) => !deletedItemIds.has(parentId),
+          ),
+        )
         .map((event) => ({
           entityType: "timeline_event" as const,
           entityId: event.id,

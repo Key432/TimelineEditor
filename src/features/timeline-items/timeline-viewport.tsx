@@ -199,6 +199,7 @@ function TimelineGlyph({
   onCancelOpen,
   onEdit,
   editOnDoubleClick = false,
+  emphasized = false,
 }: {
   item: TimelineItemSummary;
   currentDate: HistoricalDate;
@@ -211,6 +212,7 @@ function TimelineGlyph({
   onCancelOpen: () => void;
   onEdit: () => void;
   editOnDoubleClick?: boolean;
+  emphasized?: boolean;
 }) {
   const date = item.temporalType === "point" ? item.point : item.start;
   if (!date) return null;
@@ -234,7 +236,11 @@ function TimelineGlyph({
       <TimelineEntityTooltip date={itemDateLabel(item)} title={item.title}>
         <button
           aria-label={`${item.title}の詳細を表示 時点型マーカー ${formatHistoricalDate(item.point)}`}
-          className="absolute top-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-white shadow-sm transition-[box-shadow,transform] hover:z-20 hover:scale-125 hover:ring-2 hover:ring-secondary hover:ring-inset focus-visible:z-20 focus-visible:scale-125 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:outline-none focus-visible:ring-inset"
+          className={cn(
+            "absolute top-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-white shadow-sm transition-[box-shadow,transform] group-hover/compact-item:z-20 group-hover/compact-item:scale-125 group-hover/compact-item:ring-2 group-hover/compact-item:ring-secondary group-hover/compact-item:ring-inset hover:z-20 hover:scale-125 hover:ring-2 hover:ring-secondary hover:ring-inset focus-visible:z-20 focus-visible:scale-125 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:outline-none focus-visible:ring-inset",
+            emphasized && "z-20 scale-125 ring-2 ring-secondary ring-inset",
+          )}
+          data-hover-emphasized={emphasized ? "true" : undefined}
           data-timeline-item-glyph="true"
           style={{ left: registeredStart, backgroundColor: color }}
           type="button"
@@ -292,10 +298,13 @@ function TimelineGlyph({
       <button
         aria-label={`${item.title}の詳細を表示 期間型バー ${itemDateLabel(item)}`}
         className={cn(
-          "absolute top-1/2 h-3 min-w-1 -translate-y-1/2 rounded-sm border border-transparent transition-[box-shadow,border-color,transform] hover:z-20 hover:scale-y-125 hover:border-secondary hover:ring-2 hover:ring-secondary hover:ring-inset focus-visible:z-20 focus-visible:scale-y-125 focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary focus-visible:outline-none focus-visible:ring-inset",
+          "absolute top-1/2 h-3 min-w-1 -translate-y-1/2 rounded-sm border border-transparent transition-[box-shadow,border-color,transform] group-hover/compact-item:z-20 group-hover/compact-item:scale-y-125 group-hover/compact-item:border-secondary group-hover/compact-item:ring-2 group-hover/compact-item:ring-secondary group-hover/compact-item:ring-inset hover:z-20 hover:scale-y-125 hover:border-secondary hover:ring-2 hover:ring-secondary hover:ring-inset focus-visible:z-20 focus-visible:scale-y-125 focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary focus-visible:outline-none focus-visible:ring-inset",
           item.endDateStatus === "ongoing" &&
             "after:absolute after:top-0 after:-right-1 after:h-3 after:w-1 after:bg-current",
+          emphasized &&
+            "z-20 scale-y-125 border-secondary ring-2 ring-secondary ring-inset",
         )}
+        data-hover-emphasized={emphasized ? "true" : undefined}
         data-testid={`timeline-glyph-${item.id}`}
         data-timeline-item-glyph="true"
         style={{ left, width, background, color }}
@@ -375,6 +384,7 @@ function TimelineItemRow({
       disabled,
     });
   const itemOpenTimerRef = useRef<number | null>(null);
+  const [hovered, setHovered] = useState(false);
 
   useEffect(
     () => () => {
@@ -403,6 +413,17 @@ function TimelineItemRow({
         dimmed && "opacity-30 grayscale",
       )}
       data-testid={`timeline-row-${item.id}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onPointerOver={(event) => {
+        const target = event.target;
+        setHovered(
+          !(
+            target instanceof Element &&
+            target.closest("[data-timeline-event-marker='true']")
+          ),
+        );
+      }}
       style={{
         width: HANDLE_WIDTH + INFO_WIDTH + canvasWidth + ACTION_WIDTH,
         height: rowHeight,
@@ -445,7 +466,11 @@ function TimelineItemRow({
             }}
           />
           <button
-            className="truncate rounded-sm px-1 text-left text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className={cn(
+              "truncate rounded-sm px-1 text-left text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+              hovered && "bg-accent text-accent-foreground",
+            )}
+            data-hover-emphasized={hovered ? "true" : undefined}
             type="button"
             onClick={onOpenItem}
           >
@@ -497,6 +522,7 @@ function TimelineItemRow({
           defaultUncertaintyYears={defaultUncertaintyYears}
           domainStart={domainStart}
           item={item}
+          emphasized={hovered}
           pixelsPerDay={pixelsPerDay}
           visibleEnd={visibleEnd}
           visibleStart={visibleStart}
@@ -643,14 +669,14 @@ function CompactLaneItem({
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-0 transition-opacity [&_button]:pointer-events-auto",
+        "group/compact-item pointer-events-none absolute inset-0 transition-opacity [&_button]:pointer-events-auto",
         dimmed && "opacity-30 grayscale",
       )}
     >
       <TimelineEntityTooltip date={itemDateLabel(item)} title={item.title}>
         <button
           aria-label={`${item.title}の詳細を表示`}
-          className="absolute top-1 z-20 max-w-none truncate rounded-sm px-1 text-left text-sm font-medium whitespace-nowrap transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="absolute top-1 z-20 max-w-none truncate rounded-sm px-1 text-left text-sm font-medium whitespace-nowrap transition-colors group-hover/compact-item:bg-accent group-hover/compact-item:text-accent-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           data-timeline-item-glyph="true"
           style={{ left: titleLeft }}
           type="button"
@@ -821,9 +847,11 @@ export function TimelineViewport({
   const eventsByParent = useMemo(() => {
     const grouped = new Map<string, TimelineEventSummary[]>();
     for (const timelineEvent of events) {
-      const current = grouped.get(timelineEvent.timelineItemId) ?? [];
-      current.push(timelineEvent);
-      grouped.set(timelineEvent.timelineItemId, current);
+      for (const parentId of timelineEvent.timelineItemIds) {
+        const current = grouped.get(parentId) ?? [];
+        current.push(timelineEvent);
+        grouped.set(parentId, current);
+      }
     }
     return grouped;
   }, [events]);

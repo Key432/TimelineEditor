@@ -107,6 +107,23 @@ export class ImportExportRepository {
     }
   }
 
+  private async listEventParentLinks(projectId: string) {
+    const rows: Database["public"]["Tables"]["timeline_event_item_links"]["Row"][] =
+      [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await this.client
+        .from("timeline_event_item_links")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("timeline_event_id")
+        .order("sort_order")
+        .range(from, from + 999);
+      if (error) throw error;
+      rows.push(...data);
+      if (data.length < 1000) return rows;
+    }
+  }
+
   private async listItemTagLinks(projectId: string) {
     const rows: Database["public"]["Tables"]["timeline_item_tags"]["Row"][] =
       [];
@@ -157,6 +174,7 @@ export class ImportExportRepository {
       types,
       items,
       events,
+      eventParentLinks,
       tags,
       eventTypes,
       customFields,
@@ -177,6 +195,7 @@ export class ImportExportRepository {
       this.listItemTypes(projectId),
       this.listItems(projectId),
       this.listEvents(projectId),
+      this.listEventParentLinks(projectId),
       this.classification.listTags(projectId),
       this.classification.listEventTypes(projectId),
       this.classification.listDefinitions(projectId),
@@ -200,6 +219,12 @@ export class ImportExportRepository {
       eventTags.set(link.timeline_event_id, [
         ...(eventTags.get(link.timeline_event_id) ?? []),
         link.tag_id,
+      ]);
+    const eventParents = new Map<string, string[]>();
+    for (const link of eventParentLinks)
+      eventParents.set(link.timeline_event_id, [
+        ...(eventParents.get(link.timeline_event_id) ?? []),
+        link.timeline_item_id,
       ]);
     const itemValues = new Map<string, CustomFieldEntry[]>();
     const eventValues = new Map<string, CustomFieldEntry[]>();
@@ -345,7 +370,7 @@ export class ImportExportRepository {
       })),
       timelineEvents: events.map((event) => ({
         id: event.id,
-        timelineItemId: event.timeline_item_id,
+        timelineItemIds: eventParents.get(event.id) ?? [],
         title: event.title,
         aliases: event.aliases,
         eventTypeId: event.event_type_id,

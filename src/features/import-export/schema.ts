@@ -71,7 +71,7 @@ const itemSchema = z.object({
 
 const eventSchema = z.object({
   id: z.uuid(),
-  timelineItemId: z.uuid(),
+  timelineItemIds: z.array(z.uuid()).min(1).max(100),
   title: z.string(),
   aliases: z.array(z.string().trim().min(1).max(200)).max(20),
   eventTypeId: z.uuid().nullable().default(null),
@@ -233,10 +233,13 @@ export const projectBackupSchema = z
       }
     }
     for (const [index, event] of backup.timelineEvents.entries()) {
-      if (validatesItems && !itemIds.has(event.timelineItemId))
+      if (
+        validatesItems &&
+        event.timelineItemIds.some((parentId) => !itemIds.has(parentId))
+      )
         context.addIssue({
           code: "custom",
-          path: ["timelineEvents", index, "timelineItemId"],
+          path: ["timelineEvents", index, "timelineItemIds"],
           message: "親項目が見つかりません。",
         });
       const parsed = timelineEventSchema.safeParse(event);
@@ -392,6 +395,26 @@ function migrateVersionThree(input: Record<string, unknown>) {
   };
 }
 
+function migrateVersionFour(input: Record<string, unknown>) {
+  return {
+    ...input,
+    schemaVersion: 5,
+    timelineEvents: Array.isArray(input.timelineEvents)
+      ? input.timelineEvents.map((value) => {
+          if (!value || typeof value !== "object" || Array.isArray(value)) {
+            return value;
+          }
+          const event = value as Record<string, unknown>;
+          return {
+            ...event,
+            timelineItemIds: [event.timelineItemId],
+            timelineItemId: undefined,
+          };
+        })
+      : input.timelineEvents,
+  };
+}
+
 const importMigrations: Record<number, ImportMigration> = {
   [LEGACY_UNVERSIONED_SCHEMA_VERSION]: (input) => ({
     ...input,
@@ -400,6 +423,7 @@ const importMigrations: Record<number, ImportMigration> = {
   1: migrateVersionOne,
   2: migrateVersionTwo,
   3: migrateVersionThree,
+  4: migrateVersionFour,
 };
 
 export type ImportMigrationResult = {
@@ -460,14 +484,16 @@ export function migrateProjectBackup(input: unknown): ImportMigrationResult {
     errors: [],
     warnings:
       inputVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION
-        ? ["旧JSON形式をスキーマバージョン4へ移行しました。"]
+        ? ["旧JSON形式をスキーマバージョン5へ移行しました。"]
         : inputVersion === 1
-          ? ["JSONスキーマバージョン1をバージョン4へ移行しました。"]
+          ? ["JSONスキーマバージョン1をバージョン5へ移行しました。"]
           : inputVersion === 2
-            ? ["JSONスキーマバージョン2をバージョン4へ移行しました。"]
+            ? ["JSONスキーマバージョン2をバージョン5へ移行しました。"]
             : inputVersion === 3
-              ? ["JSONスキーマバージョン3をバージョン4へ移行しました。"]
-              : [],
+              ? ["JSONスキーマバージョン3をバージョン5へ移行しました。"]
+              : inputVersion === 4
+                ? ["JSONスキーマバージョン4をバージョン5へ移行しました。"]
+                : [],
   };
 }
 

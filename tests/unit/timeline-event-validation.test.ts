@@ -22,7 +22,10 @@ const parent = {
 describe("timeline event validation and snapping", () => {
   it("accepts partial historical dates and normalizes optional text", () => {
     const result = timelineEventSchema.parse({
-      timelineItemId: "11111111-1111-4111-8111-111111111111",
+      timelineItemIds: [
+        "11111111-1111-4111-8111-111111111111",
+        "22222222-2222-4222-8222-222222222222",
+      ],
       title: "  出版  ",
       date: { year: "1905", month: "", day: "" },
       isApproximate: false,
@@ -31,6 +34,10 @@ describe("timeline event validation and snapping", () => {
       externalUrl: "",
     });
     expect(result).toMatchObject({
+      timelineItemIds: [
+        "11111111-1111-4111-8111-111111111111",
+        "22222222-2222-4222-8222-222222222222",
+      ],
       title: "出版",
       date: { year: 1905, month: null, day: null },
       description: null,
@@ -39,13 +46,27 @@ describe("timeline event validation and snapping", () => {
 
   it("rejects impossible dates, missing titles, and unsafe URLs", () => {
     const result = timelineEventSchema.safeParse({
-      timelineItemId: "11111111-1111-4111-8111-111111111111",
+      timelineItemIds: [],
       title: "",
       date: { year: 1900, month: 2, day: 29 },
       isApproximate: false,
       description: "",
       sourceText: "",
       externalUrl: "javascript:alert(1)",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects duplicate parents", () => {
+    const parentId = "11111111-1111-4111-8111-111111111111";
+    const result = timelineEventSchema.safeParse({
+      timelineItemIds: [parentId, parentId],
+      title: "重複親",
+      date: { year: 1900, month: null, day: null },
+      isApproximate: false,
+      description: "",
+      sourceText: "",
+      externalUrl: "",
     });
     expect(result.success).toBe(false);
   });

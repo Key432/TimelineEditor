@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { QueryProvider } from "@/components/query-provider";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
+export const dynamic = "force-static";
 
 export default function PublicProjectLayout({
   children,

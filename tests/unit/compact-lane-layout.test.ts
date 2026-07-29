@@ -62,7 +62,7 @@ function timelineEvent(
   return {
     id,
     projectId: "project-1",
-    timelineItemId,
+    timelineItemIds: [timelineItemId],
     title: id,
     date: { year: 1900, month: 1, day },
     isApproximate: false,

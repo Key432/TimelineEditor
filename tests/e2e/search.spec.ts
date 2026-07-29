@@ -98,7 +98,7 @@ test("searches globally, filters by event content, restores URL state, and retur
     `/api/projects/${project.id}/events`,
     {
       data: {
-        timelineItemId: matchingItem.id,
+        timelineItemIds: [matchingItem.id],
         title: "代表作刊行",
         date: { year: 1905, month: 1, day: 1 },
         isApproximate: false,

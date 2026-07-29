@@ -44,7 +44,7 @@ function event(
   return {
     id,
     projectId: "p",
-    timelineItemId: "item",
+    timelineItemIds: ["item"],
     title: id,
     date: { year: 1900, month: 1, day },
     isApproximate: false,
@@ -157,7 +157,7 @@ describe("Phase L9 timeline classification", () => {
       "rounded-full",
     );
     expect(
-      screen.getByTestId("timeline-event-cluster").style.backgroundColor,
+      screen.getByTestId("timeline-event-cluster-shape").style.backgroundColor,
     ).toBe("rgb(107, 114, 128)");
     rerender(
       <TooltipProvider>
@@ -168,10 +168,13 @@ describe("Phase L9 timeline classification", () => {
       </TooltipProvider>,
     );
     expect(
-      screen.getByTestId("timeline-event-cluster").style.backgroundColor,
+      screen.getByTestId("timeline-event-cluster-shape").style.backgroundColor,
     ).toBe("rgb(255, 51, 153)");
     expect(
-      screen.getByTestId("timeline-event-cluster").style.clipPath,
+      screen.getByTestId("timeline-event-cluster-shape").style.clipPath,
     ).toContain("polygon");
+    expect(screen.getByTestId("timeline-event-cluster")).toHaveClass(
+      "border-white",
+    );
   });
 });

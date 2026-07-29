@@ -67,7 +67,7 @@ describe("TimelineParentSelect", () => {
     render(
       <TimelineParentSelect
         rangeItems={[baseItem, { ...baseItem, id: "other", title: "森鷗外" }]}
-        value=""
+        value={[]}
         onChange={onChange}
       />,
     );
@@ -79,7 +79,7 @@ describe("TimelineParentSelect", () => {
     expect(screen.getByRole("button", { name: "夏目漱石" })).toBeVisible();
     expect(screen.queryByRole("button", { name: /設定変更/ })).toBeNull();
     await user.click(screen.getByRole("button", { name: "夏目漱石" }));
-    expect(onChange).toHaveBeenCalledWith(baseItem.id);
+    expect(onChange).toHaveBeenCalledWith([baseItem.id]);
   });
 
   it("closes candidates after an outside click", async () => {
@@ -88,7 +88,7 @@ describe("TimelineParentSelect", () => {
       <div>
         <TimelineParentSelect
           rangeItems={[baseItem]}
-          value=""
+          value={[]}
           onChange={() => undefined}
         />
         <button type="button">外側</button>
@@ -101,9 +101,11 @@ describe("TimelineParentSelect", () => {
       }),
     );
     expect(
-      screen.getByText("親タイムラインアイテムを選択します"),
+      screen.getByText("親タイムラインアイテムを複数選択できます"),
     ).toBeVisible();
     await user.click(screen.getByRole("button", { name: "外側" }));
-    expect(screen.queryByText("親タイムラインアイテムを選択します")).toBeNull();
+    expect(
+      screen.queryByText("親タイムラインアイテムを複数選択できます"),
+    ).toBeNull();
   });
 });

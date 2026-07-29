@@ -23,7 +23,13 @@ const nullableText = (max: number, message: string) =>
     .nullable();
 
 export const timelineEventSchema = z.object({
-  timelineItemId: z.uuid("親項目を選択してください。"),
+  timelineItemIds: z
+    .array(z.uuid("親項目を選択してください。"))
+    .min(1, "親項目を1件以上選択してください。")
+    .max(100, "親項目は100件以内で選択してください。")
+    .refine((ids) => new Set(ids).size === ids.length, {
+      message: "同じ親項目を重複して選択できません。",
+    }),
   eventTypeId: z.uuid().nullable().default(null),
   tagIds: z.array(z.uuid()).max(100).default([]),
   customFields: customFieldEntriesSchema.default([]),
@@ -56,7 +62,7 @@ export const timelineEventSchema = z.object({
 });
 
 export const timelineEventDraftSchema = timelineEventSchema.omit({
-  timelineItemId: true,
+  timelineItemIds: true,
   eventTypeId: true,
   tagIds: true,
   customFields: true,
@@ -74,7 +80,7 @@ export function emptyTimelineEventValues(
   date: HistoricalDate | null = null,
 ): TimelineEventInput {
   return {
-    timelineItemId,
+    timelineItemIds: timelineItemId ? [timelineItemId] : [],
     eventTypeId: null,
     tagIds: [],
     customFields: [],

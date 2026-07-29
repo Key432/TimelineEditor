@@ -39,11 +39,11 @@ export default async function TimelineEventPage({
   }
   return (
     <DetailPageShell
-      breadcrumbParent={{
-        href: `/projects/${projectId}/items/${event.parent.id}`,
-        label: event.parent.title,
+      breadcrumbParents={event.parents.map((parent) => ({
+        href: `/projects/${projectId}/items/${parent.id}`,
+        label: parent.title,
         hardNavigation: true,
-      }}
+      }))}
       projectId={projectId}
       projectName={project.name}
       returnTo={returnTo}

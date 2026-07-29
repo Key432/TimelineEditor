@@ -27,7 +27,9 @@ export default async function TimelineItemModalPage({
     ]);
     item = detail.item;
     listing = itemListing;
-    relatedEvents = events.filter((event) => event.timelineItemId === itemId);
+    relatedEvents = events.filter((event) =>
+      event.timelineItemIds.includes(itemId),
+    );
   } catch (error) {
     if (error instanceof ServiceError && error.status === 404) notFound();
     throw error;

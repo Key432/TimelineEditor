@@ -96,7 +96,7 @@ function backup(): ProjectBackup {
     timelineEvents: [
       {
         id: eventId,
-        timelineItemId: itemId,
+        timelineItemIds: [itemId],
         title: "吾輩は猫である",
         aliases: [],
         eventTypeId: null,
@@ -119,8 +119,9 @@ describe("project import and export formats", () => {
     expect(valid.timelineEventCount).toBe(1);
 
     const invalid = structuredClone(backup());
-    invalid.timelineEvents[0]!.timelineItemId =
-      "44444444-4444-4444-8444-444444444444";
+    invalid.timelineEvents[0]!.timelineItemIds = [
+      "44444444-4444-4444-8444-444444444444",
+    ];
     expect(previewBackup(invalid).errors.join(" ")).toContain("親項目");
     expect(
       previewBackup({ ...backup(), schemaVersion: 99 }).errors.join(" "),
@@ -130,12 +131,17 @@ describe("project import and export formats", () => {
   it("migrates an unversioned legacy JSON backup to the baseline", () => {
     const legacy = structuredClone(backup()) as Record<string, unknown>;
     delete legacy.schemaVersion;
+    const legacyEvent = (
+      legacy.timelineEvents as Record<string, unknown>[]
+    )[0]!;
+    legacyEvent.timelineItemId = itemId;
+    delete legacyEvent.timelineItemIds;
 
     const preview = previewBackup(legacy);
 
     expect(preview.errors).toEqual([]);
     expect(preview.warnings).toContain(
-      "旧JSON形式をスキーマバージョン4へ移行しました。",
+      "旧JSON形式をスキーマバージョン5へ移行しました。",
     );
     expect(preview.payload?.schemaVersion).toBe(IMPORT_SCHEMA_VERSION);
   });
@@ -168,7 +174,9 @@ describe("project import and export formats", () => {
     expect(preview.errors).toEqual([]);
     expect(preview.payload?.timelineItems[0]?.title).toBe('夏目漱石, "作家"');
     expect(preview.payload?.timelineItems[0]?.description).toBe("改行\nを含む");
-    expect(preview.payload?.timelineEvents[0]?.timelineItemId).toBe(itemId);
+    expect(preview.payload?.timelineEvents[0]?.timelineItemIds).toEqual([
+      itemId,
+    ]);
 
     const deflated = createDeflatedZip(
       [...files].map(([name, content]) => ({ name, content })),
@@ -178,7 +186,25 @@ describe("project import and export formats", () => {
     ).toEqual([]);
   });
 
-  it("round-trips L9 classification metadata in the version 4 ZIP", () => {
+  it("resolves current CSV event parents by ordered titles when IDs are blank", () => {
+    const exported = readStoredZip(createCsvArchive(backup())).get(
+      "timeline-events.csv",
+    )!;
+    const titleOnly = exported.replace(`"[""${itemId}"""]"`, '"[]"');
+
+    const preview = parseCsvImport(
+      new TextEncoder().encode(titleOnly),
+      "timeline-events.csv",
+      backup(),
+    );
+
+    expect(preview.errors).toEqual([]);
+    expect(preview.payload?.timelineEvents[0]?.timelineItemIds).toEqual([
+      itemId,
+    ]);
+  });
+
+  it("round-trips L9 classification metadata in the current ZIP", () => {
     const source = backup();
     const tagId = "55555555-5555-4555-8555-555555555555";
     const eventTypeId = "66666666-6666-4666-8666-666666666666";
@@ -235,7 +261,7 @@ describe("project import and export formats", () => {
       .map(([name, content]) => ({
         name,
         content: content.replace(
-          /^\uFEFF?# timeline-editor-schema-version=4\r?\n/,
+          /^\uFEFF?# timeline-editor-schema-version=5\r?\n/,
           "\uFEFF",
         ),
       }));
@@ -248,7 +274,7 @@ describe("project import and export formats", () => {
 
     expect(preview.errors).toEqual([]);
     expect(preview.warnings).toContain(
-      "旧CSV形式をスキーマバージョン4へ移行しました。",
+      "旧CSV形式をスキーマバージョン5へ移行しました。",
     );
     expect(preview.payload?.schemaVersion).toBe(IMPORT_SCHEMA_VERSION);
   });
@@ -259,7 +285,7 @@ describe("project import and export formats", () => {
       files
         .get("timeline-items.csv")!
         .replace(
-          "# timeline-editor-schema-version=4",
+          "# timeline-editor-schema-version=5",
           "# timeline-editor-schema-version=99",
         ),
     );
@@ -273,7 +299,7 @@ describe("project import and export formats", () => {
         content:
           name === "timeline-events.csv"
             ? content.replace(
-                /^\uFEFF?# timeline-editor-schema-version=4\r?\n/,
+                /^\uFEFF?# timeline-editor-schema-version=5\r?\n/,
                 "\uFEFF",
               )
             : content,
@@ -356,7 +382,7 @@ describe("project import and export formats", () => {
     large.timelineEvents = Array.from({ length: 10000 }, (_, index) => ({
       ...large.timelineEvents[0]!,
       id: `${String(index).padStart(8, "0")}-0000-4000-8000-100000000000`,
-      timelineItemId: large.timelineItems[index % 1000]!.id,
+      timelineItemIds: [large.timelineItems[index % 1000]!.id],
       title: `イベント${index}`,
     }));
     const startedAt = performance.now();

@@ -13,12 +13,13 @@ export type TimelineEventParent = {
   endDateStatus: "specified" | "ongoing" | "unknown";
   end: HistoricalDate | null;
   lastConfirmed: HistoricalDate | null;
+  sortOrder: number;
 };
 
 export type TimelineEvent = {
   id: string;
   projectId: string;
-  timelineItemId: string;
+  timelineItemIds: string[];
   eventTypeId?: string | null;
   eventType?: EventType | null;
   tags?: Tag[];
@@ -31,7 +32,7 @@ export type TimelineEvent = {
   sourceText: string | null;
   citations?: SourceCitation[];
   externalUrl: string | null;
-  parent: TimelineEventParent;
+  parents: TimelineEventParent[];
   createdAt: string;
   updatedAt: string;
 };
@@ -41,7 +42,7 @@ export type TimelineEventSummary = Omit<
   | "description"
   | "sourceText"
   | "externalUrl"
-  | "parent"
+  | "parents"
   | "aliases"
   | "customFields"
 >;

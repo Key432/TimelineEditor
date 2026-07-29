@@ -13,7 +13,7 @@ describe("TimelineItemEventList", () => {
           {
             id: "event-id",
             projectId: "project-id",
-            timelineItemId: "item-id",
+            timelineItemIds: ["item-id"],
             title: "代表作を刊行",
             date: { year: 1907, month: 3, day: null },
             isApproximate: true,

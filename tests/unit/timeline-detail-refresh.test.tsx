@@ -63,7 +63,7 @@ vi.mock("@/features/timeline-events/timeline-event-form", () => ({
 const event: TimelineEvent = {
   id: "33333333-3333-4333-8333-333333333333",
   projectId: "22222222-2222-4222-8222-222222222222",
-  timelineItemId: "44444444-4444-4444-8444-444444444444",
+  timelineItemIds: ["44444444-4444-4444-8444-444444444444"],
   title: "更新前イベント",
   aliases: [],
   date: { year: 1905, month: 1, day: 15 },
@@ -71,14 +71,17 @@ const event: TimelineEvent = {
   description: null,
   sourceText: null,
   externalUrl: null,
-  parent: {
-    id: "44444444-4444-4444-8444-444444444444",
-    title: "親項目",
-    start: { year: 1900, month: null, day: null },
-    endDateStatus: "specified",
-    end: { year: 1910, month: null, day: null },
-    lastConfirmed: null,
-  },
+  parents: [
+    {
+      id: "44444444-4444-4444-8444-444444444444",
+      title: "親項目",
+      start: { year: 1900, month: null, day: null },
+      endDateStatus: "specified",
+      end: { year: 1910, month: null, day: null },
+      lastConfirmed: null,
+      sortOrder: 0,
+    },
+  ],
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",
 };

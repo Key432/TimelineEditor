@@ -105,7 +105,7 @@ function payload(name = "取り込み元") {
     timelineEvents: [
       {
         id: sourceEventId,
-        timelineItemId: sourceItemId,
+        timelineItemIds: [sourceItemId],
         title: "取り込みイベント",
         aliases: ["取込出来事"],
         date: {
@@ -268,8 +268,9 @@ describe("transactional project import", () => {
     });
     expect(overwrite.error).toBeNull();
     const broken = payload();
-    broken.timelineEvents[0]!.timelineItemId =
-      "44444444-4444-4444-8444-444444444444";
+    broken.timelineEvents[0]!.timelineItemIds = [
+      "44444444-4444-4444-8444-444444444444",
+    ];
     const append = await owner.rpc("import_project_data", {
       p_target_project_id: targetId,
       p_mode: "append",

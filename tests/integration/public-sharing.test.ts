@@ -64,14 +64,18 @@ async function createFixture() {
     .select("id")
     .single();
   if (item.error) throw item.error;
-  const event = await owner.from("timeline_events").insert({
-    project_id: projectId,
-    timeline_item_id: item.data.id,
-    title: "公開イベント",
-    event_year: 1920,
-  });
+  const event = await owner
+    .from("timeline_events")
+    .insert({
+      project_id: projectId,
+      timeline_item_id: item.data.id,
+      title: "公開イベント",
+      event_year: 1920,
+    })
+    .select("id")
+    .single();
   if (event.error) throw event.error;
-  return { projectId, itemId: item.data.id };
+  return { projectId, itemId: item.data.id, eventId: event.data.id };
 }
 
 describe("public project sharing RLS", () => {
@@ -116,30 +120,45 @@ describe("public project sharing RLS", () => {
   });
 
   it("publishes all read layers while keeping writes owner-only", async () => {
-    const { projectId, itemId } = await createFixture();
+    const { projectId, itemId, eventId } = await createFixture();
     const published = await owner.rpc("publish_project", {
       p_project_id: projectId,
     });
     expect(published.error).toBeNull();
     expect(published.data).toMatch(/^[0-9a-f]{32}$/);
 
-    const [project, settings, types, items, events] = await Promise.all([
-      anonymous.from("projects").select("id").eq("id", projectId),
-      anonymous
-        .from("project_settings")
-        .select("project_id")
-        .eq("project_id", projectId),
-      anonymous
-        .from("timeline_item_types")
-        .select("id")
-        .eq("project_id", projectId),
-      anonymous.from("timeline_items").select("id").eq("project_id", projectId),
-      anonymous
-        .from("timeline_events")
-        .select("id")
-        .eq("project_id", projectId),
-    ]);
-    for (const result of [project, settings, types, items, events]) {
+    const [project, settings, types, items, events, eventParents] =
+      await Promise.all([
+        anonymous.from("projects").select("id").eq("id", projectId),
+        anonymous
+          .from("project_settings")
+          .select("project_id")
+          .eq("project_id", projectId),
+        anonymous
+          .from("timeline_item_types")
+          .select("id")
+          .eq("project_id", projectId),
+        anonymous
+          .from("timeline_items")
+          .select("id")
+          .eq("project_id", projectId),
+        anonymous
+          .from("timeline_events")
+          .select("id")
+          .eq("project_id", projectId),
+        anonymous
+          .from("timeline_event_item_links")
+          .select("timeline_item_id")
+          .eq("timeline_event_id", eventId),
+      ]);
+    for (const result of [
+      project,
+      settings,
+      types,
+      items,
+      events,
+      eventParents,
+    ]) {
       expect(result.error).toBeNull();
       expect(result.data?.length).toBeGreaterThan(0);
     }
@@ -156,6 +175,25 @@ describe("public project sharing RLS", () => {
       .update({ name: "改ざん" })
       .eq("id", projectId);
     expect(anonymousWrite.error).not.toBeNull();
+
+    const trashed = await owner.rpc("trash_timeline_event", {
+      p_project_id: projectId,
+      p_event_id: eventId,
+    });
+    expect(trashed.error).toBeNull();
+    const [anonymousDeletedLinks, ownerDeletedLinks] = await Promise.all([
+      anonymous
+        .from("timeline_event_item_links")
+        .select("timeline_item_id")
+        .eq("timeline_event_id", eventId),
+      owner
+        .from("timeline_event_item_links")
+        .select("timeline_item_id")
+        .eq("timeline_event_id", eventId),
+    ]);
+    expect(anonymousDeletedLinks.error).toBeNull();
+    expect(anonymousDeletedLinks.data).toEqual([]);
+    expect(ownerDeletedLinks.data).toHaveLength(1);
   });
 
   it("invalidates access immediately and rotates only when requested", async () => {

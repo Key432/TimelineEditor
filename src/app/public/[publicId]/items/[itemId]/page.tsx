@@ -7,10 +7,10 @@ import { ServiceError } from "@/lib/services/errors";
 import { ProjectService } from "@/lib/services/project-service";
 import { TimelineEventService } from "@/lib/services/timeline-event-service";
 import { TimelineItemService } from "@/lib/services/timeline-item-service";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 
 async function loadPublicItem(publicId: string, itemId: string) {
-  const client = await createClient();
+  const client = createPublicClient();
   const publicProject = await new ProjectService(client).getPublic(publicId);
   const [detail, events] = await Promise.all([
     new TimelineItemService(client).get(publicProject.id, itemId),
@@ -50,7 +50,7 @@ export default async function PublicTimelineItemPage({
             eventBasePath={`/public/${publicId}`}
             internalLinkBasePath={`/public/${publicId}`}
             events={result.events.filter(
-              (event) => event.timelineItemId === itemId,
+              (event) => event.timelineItemIds.includes(itemId),
             )}
             item={result.detail.item}
             projectId={result.publicProject.id}

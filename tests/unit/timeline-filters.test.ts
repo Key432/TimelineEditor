@@ -56,7 +56,7 @@ function event(
   return {
     id,
     projectId: type.projectId,
-    timelineItemId: parentId,
+    timelineItemIds: [parentId],
     title: "作品発表",
     date: { year: 1905, month: 1, day: 1 },
     isApproximate: approximate,

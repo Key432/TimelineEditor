@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getPublicEnv } from "@/lib/env";
+import type { Database } from "@/lib/supabase/database.types";
 
 const robotsValue = "noindex, nofollow, noarchive, nosnippet, noimageindex";
 
@@ -14,7 +15,7 @@ export async function updateSession(request: NextRequest) {
   let supabaseResponse = withNoIndex(NextResponse.next({ request }));
   const env = getPublicEnv();
 
-  const supabase = createServerClient(
+  const supabase = createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {
@@ -43,5 +44,6 @@ export async function updateSession(request: NextRequest) {
   return {
     claims: data?.claims,
     response: supabaseResponse,
+    supabase,
   };
 }

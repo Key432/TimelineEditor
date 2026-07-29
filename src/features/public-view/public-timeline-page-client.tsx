@@ -17,7 +17,6 @@ import { TimelineWorkspace } from "@/features/timeline-items/timeline-workspace"
 import type {
   HistoricalDate,
   TimelineItemSummary,
-  TimelineLayoutMode,
 } from "@/features/timeline-items/types";
 
 export function PublicTimelinePageClient({
@@ -27,7 +26,6 @@ export function PublicTimelinePageClient({
   initialEvents,
   itemTypes,
   currentDate,
-  layoutMode,
 }: {
   publicId: string;
   project: Project;
@@ -35,7 +33,6 @@ export function PublicTimelinePageClient({
   initialEvents: TimelineEventSummary[];
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
-  layoutMode: TimelineLayoutMode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -44,6 +41,8 @@ export function PublicTimelinePageClient({
     () => parseTimelineFilters(new URLSearchParams(searchParams.toString())),
     [searchParams],
   );
+  const layoutMode =
+    searchParams.get("layout") === "compact" ? "compact" : "row";
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
 
 import { Label } from "@/components/ui/label";
@@ -13,15 +13,18 @@ export function TimelineParentSelect({
   onChange,
 }: {
   rangeItems: TimelineItemSummary[];
-  value: string;
-  onChange: (id: string) => void;
+  value: string[];
+  onChange: (ids: string[]) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   useClickOutside(containerRef, () => setOpen(false));
-  const selected = rangeItems.find((item) => item.id === value);
+  const selected = value.flatMap((id) => {
+    const item = rangeItems.find((candidate) => candidate.id === id);
+    return item ? [item] : [];
+  });
   const filtered = rangeItems.filter((item) =>
     item.title
       .toLocaleLowerCase("ja")
@@ -33,25 +36,58 @@ export function TimelineParentSelect({
       <Label>親タイムラインアイテム</Label>
       <div className="relative">
         <div className="flex min-h-10 flex-wrap gap-1.5 rounded-md border bg-background p-1.5 focus-within:ring-2 focus-within:ring-ring">
-          {selected ? (
-            <span className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-xs">
-              <span>{selected.title}</span>
+          {selected.map((item, index) => (
+            <span
+              key={item.id}
+              className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-xs"
+            >
+              <span>{item.title}</span>
               <button
-                aria-label={`${selected.title}を外す`}
+                aria-label={`${item.title}を前へ移動`}
+                disabled={index === 0}
                 type="button"
-                onClick={() => onChange("")}
+                onClick={() => {
+                  const next = [...value];
+                  [next[index - 1], next[index]] = [
+                    next[index]!,
+                    next[index - 1]!,
+                  ];
+                  onChange(next);
+                }}
+              >
+                <ArrowUp className="size-3" />
+              </button>
+              <button
+                aria-label={`${item.title}を後ろへ移動`}
+                disabled={index === value.length - 1}
+                type="button"
+                onClick={() => {
+                  const next = [...value];
+                  [next[index], next[index + 1]] = [
+                    next[index + 1]!,
+                    next[index]!,
+                  ];
+                  onChange(next);
+                }}
+              >
+                <ArrowDown className="size-3" />
+              </button>
+              <button
+                aria-label={`${item.title}を外す`}
+                type="button"
+                onClick={() => onChange(value.filter((id) => id !== item.id))}
               >
                 <X className="size-3" />
               </button>
             </span>
-          ) : null}
+          ))}
           <input
             aria-autocomplete="list"
             aria-controls={listboxId}
             aria-expanded={open}
             aria-label="親タイムラインアイテムを検索"
             className="min-w-36 flex-1 bg-transparent px-1 text-sm outline-none"
-            placeholder={selected ? "別の親を検索" : "検索して選択"}
+            placeholder={selected.length ? "親を追加" : "検索して選択"}
             role="combobox"
             value={query}
             onFocus={() => setOpen(true)}
@@ -70,7 +106,7 @@ export function TimelineParentSelect({
             className="absolute z-50 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border bg-popover p-1 shadow-xl"
           >
             <p className="px-2 py-1 text-xs text-muted-foreground">
-              親タイムラインアイテムを選択します
+              親タイムラインアイテムを複数選択できます
             </p>
             {filtered.length > 0 ? (
               filtered.map((item) => (
@@ -79,13 +115,16 @@ export function TimelineParentSelect({
                   className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm hover:bg-muted"
                   type="button"
                   onClick={() => {
-                    onChange(item.id);
+                    onChange(
+                      value.includes(item.id)
+                        ? value.filter((id) => id !== item.id)
+                        : [...value, item.id],
+                    );
                     setQuery("");
-                    setOpen(false);
                   }}
                 >
                   <span className="truncate">{item.title}</span>
-                  {value === item.id ? (
+                  {value.includes(item.id) ? (
                     <Check className="ml-auto size-4" />
                   ) : null}
                 </button>

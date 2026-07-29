@@ -60,7 +60,7 @@ export function TimelineEventForm({
   const queryClient = useQueryClient();
   const defaults: TimelineEventInput = event
     ? {
-        timelineItemId: event.timelineItemId,
+        timelineItemIds: event.timelineItemIds,
         eventTypeId: event.eventTypeId,
         tagIds: (event.tags ?? []).map((tag) => tag.id),
         customFields: event.customFields ?? [],
@@ -132,7 +132,7 @@ export function TimelineEventForm({
       onSaved?.(saved);
     },
   });
-  const parentId = useWatch({ control, name: "timelineItemId" });
+  const parentIds = useWatch({ control, name: "timelineItemIds" }) ?? [];
   const date = useWatch({ control, name: "date" });
   const description = useWatch({ control, name: "description" }) ?? "";
   const aliases = useWatch({ control, name: "aliases" }) ?? [];
@@ -141,7 +141,10 @@ export function TimelineEventForm({
   const eventTypeId = useWatch({ control, name: "eventTypeId" }) ?? null;
   const tagIds = useWatch({ control, name: "tagIds" }) ?? [];
   const customFields = useWatch({ control, name: "customFields" }) ?? [];
-  const parent = rangeItems.find((item) => item.id === parentId);
+  const parents = parentIds.flatMap((id) => {
+    const parent = rangeItems.find((item) => item.id === id);
+    return parent ? [parent] : [];
+  });
   const parsedDate = date
     ? {
         era: date.era ?? "ce",
@@ -154,11 +157,12 @@ export function TimelineEventForm({
         calendar: date.calendar || "proleptic_gregorian",
       }
     : null;
-  const outside =
-    parent &&
-    parsedDate &&
-    Number.isInteger(parsedDate.year) &&
-    isEventOutsideParent(parsedDate, parent, currentDate);
+  const outsideParents =
+    parsedDate && Number.isInteger(parsedDate.year)
+      ? parents.filter((parent) =>
+          isEventOutsideParent(parsedDate, parent, currentDate),
+        )
+      : [];
 
   return (
     <form
@@ -170,17 +174,17 @@ export function TimelineEventForm({
       <div className="space-y-2">
         <TimelineParentSelect
           rangeItems={rangeItems}
-          value={parentId}
+          value={parentIds}
           onChange={(next) =>
-            setValue("timelineItemId", next, {
+            setValue("timelineItemIds", next, {
               shouldDirty: true,
               shouldValidate: true,
             })
           }
         />
-        {errors.timelineItemId ? (
+        {errors.timelineItemIds ? (
           <p role="alert" className="text-sm text-destructive">
-            {errors.timelineItemId.message}
+            {errors.timelineItemIds.message}
           </p>
         ) : null}
       </div>
@@ -266,12 +270,14 @@ export function TimelineEventForm({
           </p>
         ) : null}
       </fieldset>
-      {outside ? (
+      {outsideParents.length ? (
         <p
           role="status"
           className="rounded-md border border-warning/40 bg-amber-50 p-3 text-sm text-amber-900"
         >
-          親項目の期間外です。没後刊行・回顧展などの場合はこのまま保存できます。
+          次の親項目の期間外です：
+          {outsideParents.map((parent) => parent.title).join("、")}
+          。没後刊行・回顧展などの場合はこのまま保存できます。
         </p>
       ) : null}
       <EntityContentFields

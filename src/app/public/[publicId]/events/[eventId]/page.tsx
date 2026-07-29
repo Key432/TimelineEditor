@@ -6,10 +6,10 @@ import { DetailPageShell } from "@/features/timeline-items/detail-page-shell";
 import { ServiceError } from "@/lib/services/errors";
 import { ProjectService } from "@/lib/services/project-service";
 import { TimelineEventService } from "@/lib/services/timeline-event-service";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 
 async function loadPublicEvent(publicId: string, eventId: string) {
-  const client = await createClient();
+  const client = createPublicClient();
   const project = await new ProjectService(client).getPublic(publicId);
   const { event } = await new TimelineEventService(client).get(
     project.id,
@@ -33,10 +33,10 @@ export default async function PublicTimelineEventPage({
   }
   return (
     <DetailPageShell
-      breadcrumbParent={{
-        href: `/public/${publicId}/items/${result.event.parent.id}`,
-        label: result.event.parent.title,
-      }}
+      breadcrumbParents={result.event.parents.map((parent) => ({
+        href: `/public/${publicId}/items/${parent.id}`,
+        label: parent.title,
+      }))}
       projectId={result.project.id}
       projectName={result.project.name}
       returnTo={null}

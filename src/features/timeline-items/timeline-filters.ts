@@ -164,9 +164,11 @@ export function filterTimelineItems({
 }) {
   const eventsByParent = new Map<string, TimelineEventSummary[]>();
   for (const event of events) {
-    const current = eventsByParent.get(event.timelineItemId) ?? [];
-    current.push(event);
-    eventsByParent.set(event.timelineItemId, current);
+    for (const parentId of event.timelineItemIds) {
+      const current = eventsByParent.get(parentId) ?? [];
+      current.push(event);
+      eventsByParent.set(parentId, current);
+    }
   }
   const matchingItems = new Set(matches.itemIds);
   const matchingEvents = new Set(matches.eventIds);

@@ -56,8 +56,8 @@ CSVスキーマバージョン: ${IMPORT_SCHEMA_VERSION}
 ### timeline-events.csv
 
 - id: イベントID。新規作成する場合は空欄にするとインポート時に採番される。
-- timeline_item_id: 親タイムラインアイテムID。
-- timeline_item_title: 親タイムラインアイテムのタイトル。IDがない場合は必須。
+- timeline_item_ids_json: 親タイムラインアイテムIDの手動順JSON配列。
+- timeline_item_titles_json: 親タイトルの手動順JSON配列。IDがない場合の照合に使用する。
 - title: イベントのタイトル。必須。
 - event_year: イベントの年。1以上。必須。
 - event_month: イベントの月。任意。
@@ -213,8 +213,8 @@ export function createCsvArchive(backup: ProjectBackup) {
   const events = csv(
     [
       "id",
-      "timeline_item_id",
-      "timeline_item_title",
+      "timeline_item_ids_json",
+      "timeline_item_titles_json",
       "title",
       "aliases_json",
       "event_year",
@@ -234,8 +234,10 @@ export function createCsvArchive(backup: ProjectBackup) {
     ],
     backup.timelineEvents.map((event) => [
       event.id,
-      event.timelineItemId,
-      titleById.get(event.timelineItemId),
+      JSON.stringify(event.timelineItemIds),
+      JSON.stringify(
+        event.timelineItemIds.map((id) => titleById.get(id) ?? ""),
+      ),
       event.title,
       JSON.stringify(event.aliases),
       ...dateCells(event.date),
@@ -487,13 +489,15 @@ export function parseCsvImport(
       throw new Error("CSVスキーマバージョンが不正です。");
     }
     if (schemaVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION) {
-      warnings.push("旧CSV形式をスキーマバージョン4へ移行しました。");
+      warnings.push("旧CSV形式をスキーマバージョン5へ移行しました。");
     } else if (schemaVersion === 1) {
-      warnings.push("CSVスキーマバージョン1をバージョン4へ移行しました。");
+      warnings.push("CSVスキーマバージョン1をバージョン5へ移行しました。");
     } else if (schemaVersion === 2) {
-      warnings.push("CSVスキーマバージョン2をバージョン4へ移行しました。");
+      warnings.push("CSVスキーマバージョン2をバージョン5へ移行しました。");
     } else if (schemaVersion === 3) {
-      warnings.push("CSVスキーマバージョン3をバージョン4へ移行しました。");
+      warnings.push("CSVスキーマバージョン3をバージョン5へ移行しました。");
+    } else if (schemaVersion === 4) {
+      warnings.push("CSVスキーマバージョン4をバージョン5へ移行しました。");
     } else if (schemaVersion !== IMPORT_SCHEMA_VERSION) {
       throw new Error(
         `CSVスキーマバージョン${schemaVersion}の移行処理がありません。`,
@@ -586,18 +590,36 @@ export function parseCsvImport(
       };
     });
     const timelineEvents = rawEvents.flatMap((row, index) => {
-      let parent = row.timeline_item_id
-        ? originalItemIds.get(row.timeline_item_id)
-        : undefined;
-      if (!parent && row.timeline_item_title) {
-        const candidates = titleIds.get(row.timeline_item_title) ?? [];
-        if (candidates.length === 1) parent = candidates[0];
-        else
-          errors.push(
-            `timeline-events.csv ${index + 2}行: 親タイトル「${row.timeline_item_title}」を一意に照合できません。`,
-          );
-      }
-      if (!parent) {
+      const sourceParentIds = row.timeline_item_ids_json
+        ? parseJsonArray(row.timeline_item_ids_json).filter(
+            (value): value is string => typeof value === "string",
+          )
+        : row.timeline_item_id
+          ? [row.timeline_item_id]
+          : [];
+      const sourceParentTitles = row.timeline_item_titles_json
+        ? parseJsonArray(row.timeline_item_titles_json).filter(
+            (value): value is string => typeof value === "string",
+          )
+        : row.timeline_item_title
+          ? [row.timeline_item_title]
+          : [];
+      const parentSlots =
+        sourceParentIds.length > 0
+          ? sourceParentIds
+          : sourceParentTitles.map(() => "");
+      const parentIds = parentSlots.flatMap((sourceId, parentIndex) => {
+        const mapped = originalItemIds.get(sourceId);
+        if (mapped) return [mapped];
+        const title = sourceParentTitles[parentIndex];
+        const candidates = title ? (titleIds.get(title) ?? []) : [];
+        if (candidates.length === 1) return [candidates[0]!];
+        errors.push(
+          `timeline-events.csv ${index + 2}行: 親「${title || sourceId}」を一意に照合できません。`,
+        );
+        return [];
+      });
+      if (!parentIds.length) {
         errors.push(
           `timeline-events.csv ${index + 2}行: 親項目が見つかりません。`,
         );
@@ -607,7 +629,7 @@ export function parseCsvImport(
       return [
         {
           id,
-          timelineItemId: parent,
+          timelineItemIds: parentIds,
           title: row.title,
           aliases: parseAliases(row.aliases_json),
           date: {

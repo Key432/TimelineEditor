@@ -69,9 +69,11 @@ export function calculateCompactLaneLayout({
 } {
   const eventsByParent = new Map<string, TimelineEventSummary[]>();
   for (const timelineEvent of events) {
-    const parentEvents = eventsByParent.get(timelineEvent.timelineItemId) ?? [];
-    parentEvents.push(timelineEvent);
-    eventsByParent.set(timelineEvent.timelineItemId, parentEvents);
+    for (const parentId of timelineEvent.timelineItemIds) {
+      const parentEvents = eventsByParent.get(parentId) ?? [];
+      parentEvents.push(timelineEvent);
+      eventsByParent.set(parentId, parentEvents);
+    }
   }
 
   const intervals = items.map((item) => {

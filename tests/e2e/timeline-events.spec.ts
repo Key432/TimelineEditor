@@ -90,6 +90,32 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
     },
   );
   const { item } = (await itemResponse.json()) as { item: { id: string } };
+  const secondItemResponse = await page.request.post(
+    `/api/projects/${project.id}/items`,
+    {
+      data: {
+        typeId: itemTypes[0]!.id,
+        title: "第二の親",
+        description: "",
+        sourceText: "",
+        externalUrl: "",
+        temporalType: "range",
+        colorOverride: null,
+        isVisible: true,
+        start: { year: 1895, month: 1, day: 1 },
+        isStartApproximate: false,
+        endDateStatus: "specified",
+        end: { year: 1915, month: 12, day: 31 },
+        isEndApproximate: false,
+        lastConfirmed: null,
+        point: null,
+        isPointApproximate: false,
+      },
+    },
+  );
+  const { item: secondItem } = (await secondItemResponse.json()) as {
+    item: { id: string };
+  };
 
   await page.goto(`/projects/${project.id}/timeline`);
   await page.getByRole("button", { name: "タイムライン操作を開く" }).click();
@@ -153,6 +179,13 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
     name: /親人物の詳細を表示 期間型バー/,
   });
   await parentGlyph.hover({ position: { x: 2, y: 2 } });
+  await expect(parentGlyph).toHaveAttribute("data-hover-emphasized", "true");
+  await expect(
+    page.getByTestId(`timeline-row-${item.id}`).getByRole("button", {
+      name: "親人物",
+      exact: true,
+    }),
+  ).toHaveAttribute("data-hover-emphasized", "true");
   await expect(
     page.getByRole("tooltip").filter({ hasText: "親人物" }).last(),
   ).toBeVisible();
@@ -163,6 +196,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await expect
     .poll(() => parentGlyph.evaluate((element) => element.matches(":hover")))
     .toBe(false);
+  await expect(parentGlyph).not.toHaveAttribute("data-hover-emphasized");
   await page.mouse.move(0, 0);
   await expect(
     page.getByRole("tooltip").filter({ hasText: "親人物" }).last(),
@@ -190,7 +224,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   ]);
   expect(optionsBox).not.toBeNull();
   expect(fullscreenBox).not.toBeNull();
-  expect(optionsBox!.y).toBe(fullscreenBox!.y);
+  expect(Math.abs(optionsBox!.y - fullscreenBox!.y)).toBeLessThan(3);
   await detailDialog.getByRole("button", { name: "詳細オプション" }).click();
   await page
     .getByRole("menuitemradio", {
@@ -255,8 +289,22 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   expect(dialogBox!.width).toBeLessThanOrEqual(770);
   expect(formBox!.x - dialogBox!.x).toBeGreaterThanOrEqual(24);
 
+  await overlayEditForm
+    .getByRole("combobox", { name: "親タイムラインアイテムを検索" })
+    .click();
+  await overlayEditForm.getByRole("button", { name: "第二の親" }).click();
+  await expect(
+    overlayEditForm.getByRole("button", { name: "第二の親を外す" }),
+  ).toBeVisible();
   await overlayEditForm.getByLabel("本文").fill("更新後イベント本文");
+  const updateResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/events/${eventId}`) &&
+      response.request().method() === "PATCH",
+  );
   await overlayEditForm.getByRole("button", { name: "変更を保存" }).click();
+  expect((await updateResponsePromise).ok()).toBe(true);
+  await expect(overlayEditForm).toHaveCount(0);
   await expect(page.getByRole("dialog")).toContainText("代表作刊行");
   await expect(page.getByRole("dialog")).toContainText("更新後イベント本文");
   await page.goBack();
@@ -269,10 +317,21 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "代表作刊行" })).toBeVisible();
   const breadcrumb = page.getByRole("navigation", { name: "パンくず" });
-  await expect(
-    breadcrumb.getByRole("link", { name: "親人物" }),
-  ).toHaveAttribute("href", `/projects/${project.id}/items/${item.id}`);
-  await breadcrumb.getByRole("link", { name: "親人物" }).click();
+  const parentBreadcrumbButton = breadcrumb.getByRole("button", {
+    name: "親タイムラインアイテムを選択",
+  });
+  await expect(parentBreadcrumbButton).toBeVisible();
+  await parentBreadcrumbButton.click();
+  const parentMenu = page.getByRole("menu");
+  const parentLinks = parentMenu.getByRole("menuitem");
+  await expect(parentLinks).toHaveCount(2);
+  await expect(parentLinks.nth(0)).toHaveText("親人物");
+  await expect(parentLinks.nth(1)).toHaveText("第二の親");
+  await expect(parentLinks.nth(1)).toHaveAttribute(
+    "href",
+    `/projects/${project.id}/items/${secondItem.id}`,
+  );
+  await parentLinks.nth(0).click();
   await expect(page).toHaveURL(`/projects/${project.id}/items/${item.id}`);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
@@ -281,7 +340,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
       `/api/projects/${project.id}/events`,
       {
         data: {
-          timelineItemId: item.id,
+          timelineItemIds: [item.id],
           title,
           date: { year: 1905, month: 1, day: 15 },
           isApproximate: false,

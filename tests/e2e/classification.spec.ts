@@ -133,7 +133,7 @@ test("customizes an event marker visually and assigns Notion-style tags and cust
     `/api/projects/${projectId}/events`,
     {
       data: {
-        timelineItemId: itemId,
+        timelineItemIds: [itemId],
         eventTypeId: classification.eventTypes[0]!.id,
         tagIds: [classification.tags[0]!.id],
         customFields: [
@@ -159,9 +159,12 @@ test("customizes an event marker visually and assigns Notion-style tags and cust
     name: /イベントアイテム 代表作刊行/,
   });
   await expect(marker).toBeVisible();
-  await expect(marker).toHaveCSS("background-color", "rgb(18, 52, 86)");
-  await expect(marker).toHaveCSS("border-width", "0px");
-  await expect(marker).toHaveCSS(
+  await expect(marker).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(marker).toHaveCSS("border-width", "2px");
+  await expect(marker).toHaveCSS("border-color", "rgb(255, 255, 255)");
+  const markerShape = marker.getByTestId("timeline-event-marker-shape");
+  await expect(markerShape).toHaveCSS("background-color", "rgb(18, 52, 86)");
+  await expect(markerShape).toHaveCSS(
     "clip-path",
     "polygon(50% 0px, 100% 50%, 50% 100%, 0px 50%)",
   );

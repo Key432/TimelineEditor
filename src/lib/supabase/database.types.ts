@@ -585,6 +585,26 @@ export type Database = {
         };
         Relationships: [];
       };
+      timeline_event_item_links: {
+        Row: {
+          project_id: string;
+          timeline_event_id: string;
+          timeline_item_id: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          project_id: string;
+          timeline_event_id: string;
+          timeline_item_id: string;
+          sort_order: number;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["timeline_event_item_links"]["Insert"]
+        >;
+        Relationships: [];
+      };
       timeline_items: {
         Row: {
           id: string;
@@ -822,6 +842,14 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      replace_timeline_event_parents: {
+        Args: {
+          p_project_id: string;
+          p_event_id: string;
+          p_timeline_item_ids: string[];
+        };
+        Returns: undefined;
+      };
       merge_tags: {
         Args: {
           p_project_id: string;

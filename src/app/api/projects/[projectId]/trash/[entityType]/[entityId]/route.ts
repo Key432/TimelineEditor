@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { apiErrorResponse } from "@/lib/api-response";
+import { revalidatePublicProjectById } from "@/lib/public-revalidation";
 import { HistoryService } from "@/lib/services/history-service";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,11 +16,13 @@ type RouteContext = {
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const { projectId, entityType, entityId } = await context.params;
-    await new HistoryService(await createClient()).purgeTrash(
+    const client = await createClient();
+    await new HistoryService(client).purgeTrash(
       projectId,
       entityType,
       entityId,
     );
+    await revalidatePublicProjectById(client, projectId);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     return apiErrorResponse(error);

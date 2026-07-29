@@ -33,7 +33,9 @@ export function TimelineEventSection({
     queryKey: timelineEventKeys.list(projectId),
     queryFn: () => listTimelineEvents(projectId),
   });
-  const children = events.filter((event) => event.timelineItemId === parentId);
+  const children = events.filter((event) =>
+    event.timelineItemIds.includes(parentId),
+  );
 
   return (
     <section className="space-y-3 border-t pt-5">

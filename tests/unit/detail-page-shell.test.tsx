@@ -1,4 +1,5 @@
 import { render, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { DetailPageShell } from "@/features/timeline-items/detail-page-shell";
@@ -65,5 +66,38 @@ describe("DetailPageShell", () => {
       "page",
     );
     expect(within(breadcrumb).queryByText("文学史")).not.toBeInTheDocument();
+  });
+
+  it("lists equal-status event parents in manual order from a collapsed breadcrumb", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <DetailPageShell
+        breadcrumbParents={[
+          { href: "/projects/project-id/items/second", label: "手動順1" },
+          { href: "/projects/project-id/items/first", label: "手動順2" },
+        ]}
+        projectId="project-id"
+        projectName="文学史"
+        returnTo={null}
+        title="共通イベント"
+      >
+        <article>詳細</article>
+      </DetailPageShell>,
+    );
+    const breadcrumb = within(container).getByRole("navigation", {
+      name: "パンくず",
+    });
+    await user.click(
+      within(breadcrumb).getByRole("button", {
+        name: "親タイムラインアイテムを選択",
+      }),
+    );
+    const links = within(within(document.body).getByRole("menu")).getAllByRole(
+      "menuitem",
+    );
+    expect(links.map((link) => link.textContent)).toEqual([
+      "手動順1",
+      "手動順2",
+    ]);
   });
 });

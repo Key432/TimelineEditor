@@ -99,7 +99,11 @@ export class TimelineEventService {
     const project = await this.projects.get(projectId);
     const result = timelineEventSchema.safeParse(input);
     if (!result.success) throw validationError(result.error);
-    await this.requireRangeParent(project.id, result.data.timelineItemId);
+    await Promise.all(
+      result.data.timelineItemIds.map((itemId) =>
+        this.requireRangeParent(project.id, itemId),
+      ),
+    );
     await this.classification.requireEventType(
       project.id,
       result.data.eventTypeId,
@@ -141,7 +145,11 @@ export class TimelineEventService {
     }
     const result = timelineEventSchema.safeParse(updateRequest.data.values);
     if (!result.success) throw validationError(result.error);
-    await this.requireRangeParent(project.id, result.data.timelineItemId);
+    await Promise.all(
+      result.data.timelineItemIds.map((itemId) =>
+        this.requireRangeParent(project.id, itemId),
+      ),
+    );
     await this.classification.requireEventType(
       project.id,
       result.data.eventTypeId,

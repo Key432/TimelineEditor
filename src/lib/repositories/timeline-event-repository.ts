@@ -36,7 +36,11 @@ type ParentRow = Pick<
 type EventTypeRow = Database["public"]["Tables"]["event_types"]["Row"];
 type TagRow = Database["public"]["Tables"]["tags"]["Row"];
 type JoinedRow = EventRow & {
-  timeline_items: ParentRow;
+  timeline_event_item_links?: {
+    sort_order: number;
+    timeline_item_id?: string;
+    timeline_items: ParentRow;
+  }[];
   event_types: EventTypeRow | null;
   timeline_event_tags?: { tags: TagRow }[];
 };
@@ -84,7 +88,7 @@ function parentDate(
     : { era, precision, year, month, day, originalText, calendar };
 }
 
-function mapParent(row: ParentRow): TimelineEventParent {
+function mapParent(row: ParentRow, sortOrder: number): TimelineEventParent {
   const start = parentDate(
     row.start_year,
     row.start_month,
@@ -123,6 +127,7 @@ function mapParent(row: ParentRow): TimelineEventParent {
             row.end_calendar,
           )
         : null,
+    sortOrder,
   };
 }
 
@@ -130,7 +135,9 @@ function mapEvent(row: JoinedRow): TimelineEvent {
   return {
     id: row.id,
     projectId: row.project_id,
-    timelineItemId: row.timeline_item_id,
+    timelineItemIds: (row.timeline_event_item_links ?? [])
+      .sort((left, right) => left.sort_order - right.sort_order)
+      .map((link) => link.timeline_items.id),
     eventTypeId: row.event_type_id,
     eventType: mapEventType(row.event_types),
     tags: (row.timeline_event_tags ?? []).map((entry) => mapTag(entry.tags)),
@@ -150,7 +157,9 @@ function mapEvent(row: JoinedRow): TimelineEvent {
     description: row.description,
     sourceText: row.source_text,
     externalUrl: row.external_url,
-    parent: mapParent(row.timeline_items),
+    parents: (row.timeline_event_item_links ?? [])
+      .sort((left, right) => left.sort_order - right.sort_order)
+      .map((link) => mapParent(link.timeline_items, link.sort_order)),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -158,7 +167,6 @@ function mapEvent(row: JoinedRow): TimelineEvent {
 
 function persistenceValues(input: TimelineEventValues) {
   return {
-    timeline_item_id: input.timelineItemId,
     event_type_id: input.eventTypeId,
     title: input.title,
     aliases: input.aliases,
@@ -177,11 +185,14 @@ function persistenceValues(input: TimelineEventValues) {
 }
 
 const DETAIL_COLUMNS = `
-  *, event_types (*), timeline_event_tags (tags (*)), timeline_items (
-    id, title, start_year, start_month, start_day, end_date_status,
-    start_era, start_precision, start_original_text, start_calendar,
-    end_year, end_month, end_day, end_era, end_precision,
-    end_original_text, end_calendar
+  *, event_types (*), timeline_event_tags (tags (*)),
+  timeline_event_item_links (
+    sort_order, timeline_items (
+      id, title, start_year, start_month, start_day, end_date_status,
+      start_era, start_precision, start_original_text, start_calendar,
+      end_year, end_month, end_day, end_era, end_precision,
+      end_original_text, end_calendar
+    )
   )
 `;
 
@@ -198,7 +209,7 @@ export class TimelineEventRepository {
     const { data, error } = await this.client
       .from("timeline_events")
       .select(
-        "id, project_id, timeline_item_id, event_type_id, title, event_year, event_month, event_day, event_era, event_precision, event_original_text, event_calendar, is_approximate, created_at, updated_at, event_types (*), timeline_event_tags (tags (*))",
+        "id, project_id, event_type_id, title, event_year, event_month, event_day, event_era, event_precision, event_original_text, event_calendar, is_approximate, created_at, updated_at, event_types (*), timeline_event_tags (tags (*)), timeline_event_item_links (sort_order, timeline_item_id)",
       )
       .eq("project_id", projectId)
       .is("deleted_at", null)
@@ -210,7 +221,11 @@ export class TimelineEventRepository {
     return (data as unknown as JoinedRow[]).map((row) => ({
       id: row.id,
       projectId: row.project_id,
-      timelineItemId: row.timeline_item_id,
+      timelineItemIds: (row.timeline_event_item_links ?? [])
+        .sort((left, right) => left.sort_order - right.sort_order)
+        .flatMap((link) =>
+          link.timeline_item_id ? [link.timeline_item_id] : [],
+        ),
       eventTypeId: row.event_type_id,
       eventType: mapEventType(row.event_types),
       tags: (row.timeline_event_tags ?? []).map((entry) => mapTag(entry.tags)),
@@ -258,25 +273,22 @@ export class TimelineEventRepository {
   async create(projectId: string, input: TimelineEventValues) {
     const { data, error } = await this.client
       .from("timeline_events")
-      .insert({ project_id: projectId, ...persistenceValues(input) })
-      .select(DETAIL_COLUMNS)
+      .insert({
+        project_id: projectId,
+        timeline_item_id: input.timelineItemIds[0]!,
+        ...persistenceValues(input),
+      })
+      .select("id")
       .single();
     if (error) throw error;
-    const event = mapEvent(data as unknown as JoinedRow);
+    await this.replaceParents(projectId, data.id, input.timelineItemIds);
     await this.sources.replaceForEntity(
       projectId,
       "timeline_event",
-      event.id,
+      data.id,
       input.citations,
     );
-    return {
-      ...event,
-      citations: await this.sources.listForEntity(
-        projectId,
-        "timeline_event",
-        event.id,
-      ),
-    };
+    return (await this.findById(projectId, data.id))!;
   }
 
   async update(
@@ -292,24 +304,31 @@ export class TimelineEventRepository {
       .eq("id", eventId)
       .eq("updated_at", expectedUpdatedAt)
       .is("deleted_at", null)
-      .select(DETAIL_COLUMNS)
+      .select("id")
       .maybeSingle();
     if (error) throw error;
     if (!data) return null;
+    await this.replaceParents(projectId, eventId, input.timelineItemIds);
     await this.sources.replaceForEntity(
       projectId,
       "timeline_event",
       eventId,
       input.citations,
     );
-    return {
-      ...mapEvent(data as unknown as JoinedRow),
-      citations: await this.sources.listForEntity(
-        projectId,
-        "timeline_event",
-        eventId,
-      ),
-    };
+    return this.findById(projectId, eventId);
+  }
+
+  private async replaceParents(
+    projectId: string,
+    eventId: string,
+    timelineItemIds: string[],
+  ) {
+    const { error } = await this.client.rpc("replace_timeline_event_parents", {
+      p_project_id: projectId,
+      p_event_id: eventId,
+      p_timeline_item_ids: timelineItemIds,
+    });
+    if (error) throw error;
   }
 
   async delete(projectId: string, eventId: string) {

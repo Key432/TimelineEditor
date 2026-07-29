@@ -197,6 +197,107 @@ describe("timeline event persistence and RLS", () => {
     expect(remaining).toEqual([]);
   });
 
+  it("stores ordered equal-status parents, enforces link RLS, and keeps the event while another parent remains", async () => {
+    const projectId = await createProject();
+    const { data: type } = await owner
+      .from("timeline_item_types")
+      .select("id")
+      .eq("project_id", projectId)
+      .limit(1)
+      .single();
+    const { data: parents, error: parentError } = await owner
+      .from("timeline_items")
+      .insert([
+        {
+          project_id: projectId,
+          type_id: type!.id,
+          title: "first parent",
+          temporal_type: "range",
+          manual_order: 0,
+          start_year: 1900,
+          end_date_status: "specified",
+          end_year: 1910,
+        },
+        {
+          project_id: projectId,
+          type_id: type!.id,
+          title: "second parent",
+          temporal_type: "range",
+          manual_order: 1,
+          start_year: 1890,
+          end_date_status: "specified",
+          end_year: 1920,
+        },
+      ])
+      .select("id");
+    if (parentError || !parents)
+      throw parentError ?? new Error("Parents required");
+    const service = new TimelineEventService(owner);
+    const created = await service.create(projectId, {
+      ...emptyTimelineEventValues(parents[0]!.id, {
+        year: 1905,
+        month: null,
+        day: null,
+      }),
+      timelineItemIds: [parents[1]!.id, parents[0]!.id],
+      title: "shared event",
+    });
+    expect(created.timelineItemIds).toEqual([parents[1]!.id, parents[0]!.id]);
+    expect(created.parents.map((parent) => parent.sortOrder)).toEqual([0, 1]);
+
+    const ownerLinks = await owner
+      .from("timeline_event_item_links")
+      .select("timeline_item_id, sort_order")
+      .eq("timeline_event_id", created.id)
+      .order("sort_order");
+    expect(ownerLinks.data).toEqual([
+      { timeline_item_id: parents[1]!.id, sort_order: 0 },
+      { timeline_item_id: parents[0]!.id, sort_order: 1 },
+    ]);
+    const otherLinks = await other
+      .from("timeline_event_item_links")
+      .select("timeline_item_id")
+      .eq("timeline_event_id", created.id);
+    expect(otherLinks.data).toEqual([]);
+
+    expect(
+      (
+        await owner.rpc("trash_timeline_item", {
+          p_project_id: projectId,
+          p_item_id: parents[1]!.id,
+        })
+      ).error,
+    ).toBeNull();
+    expect(
+      (
+        await admin
+          .from("timeline_events")
+          .select("deleted_at, timeline_item_id")
+          .eq("id", created.id)
+          .single()
+      ).data,
+    ).toEqual({ deleted_at: null, timeline_item_id: parents[0]!.id });
+    expect(
+      (
+        await owner.rpc("restore_trashed_entity", {
+          p_project_id: projectId,
+          p_entity_type: "timeline_item",
+          p_entity_id: parents[1]!.id,
+        })
+      ).error,
+    ).toBeNull();
+
+    await owner.from("timeline_items").delete().eq("id", parents[1]!.id);
+    expect(
+      (await service.get(projectId, created.id)).event.timelineItemIds,
+    ).toEqual([parents[0]!.id]);
+    await owner.from("timeline_items").delete().eq("id", parents[0]!.id);
+    expect(
+      (await admin.from("timeline_events").select("id").eq("id", created.id))
+        .data,
+    ).toEqual([]);
+  });
+
   it("rejects point parents, cross-project parents, and point conversion with children", async () => {
     const first = await createProject();
     const second = await createProject();

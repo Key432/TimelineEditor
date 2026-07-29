@@ -51,7 +51,9 @@ export function TimelineEventDetail({
             )}
           </dd>
           <dt className="text-muted-foreground">タイムライン</dt>
-          <dd>{currentEvent.parent.title}</dd>
+          <dd>
+            {currentEvent.parents.map((parent) => parent.title).join("、")}
+          </dd>
           <dt className="text-muted-foreground">別名</dt>
           <dd>
             {currentEvent.aliases.length

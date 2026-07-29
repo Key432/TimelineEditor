@@ -94,7 +94,7 @@ function timelineEvent(
   return {
     id,
     projectId: project.id,
-    timelineItemId: "33333333-3333-4333-8333-333333333333",
+    timelineItemIds: ["33333333-3333-4333-8333-333333333333"],
     title,
     date: { year: 1905, month: 1, day },
     isApproximate: false,

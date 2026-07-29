@@ -36,7 +36,9 @@ export default async function TimelineItemPage({
     item = detail.item;
     project = detail.project;
     listing = itemListing;
-    relatedEvents = events.filter((event) => event.timelineItemId === itemId);
+    relatedEvents = events.filter((event) =>
+      event.timelineItemIds.includes(itemId),
+    );
   } catch (error) {
     if (error instanceof ServiceError && error.status === 404) notFound();
     throw error;

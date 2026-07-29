@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { apiErrorResponse } from "@/lib/api-response";
 import { SourceService } from "@/lib/services/source-service";
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePublicProjectById } from "@/lib/public-revalidation";
 
 type RouteContext = { params: Promise<{ projectId: string }> };
 
@@ -25,10 +26,9 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const { projectId } = await context.params;
     const input = await request.json().catch(() => null);
-    const source = await new SourceService(await createClient()).create(
-      projectId,
-      input,
-    );
+    const client = await createClient();
+    const source = await new SourceService(client).create(projectId, input);
+    await revalidatePublicProjectById(client, projectId);
     return NextResponse.json({ source }, { status: 201 });
   } catch (error) {
     return apiErrorResponse(error);

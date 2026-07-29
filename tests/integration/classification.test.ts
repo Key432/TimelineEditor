@@ -419,7 +419,7 @@ describe("Phase L9 classification RLS and integrity", () => {
       timelineEvents: [
         {
           id: eventId,
-          timelineItemId: itemId,
+          timelineItemIds: [itemId],
           eventTypeId,
           title: "Imported event",
           aliases: [],

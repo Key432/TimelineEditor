@@ -1,10 +1,17 @@
 "use client";
 
-import { Rows3 } from "lucide-react";
+import { ChevronDown, Rows3 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function DetailPageShell({
   projectId,
@@ -12,6 +19,7 @@ export function DetailPageShell({
   title,
   returnTo,
   breadcrumbParent,
+  breadcrumbParents,
   children,
   timelineHref,
 }: {
@@ -24,9 +32,16 @@ export function DetailPageShell({
     label: string;
     hardNavigation?: boolean;
   };
+  breadcrumbParents?: {
+    href: string;
+    label: string;
+    hardNavigation?: boolean;
+  }[];
   children: ReactNode;
   timelineHref?: string;
 }) {
+  const singleBreadcrumbParent = breadcrumbParents?.[0] ?? breadcrumbParent;
+
   return (
     <div className="detail-page-shell relative mx-auto w-full max-w-none space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -42,23 +57,48 @@ export function DetailPageShell({
               <span aria-hidden="true">/</span>
             </>
           ) : null}
-          {breadcrumbParent?.hardNavigation ? (
+          {breadcrumbParents && breadcrumbParents.length > 1 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  aria-label="親タイムラインアイテムを選択"
+                  className="h-auto max-w-64 gap-1 px-1 py-0 font-normal text-muted-foreground hover:text-foreground"
+                  variant="ghost"
+                >
+                  {breadcrumbParents.length}件の親タイムラインアイテム
+                  <ChevronDown aria-hidden="true" className="size-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="min-w-64">
+                <DropdownMenuLabel>移動先を選択</DropdownMenuLabel>
+                {breadcrumbParents.map((parent) => (
+                  <DropdownMenuItem key={parent.href} asChild>
+                    {parent.hardNavigation ? (
+                      <a href={parent.href}>{parent.label}</a>
+                    ) : (
+                      <Link href={parent.href}>{parent.label}</Link>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : singleBreadcrumbParent?.hardNavigation ? (
             <a
               className="truncate hover:text-foreground"
-              href={breadcrumbParent.href}
+              href={singleBreadcrumbParent.href}
             >
-              {breadcrumbParent.label}
+              {singleBreadcrumbParent.label}
             </a>
           ) : (
             <Link
               className="truncate hover:text-foreground"
               href={
-                breadcrumbParent?.href ??
+                singleBreadcrumbParent?.href ??
                 timelineHref ??
                 `/projects/${projectId}/timeline`
               }
             >
-              {breadcrumbParent?.label ?? projectName}
+              {singleBreadcrumbParent?.label ?? projectName}
             </Link>
           )}
           <span aria-hidden="true">/</span>
