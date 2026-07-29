@@ -48,7 +48,16 @@ export function GlobalSearch() {
       ref={containerRef}
       className="relative mx-4 hidden w-full max-w-md md:block"
     >
-      <form action="/search" onSubmit={() => setOpen(false)}>
+      <form
+        action="/search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const trimmed = query.trim();
+          if (!trimmed) return;
+          setOpen(false);
+          window.location.assign(`/search?q=${encodeURIComponent(trimmed)}`);
+        }}
+      >
         <Search
           aria-hidden="true"
           className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"

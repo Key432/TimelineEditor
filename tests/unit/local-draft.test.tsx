@@ -10,11 +10,24 @@ const store = vi.hoisted(() => ({
   putLocalDraft: vi.fn(),
 }));
 
+const cloud = vi.hoisted(() => ({
+  deleteCloudDraft: vi.fn(),
+  getCloudDraft: vi.fn(),
+  saveCloudDraft: vi.fn(),
+}));
+
 vi.mock("@/features/autosave/draft-store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/autosave/draft-store")>()),
   deleteLocalDraft: store.deleteLocalDraft,
   getLocalDraft: store.getLocalDraft,
   putLocalDraft: store.putLocalDraft,
+}));
+
+vi.mock("@/features/autosave/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/features/autosave/api")>()),
+  deleteCloudDraft: cloud.deleteCloudDraft,
+  getCloudDraft: cloud.getCloudDraft,
+  saveCloudDraft: cloud.saveCloudDraft,
 }));
 
 type ChannelMessage = { key: string; fingerprint: string; writerId: string };
@@ -64,6 +77,9 @@ function Harness({
     debounceMs: 800,
     dirty,
     draftKey: "timeline-item:project:item",
+    projectId: "00000000-0000-4000-8000-000000000001",
+    entityType: "timeline_item",
+    draftScope: "00000000-0000-4000-8000-000000000002",
     onRestore: restore,
     value,
   });
@@ -78,6 +94,12 @@ function Harness({
       </button>
       <button type="button" onClick={() => void draft.discard()}>
         discard
+      </button>
+      <button type="button" onClick={draft.useCloudVersion}>
+        use cloud
+      </button>
+      <button type="button" onClick={draft.useThisDeviceVersion}>
+        use device
       </button>
     </div>
   );
@@ -99,6 +121,23 @@ describe("useLocalDraft", () => {
     store.getLocalDraft.mockResolvedValue(null);
     store.putLocalDraft.mockResolvedValue(undefined);
     store.deleteLocalDraft.mockResolvedValue(undefined);
+    cloud.getCloudDraft.mockResolvedValue(null);
+    cloud.saveCloudDraft.mockImplementation(
+      (_projectId, entityType, draftScope, input) =>
+        Promise.resolve({
+          id: "00000000-0000-4000-8000-000000000003",
+          projectId: "00000000-0000-4000-8000-000000000001",
+          entityType,
+          draftScope,
+          value: input.value,
+          baseVersion: input.baseVersion,
+          fingerprint: input.fingerprint,
+          writerId: input.writerId,
+          version: (input.expectedVersion ?? 0) + 1,
+          savedAt: "2026-07-29T00:00:00.000Z",
+        }),
+    );
+    cloud.deleteCloudDraft.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -166,6 +205,7 @@ describe("useLocalDraft", () => {
     await act(async () => vi.advanceTimersByTime(1));
     await settlePromises();
     expect(store.putLocalDraft).toHaveBeenCalledOnce();
+    expect(cloud.saveCloudDraft).toHaveBeenCalledOnce();
 
     view.rerender(<Harness value={{ title: "下書き" }} />);
     await act(async () => vi.advanceTimersByTime(800));
@@ -212,6 +252,7 @@ describe("useLocalDraft", () => {
     screen.getByRole("button", { name: "retry" }).click();
     await settlePromises();
     expect(store.putLocalDraft).toHaveBeenCalledTimes(2);
+    expect(cloud.saveCloudDraft).toHaveBeenCalledOnce();
     expect(screen.getByText("saved")).toBeVisible();
   });
 
@@ -236,6 +277,7 @@ describe("useLocalDraft", () => {
     finishWrite?.();
     await settlePromises();
     expect(store.deleteLocalDraft).toHaveBeenCalledOnce();
+    expect(cloud.deleteCloudDraft).toHaveBeenCalledOnce();
   });
 
   it("queues changes made while a draft write is in progress", async () => {
@@ -293,5 +335,75 @@ describe("useLocalDraft", () => {
     view.rerender(<Harness dirty={false} value={{ title: "確定済み" }} />);
     await settlePromises();
     expect(store.deleteLocalDraft).toHaveBeenCalledOnce();
+    expect(cloud.deleteCloudDraft).toHaveBeenCalledOnce();
+  });
+
+  it("restores a cloud-only draft into IndexedDB", async () => {
+    const onRestore = vi.fn();
+    cloud.getCloudDraft.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000003",
+      projectId: "00000000-0000-4000-8000-000000000001",
+      entityType: "timeline_item",
+      draftScope: "00000000-0000-4000-8000-000000000002",
+      value: { title: "クラウド下書き" },
+      baseVersion: "version-1",
+      fingerprint: "cloud-fingerprint",
+      writerId: "another-device",
+      version: 3,
+      savedAt: "2026-07-29T00:00:00.000Z",
+    });
+
+    render(
+      <Harness
+        dirty={false}
+        value={{ title: "確定済み" }}
+        onRestore={onRestore}
+      />,
+    );
+    await settlePromises();
+
+    expect(onRestore).toHaveBeenCalledWith({ title: "クラウド下書き" });
+    expect(store.putLocalDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ value: { title: "クラウド下書き" } }),
+    );
+  });
+
+  it("lets the user choose the cloud version when local and remote drafts differ", async () => {
+    const onRestore = vi.fn();
+    store.getLocalDraft.mockResolvedValue({
+      key: "timeline-item:project:item",
+      value: { title: "端末下書き" },
+      baseVersion: "version-1",
+      fingerprint: "local-fingerprint",
+      savedAt: "2026-07-29T01:00:00.000Z",
+      writerId: "this-device",
+    });
+    cloud.getCloudDraft.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000003",
+      projectId: "00000000-0000-4000-8000-000000000001",
+      entityType: "timeline_item",
+      draftScope: "00000000-0000-4000-8000-000000000002",
+      value: { title: "クラウド下書き" },
+      baseVersion: "version-1",
+      fingerprint: "cloud-fingerprint",
+      writerId: "another-device",
+      version: 4,
+      savedAt: "2026-07-29T02:00:00.000Z",
+    });
+    render(
+      <Harness
+        dirty={false}
+        value={{ title: "確定済み" }}
+        onRestore={onRestore}
+      />,
+    );
+    await settlePromises();
+    expect(screen.getByText("conflict")).toBeVisible();
+    expect(onRestore).toHaveBeenLastCalledWith({ title: "端末下書き" });
+
+    screen.getByRole("button", { name: "use cloud" }).click();
+    await settlePromises();
+    expect(onRestore).toHaveBeenLastCalledWith({ title: "クラウド下書き" });
+    expect(screen.getByText("saved")).toBeVisible();
   });
 });

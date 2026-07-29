@@ -19,6 +19,7 @@
 - [L6](docs/phases/l6.md)
 - [L7](docs/phases/l7.md)
 - [L8](docs/phases/l8.md)
+- [L8.1](docs/phases/l8-1.md)
 - [L9](docs/phases/l9.md)
 - [L10](docs/phases/l10.md)
 - [L11](docs/phases/l11.md)

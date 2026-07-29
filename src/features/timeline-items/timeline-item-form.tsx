@@ -193,6 +193,9 @@ export function TimelineItemForm({
     baseVersion: item?.updatedAt ?? null,
     dirty: isDirty || eventDrafts.length > 0,
     draftKey: `timeline-item:${projectId}:${item?.id ?? "new"}`,
+    projectId,
+    entityType: "timeline_item",
+    draftScope: item?.id ?? "new",
     onRestore: restoreDraft,
     value: draftValue,
   });
@@ -620,6 +623,9 @@ export function TimelineItemForm({
       <LocalDraftStatusView
         status={localDraft.status}
         onRetry={localDraft.retry}
+        onUseCloudVersion={localDraft.useCloudVersion}
+        onUseThisDeviceVersion={localDraft.useThisDeviceVersion}
+        canUseCloudVersion={localDraft.canUseCloudVersion}
       />
       {mutation.error ? (
         <p role="alert" className="text-sm text-destructive">

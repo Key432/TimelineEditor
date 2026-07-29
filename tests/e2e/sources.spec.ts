@@ -150,7 +150,11 @@ test("keeps free-text sources while optionally attaching a reusable detailed sou
   expect(itemResponse.ok()).toBe(true);
   const { item } = (await itemResponse.json()) as { item: { id: string } };
 
-  await page.goto(`/projects/${project.id}/items/${item.id}`);
+  const itemUrl = `/projects/${project.id}/items/${item.id}`;
+  await Promise.all([
+    page.waitForURL(itemUrl),
+    page.evaluate((url) => window.location.assign(url), itemUrl),
+  ]);
   await expect(page.getByText("人物事典 第一巻（従来形式）")).toBeVisible();
   await expect(page.getByText("日本近代文学史")).toBeVisible();
   const citationDetails = page.locator(`#source-${sources[0]!.id} details`);

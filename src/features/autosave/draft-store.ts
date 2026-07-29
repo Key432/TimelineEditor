@@ -65,5 +65,13 @@ export async function deleteLocalDraft(key: string) {
 }
 
 export function draftFingerprint(value: unknown) {
-  return JSON.stringify(value);
+  const serialized = JSON.stringify(value);
+  let first = 0x811c9dc5;
+  let second = 0x9e3779b9;
+  for (let index = 0; index < serialized.length; index += 1) {
+    const code = serialized.charCodeAt(index);
+    first = Math.imul(first ^ code, 0x01000193);
+    second = Math.imul(second ^ code, 0x85ebca6b);
+  }
+  return `${serialized.length}:${(first >>> 0).toString(16)}:${(second >>> 0).toString(16)}`;
 }

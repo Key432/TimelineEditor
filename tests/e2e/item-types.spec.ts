@@ -66,10 +66,13 @@ test("adds, edits, hides, and reorders an item type", async ({ page }) => {
   });
   await combobox.fill("建築");
   await combobox.press("Enter");
-  await expect(page.getByLabel("名称").last()).toHaveValue("建築");
+  const createdRow = page.locator("#item-type-list > li").filter({
+    has: page.getByRole("button", { name: "建築の変更を保存" }),
+  });
+  await expect(createdRow.getByLabel("名称")).toHaveValue("建築");
 
-  await page.getByLabel("名称").last().fill("建築史料");
-  await page.getByLabel("建築の色コード").fill("#123456");
+  await createdRow.getByLabel("名称").fill("建築史料");
+  await createdRow.getByLabel("建築の色コード").fill("#123456");
   await page.getByRole("button", { name: "建築の変更を保存" }).click();
   await expect(page.getByLabel("名称").last()).toHaveValue("建築史料");
   await expect(page.getByLabel("建築史料の色コード")).toHaveValue("#123456");

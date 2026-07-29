@@ -108,6 +108,38 @@ export type Database = {
         };
         Relationships: [];
       };
+      cloud_drafts: {
+        Row: {
+          id: string;
+          project_id: string;
+          owner_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          draft_scope: string;
+          payload: Json;
+          base_version: string | null;
+          fingerprint: string;
+          writer_id: string;
+          draft_version: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          owner_id?: string;
+          entity_type: "timeline_item" | "timeline_event";
+          draft_scope: string;
+          payload: Json;
+          base_version?: string | null;
+          fingerprint: string;
+          writer_id: string;
+          draft_version?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["cloud_drafts"]["Insert"]>;
+        Relationships: [];
+      };
       timeline_item_types: {
         Row: {
           id: string;
@@ -654,6 +686,10 @@ export type Database = {
         Returns: boolean;
       };
       run_timeline_retention_cleanup: {
+        Args: never;
+        Returns: undefined;
+      };
+      run_cloud_draft_cleanup: {
         Args: never;
         Returns: undefined;
       };

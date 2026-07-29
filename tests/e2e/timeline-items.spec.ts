@@ -241,19 +241,63 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   const itemOverlayEditForm = page
     .getByRole("dialog")
     .getByRole("form", { name: "タイムラインアイテム編集" });
+  const cloudSaveResponsePromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PUT" &&
+      response.url().includes("/cloud-drafts/"),
+  );
   await itemOverlayEditForm
     .getByLabel("本文")
     .fill(
       "# 更新後の人物本文\n\n**強調表示**\n\n> [!NOTE]\n> 即時プレビュー\n\n<script>alert('xss')</script>\n\n![非対応画像](https://example.com/image.png)",
     );
+  const cloudSaveResponse = await cloudSaveResponsePromise;
+  expect(cloudSaveResponse.ok(), await cloudSaveResponse.text()).toBe(true);
   await expect(
-    itemOverlayEditForm.getByText("下書き保存済み", { exact: true }),
-  ).toBeVisible();
+    itemOverlayEditForm.getByText("クラウド下書き保存済み", { exact: true }),
+  ).toBeVisible({ timeout: 15_000 });
+  const cloudDraftBeforeSave = (await (
+    await page.request.get(
+      `/api/projects/${projectId}/cloud-drafts/timeline_item/${rangeItemId}`,
+    )
+  ).json()) as {
+    draft: {
+      value: { values: { description: string } };
+      version: number;
+      baseVersion: string | null;
+      writerId: string;
+    } | null;
+  };
+  expect(cloudDraftBeforeSave.draft?.value.values.description).toContain(
+    "更新後の人物本文",
+  );
+  const staleCloudWrite = await page.request.put(
+    `/api/projects/${projectId}/cloud-drafts/timeline_item/${rangeItemId}`,
+    {
+      data: {
+        value: { values: { description: "競合する端末の入力" } },
+        baseVersion: cloudDraftBeforeSave.draft!.baseVersion,
+        fingerprint: "stale-writer",
+        writerId: "stale-device",
+        expectedVersion: cloudDraftBeforeSave.draft!.version + 1,
+      },
+    },
+  );
+  expect(staleCloudWrite.status()).toBe(409);
   const beforeExplicitSave = (await (
     await page.request.get(`/api/projects/${projectId}/items/${rangeItemId}`)
   ).json()) as { item: { description: string | null } };
   expect(beforeExplicitSave.item.description).toBe("明治・大正期の小説家");
 
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const request = indexedDB.deleteDatabase("chronology-studio-drafts");
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+        request.onblocked = () => reject(new Error("IndexedDB delete blocked"));
+      }),
+  );
   await page.reload();
   await page.getByRole("button", { name: "詳細オプション" }).click();
   await page.getByRole("menuitem", { name: "編集" }).click();
@@ -282,6 +326,12 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
       name: "夏目漱石",
     }),
   ).toBeVisible();
+  const cloudDraftAfterSave = (await (
+    await page.request.get(
+      `/api/projects/${projectId}/cloud-drafts/timeline_item/${rangeItemId}`,
+    )
+  ).json()) as { draft: unknown };
+  expect(cloudDraftAfterSave.draft).toBeNull();
   await page.goto(`/projects/${projectId}/timeline`);
   await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
   await expect(

@@ -99,6 +99,9 @@ export function TimelineEventForm({
     baseVersion: event?.updatedAt ?? null,
     dirty: isDirty,
     draftKey: `timeline-event:${projectId}:${event?.id ?? "new"}`,
+    projectId,
+    entityType: "timeline_event",
+    draftScope: event?.id ?? "new",
     onRestore: restoreDraft,
     value: formValues,
   });
@@ -257,6 +260,9 @@ export function TimelineEventForm({
       <LocalDraftStatusView
         status={localDraft.status}
         onRetry={localDraft.retry}
+        onUseCloudVersion={localDraft.useCloudVersion}
+        onUseThisDeviceVersion={localDraft.useThisDeviceVersion}
+        canUseCloudVersion={localDraft.canUseCloudVersion}
       />
       <div className="sticky bottom-0 border-t bg-background/95 pt-4 pb-1 backdrop-blur">
         <Button

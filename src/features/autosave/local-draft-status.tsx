@@ -2,21 +2,27 @@ import { Button } from "@/components/ui/button";
 import type { LocalDraftStatus } from "@/features/autosave/use-local-draft";
 
 const labels: Record<LocalDraftStatus, string> = {
-  saved: "下書き保存済み",
-  saving: "下書きを保存中…",
+  saved: "クラウド下書き保存済み",
+  saving: "下書きをクラウドへ保存中…",
   unsaved: "未保存の下書きがあります",
-  failed: "下書きの保存に失敗しました",
+  failed: "クラウド保存に失敗しました（この端末には保存済み）",
   offline: "オフライン（下書きはこの端末に保存）",
-  retrying: "下書き保存を再試行中…",
-  conflict: "別のタブでも下書きが変更されています",
+  retrying: "クラウド保存を再試行中…",
+  conflict: "別の端末またはタブの下書きと競合しています",
 };
 
 export function LocalDraftStatusView({
   status,
   onRetry,
+  onUseCloudVersion,
+  onUseThisDeviceVersion,
+  canUseCloudVersion,
 }: {
   status: LocalDraftStatus;
   onRetry: () => void;
+  onUseCloudVersion: () => void;
+  onUseThisDeviceVersion: () => void;
+  canUseCloudVersion: boolean;
 }) {
   const failed = status === "failed";
   return (
@@ -33,6 +39,27 @@ export function LocalDraftStatusView({
         <Button size="sm" type="button" variant="outline" onClick={onRetry}>
           再試行
         </Button>
+      ) : status === "conflict" ? (
+        <div className="flex shrink-0 gap-2">
+          {canUseCloudVersion ? (
+            <Button
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={onUseCloudVersion}
+            >
+              クラウド版を使う
+            </Button>
+          ) : null}
+          <Button
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={onUseThisDeviceVersion}
+          >
+            この端末版を保存
+          </Button>
+        </div>
       ) : null}
     </div>
   );
