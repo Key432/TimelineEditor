@@ -50,13 +50,14 @@ export async function updateTimelineEvent(
   projectId: string,
   eventId: string,
   input: TimelineEventInput,
+  expectedUpdatedAt: string,
 ) {
   const data = await requestJson<{ event: TimelineEvent }>(
     `/api/projects/${projectId}/events/${eventId}`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify({ values: input, expectedUpdatedAt }),
     },
   );
   return data.event;

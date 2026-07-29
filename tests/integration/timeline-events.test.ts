@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { emptyTimelineEventValues } from "@/features/timeline-events/validation";
+import { TimelineEventService } from "@/lib/services/timeline-event-service";
+
 import { waitUntilAccessTokenIsCurrent } from "./auth-helpers";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -80,6 +83,58 @@ describe("timeline event persistence and RLS", () => {
       admin.auth.admin.deleteUser(ownerId),
       admin.auth.admin.deleteUser(otherId),
     ]);
+  });
+
+  it("rejects an update based on a stale event version", async () => {
+    const projectId = await createProject();
+    const { data: type, error: typeError } = await owner
+      .from("timeline_item_types")
+      .select("id")
+      .eq("project_id", projectId)
+      .limit(1)
+      .single();
+    if (typeError) throw typeError;
+    const { data: parent, error: parentError } = await owner
+      .from("timeline_items")
+      .insert({
+        project_id: projectId,
+        type_id: type.id,
+        title: "競合テストの親",
+        temporal_type: "range",
+        manual_order: 0,
+        start_year: 1900,
+        end_date_status: "specified",
+        end_year: 1910,
+      })
+      .select("id")
+      .single();
+    if (parentError) throw parentError;
+    const service = new TimelineEventService(owner);
+    const values = {
+      ...emptyTimelineEventValues(parent.id, {
+        year: 1905,
+        month: null,
+        day: null,
+      }),
+      title: "競合前",
+    };
+    const created = await service.create(projectId, values);
+    const staleVersion = created.updatedAt;
+
+    await service.update(projectId, created.id, {
+      values: { ...values, title: "先に保存した変更" },
+      expectedUpdatedAt: staleVersion,
+    });
+
+    await expect(
+      service.update(projectId, created.id, {
+        values: { ...values, title: "遅れて保存した変更" },
+        expectedUpdatedAt: staleVersion,
+      }),
+    ).rejects.toMatchObject({
+      code: "TIMELINE_EVENT_CONFLICT",
+      status: 409,
+    });
   });
 
   it("removes the retired summary columns from both item tables", async () => {

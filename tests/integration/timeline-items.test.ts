@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { emptyTimelineItemValues } from "@/features/timeline-items/validation";
+import { TimelineItemService } from "@/lib/services/timeline-item-service";
+
 import { waitUntilAccessTokenIsCurrent } from "./auth-helpers";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -117,6 +120,35 @@ describe("timeline item persistence and RLS", () => {
       admin.auth.admin.deleteUser(ownerId),
       admin.auth.admin.deleteUser(otherUserId),
     ]);
+  });
+
+  it("rejects an update based on a stale item version", async () => {
+    const projectId = await createProject("optimistic item locking");
+    const typeId = await firstType(projectId);
+    const service = new TimelineItemService(owner);
+    const values = {
+      ...emptyTimelineItemValues(typeId),
+      title: "競合前",
+      start: { year: 1900, month: null, day: null },
+      end: { year: 1910, month: null, day: null },
+    };
+    const created = await service.create(projectId, values);
+    const staleVersion = created.item.updatedAt;
+
+    await service.update(projectId, created.item.id, {
+      values: { ...values, title: "先に保存した変更" },
+      expectedUpdatedAt: staleVersion,
+    });
+
+    await expect(
+      service.update(projectId, created.item.id, {
+        values: { ...values, title: "遅れて保存した変更" },
+        expectedUpdatedAt: staleVersion,
+      }),
+    ).rejects.toMatchObject({
+      code: "TIMELINE_ITEM_CONFLICT",
+      status: 409,
+    });
   });
 
   it("stores range, ongoing, unknown, and point shapes", async () => {

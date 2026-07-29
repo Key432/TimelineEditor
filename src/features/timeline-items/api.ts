@@ -68,13 +68,14 @@ export async function updateTimelineItem(
   projectId: string,
   itemId: string,
   input: TimelineItemInput,
+  expectedUpdatedAt: string,
 ) {
   const data = await requestJson<{ item: TimelineItem }>(
     `/api/projects/${projectId}/items/${itemId}`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify({ values: input, expectedUpdatedAt }),
     },
   );
   return data.item;

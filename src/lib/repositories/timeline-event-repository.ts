@@ -227,12 +227,18 @@ export class TimelineEventRepository {
     };
   }
 
-  async update(projectId: string, eventId: string, input: TimelineEventValues) {
+  async update(
+    projectId: string,
+    eventId: string,
+    input: TimelineEventValues,
+    expectedUpdatedAt: string,
+  ) {
     const { data, error } = await this.client
       .from("timeline_events")
       .update(persistenceValues(input))
       .eq("project_id", projectId)
       .eq("id", eventId)
+      .eq("updated_at", expectedUpdatedAt)
       .is("deleted_at", null)
       .select(DETAIL_COLUMNS)
       .maybeSingle();

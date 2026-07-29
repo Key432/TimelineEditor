@@ -2,12 +2,14 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LocalDraftStatusView } from "@/features/autosave/local-draft-status";
+import { useLocalDraft } from "@/features/autosave/use-local-draft";
 import {
   createTimelineEvent,
   timelineEventKeys,
@@ -76,6 +78,7 @@ export function TimelineEventForm({
     register,
     control,
     handleSubmit,
+    reset,
     setValue,
     formState: { errors, isDirty },
   } = useForm<TimelineEventInput, undefined, TimelineEventValues>({
@@ -84,13 +87,29 @@ export function TimelineEventForm({
   });
 
   useEffect(() => onDirtyChange?.(isDirty), [isDirty, onDirtyChange]);
+  const formValues = useWatch({ control }) as TimelineEventInput;
+
+  const restoreDraft = useCallback(
+    (draft: TimelineEventInput) => {
+      reset(draft, { keepDefaultValues: true });
+    },
+    [reset],
+  );
+  const localDraft = useLocalDraft({
+    baseVersion: event?.updatedAt ?? null,
+    dirty: isDirty,
+    draftKey: `timeline-event:${projectId}:${event?.id ?? "new"}`,
+    onRestore: restoreDraft,
+    value: formValues,
+  });
 
   const mutation = useMutation({
     mutationFn: (values: TimelineEventValues) =>
       event
-        ? updateTimelineEvent(projectId, event.id, values)
+        ? updateTimelineEvent(projectId, event.id, values, event.updatedAt)
         : createTimelineEvent(projectId, values),
     onSuccess: async (saved) => {
+      await localDraft.discard();
       await queryClient.invalidateQueries({
         queryKey: timelineEventKeys.list(projectId),
       });
@@ -130,6 +149,7 @@ export function TimelineEventForm({
     <form
       aria-label={event ? "イベントアイテム編集" : "イベントアイテム作成"}
       className="space-y-4"
+      onBlurCapture={localDraft.flush}
       onSubmit={handleSubmit((values) => mutation.mutate(values))}
     >
       <div className="space-y-2">
@@ -234,8 +254,16 @@ export function TimelineEventForm({
           {mutation.error.message}
         </p>
       ) : null}
+      <LocalDraftStatusView
+        status={localDraft.status}
+        onRetry={localDraft.retry}
+      />
       <div className="sticky bottom-0 border-t bg-background/95 pt-4 pb-1 backdrop-blur">
-        <Button className="w-full" disabled={mutation.isPending} type="submit">
+        <Button
+          className="w-full"
+          disabled={mutation.isPending || Boolean(event && !isDirty)}
+          type="submit"
+        >
           {mutation.isPending
             ? "保存中…"
             : event

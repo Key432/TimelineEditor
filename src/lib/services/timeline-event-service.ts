@@ -105,8 +105,19 @@ export class TimelineEventService {
   }
 
   async update(projectId: string, eventId: string, input: unknown) {
+    const updateRequest = z
+      .object({ values: z.unknown(), expectedUpdatedAt: z.string().min(1) })
+      .safeParse(input);
+    if (!updateRequest.success) throw validationError(updateRequest.error);
     const { project, event: currentEvent } = await this.get(projectId, eventId);
-    const result = timelineEventSchema.safeParse(input);
+    if (currentEvent.updatedAt !== updateRequest.data.expectedUpdatedAt) {
+      throw new ServiceError(
+        "別の場所で更新されています。最新の内容を読み込み直してください。",
+        409,
+        "TIMELINE_EVENT_CONFLICT",
+      );
+    }
+    const result = timelineEventSchema.safeParse(updateRequest.data.values);
     if (!result.success) throw validationError(result.error);
     await this.requireRangeParent(project.id, result.data.timelineItemId);
     await this.requireSources(
@@ -131,12 +142,13 @@ export class TimelineEventService {
       project.id,
       this.parseEventId(eventId),
       enrichedResult.data,
+      updateRequest.data.expectedUpdatedAt,
     );
     if (!event) {
       throw new ServiceError(
-        "イベントアイテムが見つかりません。",
-        404,
-        "TIMELINE_EVENT_NOT_FOUND",
+        "別の場所で更新されています。最新の内容を読み込み直してください。",
+        409,
+        "TIMELINE_EVENT_CONFLICT",
       );
     }
     return event;

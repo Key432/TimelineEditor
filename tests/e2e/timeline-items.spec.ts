@@ -247,14 +247,43 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
       "# 更新後の人物本文\n\n**強調表示**\n\n> [!NOTE]\n> 即時プレビュー\n\n<script>alert('xss')</script>\n\n![非対応画像](https://example.com/image.png)",
     );
   await expect(
-    itemOverlayEditForm.getByRole("button", { name: "分割" }),
-  ).toHaveCount(0);
-  await itemOverlayEditForm.getByRole("button", { name: "プレビュー" }).click();
+    itemOverlayEditForm.getByText("下書き保存済み", { exact: true }),
+  ).toBeVisible();
+  const beforeExplicitSave = (await (
+    await page.request.get(`/api/projects/${projectId}/items/${rangeItemId}`)
+  ).json()) as { item: { description: string | null } };
+  expect(beforeExplicitSave.item.description).toBe("明治・大正期の小説家");
+
+  await page.reload();
+  await page.getByRole("button", { name: "詳細オプション" }).click();
+  await page.getByRole("menuitem", { name: "編集" }).click();
+  const restoredItemEditForm = page.getByRole("form", {
+    name: "タイムラインアイテム編集",
+  });
+  await expect(restoredItemEditForm.getByLabel("本文")).toHaveValue(
+    "# 更新後の人物本文\n\n**強調表示**\n\n> [!NOTE]\n> 即時プレビュー\n\n<script>alert('xss')</script>\n\n![非対応画像](https://example.com/image.png)",
+  );
   await expect(
-    itemOverlayEditForm.getByRole("region", { name: "Markdownプレビュー" }),
+    restoredItemEditForm.getByRole("button", { name: "分割" }),
+  ).toHaveCount(0);
+  await restoredItemEditForm
+    .getByRole("button", { name: "プレビュー" })
+    .click();
+  await expect(
+    restoredItemEditForm.getByRole("region", { name: "Markdownプレビュー" }),
   ).toContainText("即時プレビュー");
-  await expect(itemOverlayEditForm.locator("script, img")).toHaveCount(0);
-  await itemOverlayEditForm.getByRole("button", { name: "変更を保存" }).click();
+  await expect(restoredItemEditForm.locator("script, img")).toHaveCount(0);
+  await restoredItemEditForm
+    .getByRole("button", { name: "変更を保存" })
+    .click();
+  await expect(
+    page.getByRole("article").getByRole("heading", {
+      level: 1,
+      name: "夏目漱石",
+    }),
+  ).toBeVisible();
+  await page.goto(`/projects/${projectId}/timeline`);
+  await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
   await expect(
     page.getByRole("dialog").getByRole("article").getByRole("heading", {
       level: 1,

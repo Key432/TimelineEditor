@@ -3,12 +3,14 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Save, Tags, Trash2 } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LocalDraftStatusView } from "@/features/autosave/local-draft-status";
+import { useLocalDraft } from "@/features/autosave/use-local-draft";
 import type { TimelineItemType } from "@/features/item-types/types";
 import { timelineEventKeys } from "@/features/timeline-events/api";
 import { TimelineEventDraftEditor } from "@/features/timeline-events/timeline-event-draft-editor";
@@ -159,6 +161,7 @@ export function TimelineItemForm({
     control,
     handleSubmit,
     getValues,
+    reset,
     setValue,
     formState: { errors, isDirty },
   } = useForm<TimelineItemInput, undefined, TimelineItemValues>({
@@ -166,6 +169,7 @@ export function TimelineItemForm({
     defaultValues: defaults(itemTypes, item),
   });
   const temporalType = useWatch({ control, name: "temporalType" });
+  const formValues = useWatch({ control }) as TimelineItemInput;
   const endDateStatus = useWatch({ control, name: "endDateStatus" });
   const colorOverride = useWatch({ control, name: "colorOverride" });
   const selectedTypeId = useWatch({ control, name: "typeId" });
@@ -177,6 +181,21 @@ export function TimelineItemForm({
     [],
   );
   const [editingEvent, setEditingEvent] = useState<number | "new" | null>(null);
+  const draftValue = { values: formValues, eventDrafts };
+  const restoreDraft = useCallback(
+    (draft: typeof draftValue) => {
+      reset(draft.values, { keepDefaultValues: true });
+      setEventDrafts(draft.eventDrafts);
+    },
+    [reset],
+  );
+  const localDraft = useLocalDraft({
+    baseVersion: item?.updatedAt ?? null,
+    dirty: isDirty || eventDrafts.length > 0,
+    draftKey: `timeline-item:${projectId}:${item?.id ?? "new"}`,
+    onRestore: restoreDraft,
+    value: draftValue,
+  });
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -207,13 +226,19 @@ export function TimelineItemForm({
     mutationFn: async (values: TimelineItemValues) => {
       if (item) {
         return {
-          item: await updateTimelineItem(projectId, item.id, values),
+          item: await updateTimelineItem(
+            projectId,
+            item.id,
+            values,
+            item.updatedAt,
+          ),
           failedEvents: [],
         };
       }
       return createTimelineItem(projectId, values, eventDrafts);
     },
     onSuccess: async (saved) => {
+      await localDraft.discard();
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: timelineItemKeys.list(projectId),
@@ -260,6 +285,7 @@ export function TimelineItemForm({
         item ? "タイムラインアイテム編集" : "タイムラインアイテム作成"
       }
       className="space-y-5"
+      onBlurCapture={localDraft.flush}
       onSubmit={handleSubmit((values) => mutation.mutate(values))}
     >
       <div className="space-y-2">
@@ -591,11 +617,10 @@ export function TimelineItemForm({
         }
       />
 
-      {isDirty && !mutation.isPending ? (
-        <p className="text-xs text-muted-foreground">
-          未保存の変更があります。
-        </p>
-      ) : null}
+      <LocalDraftStatusView
+        status={localDraft.status}
+        onRetry={localDraft.retry}
+      />
       {mutation.error ? (
         <p role="alert" className="text-sm text-destructive">
           {mutation.error.message}
@@ -605,7 +630,11 @@ export function TimelineItemForm({
       <div className="sticky bottom-0 -mx-1 border-t bg-background/95 px-1 pt-4 pb-1 backdrop-blur">
         <Button
           className="w-full"
-          disabled={mutation.isPending || itemTypes.length === 0}
+          disabled={
+            mutation.isPending ||
+            itemTypes.length === 0 ||
+            Boolean(item && !isDirty)
+          }
           type="submit"
         >
           <Save aria-hidden="true" className="size-4" />
