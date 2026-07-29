@@ -22,6 +22,7 @@ import {
   listItemTypes,
   updateItemType,
 } from "@/features/item-types/api";
+import { invalidateItemTypeDependents } from "@/features/item-types/cache";
 import { DeleteItemTypeDialog } from "@/features/item-types/delete-item-type-dialog";
 import { ItemTypeIconPicker } from "@/features/item-types/item-type-icon";
 import type { TimelineItemType } from "@/features/item-types/types";
@@ -53,8 +54,7 @@ function ItemTypeRow({
   const mutation = useMutation({
     mutationFn: (input: Parameters<typeof updateItemType>[2]) =>
       updateItemType(projectId, itemType.id, input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: itemTypeKeys.list(projectId) }),
+    onSuccess: () => invalidateItemTypeDependents(queryClient, projectId),
   });
   const changed =
     name !== itemType.name ||
@@ -197,9 +197,7 @@ export function ItemTypeManager({
       }),
     onSuccess: async () => {
       setQuery("");
-      await queryClient.invalidateQueries({
-        queryKey: itemTypeKeys.list(projectId),
-      });
+      await invalidateItemTypeDependents(queryClient, projectId);
     },
   });
 

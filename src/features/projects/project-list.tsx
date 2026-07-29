@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, FolderPlus } from "lucide-react";
+import { ArrowRight, BookOpen, FolderPlus } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
@@ -82,14 +82,31 @@ export function ProjectList({
               href={`/projects/${project.id}/timeline`}
             />
           </CardHeader>
-          <CardFooter className="pointer-events-none justify-end">
+          <CardFooter className="pointer-events-none justify-end gap-2">
             <Button
               asChild
               className="pointer-events-auto relative z-10"
               size="sm"
               variant="outline"
             >
-              <Link href={`/projects/${project.id}/settings`}>
+              <Link
+                aria-label={`${project.name}の出典・参考文献を開く`}
+                href={`/projects/${project.id}/sources`}
+              >
+                <BookOpen aria-hidden="true" className="size-4" />
+                出典・参考文献
+              </Link>
+            </Button>
+            <Button
+              asChild
+              className="pointer-events-auto relative z-10"
+              size="sm"
+              variant="outline"
+            >
+              <Link
+                aria-label={`${project.name}の設定を開く`}
+                href={`/projects/${project.id}/settings`}
+              >
                 設定を開く
                 <ArrowRight aria-hidden="true" className="size-4" />
               </Link>

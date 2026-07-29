@@ -244,6 +244,52 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(
     page.getByRole("button", { name: /イベントアイテム ロンドン留学/ }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "配置設定" }).click();
+  await page
+    .getByRole("menuitemcheckbox", {
+      name: "タイムライン種別でグループ化",
+    })
+    .click();
+  const typeGroup = page.getByRole("button", { name: /出来事 1件/ });
+  await expect(typeGroup.locator("svg.lucide-image")).toBeVisible();
+  await page
+    .getByRole("button", {
+      name: "種別・タグ・カスタムフィールド",
+      exact: true,
+    })
+    .click();
+  const classificationDialog = page.getByRole("dialog");
+  await classificationDialog
+    .getByRole("combobox", {
+      name: "タイムライン種別を検索または作成",
+    })
+    .click();
+  await classificationDialog
+    .getByRole("button", { name: "出来事の設定変更" })
+    .click();
+  const iconRefresh = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      response.url().includes("/item-types/"),
+  );
+  await classificationDialog
+    .getByRole("button", { name: "政治・社会アイコン" })
+    .click();
+  expect((await iconRefresh).ok()).toBe(true);
+  const colorRefresh = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      response.url().includes("/item-types/"),
+  );
+  await classificationDialog
+    .getByRole("button", { name: "色 #FF3399" })
+    .click();
+  expect((await colorRefresh).ok()).toBe(true);
+  await classificationDialog.locator("[data-slot='sheet-close']").click();
+  await expect(typeGroup.locator("svg.lucide-landmark")).toHaveCSS(
+    "color",
+    "rgb(255, 51, 153)",
+  );
   await rangeGlyph.hover();
   const itemTooltip = page
     .getByRole("tooltip")
@@ -665,7 +711,10 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await toggleTypeGrouping(page);
   const createdTypeGroup = page.getByRole("button", { name: /出来事/ });
   await expect(createdTypeGroup).toBeVisible();
-  await expect(createdTypeGroup.locator("svg.lucide-image")).toBeVisible();
+  await expect(createdTypeGroup.locator("svg.lucide-landmark")).toHaveCSS(
+    "color",
+    "rgb(255, 51, 153)",
+  );
   await createdTypeGroup.click();
   await expect(page.getByText("夏目漱石", { exact: true })).toBeHidden();
   await createdTypeGroup.click();

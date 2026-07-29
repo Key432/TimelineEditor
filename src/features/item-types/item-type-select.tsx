@@ -23,6 +23,7 @@ import {
   listItemTypes,
   updateItemType,
 } from "@/features/item-types/api";
+import { invalidateItemTypeDependents } from "@/features/item-types/cache";
 import {
   ItemTypeIcon,
   ItemTypeIconPicker,
@@ -75,8 +76,7 @@ export function TimelineItemTypeSelect({
     queryFn: () => listItemTypes(projectId),
     initialData: initialItemTypes,
   });
-  const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: itemTypeKeys.list(projectId) });
+  const refresh = () => invalidateItemTypeDependents(queryClient, projectId);
   const createMutation = useMutation({
     mutationFn: (name: string) =>
       createItemType(projectId, {
@@ -253,6 +253,7 @@ function TimelineItemTypeSettings({
           ),
       );
     },
+    onSuccess: onSaved,
     onError: onSaved,
   });
   const changeOrder = useMutation({

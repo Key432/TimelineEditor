@@ -1,9 +1,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ItemTypeManager } from "@/features/item-types/item-type-manager";
+import { timelineItemKeys } from "@/features/timeline-items/api";
 
 const projectId = "550e8400-e29b-41d4-a716-446655440000";
 
@@ -14,11 +21,14 @@ function renderManager() {
       mutations: { retry: false },
     },
   });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <ItemTypeManager initialItemTypes={[]} projectId={projectId} />
-    </QueryClientProvider>,
-  );
+  return {
+    queryClient,
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <ItemTypeManager initialItemTypes={[]} projectId={projectId} />
+      </QueryClientProvider>,
+    ),
+  };
 }
 
 describe("ItemTypeManager", () => {
@@ -114,5 +124,59 @@ describe("ItemTypeManager", () => {
       "  文学   運動 ",
     );
     expect(screen.getByRole("button", { name: "新規作成" })).toBeDisabled();
+  });
+
+  it("invalidates timeline items after changing a type color or icon", async () => {
+    const itemType = {
+      id: crypto.randomUUID(),
+      projectId,
+      name: "人物",
+      defaultColor: "#2878B5",
+      icon: "user-round",
+      sortOrder: 0,
+      isVisible: true,
+      isSystemSeed: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: Infinity },
+        mutations: { retry: false },
+      },
+    });
+    queryClient.setQueryData(timelineItemKeys.list(projectId), []);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      if (init?.method === "PATCH")
+        return new Response(
+          JSON.stringify({
+            itemType: { ...itemType, defaultColor: "#123456", icon: "image" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      return new Response(JSON.stringify({ itemTypes: [itemType] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ItemTypeManager initialItemTypes={[itemType]} projectId={projectId} />
+      </QueryClientProvider>,
+    );
+
+    await user.clear(screen.getByLabelText("人物の色コード"));
+    await user.type(screen.getByLabelText("人物の色コード"), "#123456");
+    const row = screen.getByTestId(`item-type-row-${itemType.id}`);
+    await user.click(within(row).getByRole("button", { name: "作品アイコン" }));
+    await user.click(screen.getByRole("button", { name: "人物の変更を保存" }));
+
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryState(timelineItemKeys.list(projectId))
+          ?.isInvalidated,
+      ).toBe(true),
+    );
   });
 });

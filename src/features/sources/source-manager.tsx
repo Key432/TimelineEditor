@@ -272,21 +272,21 @@ export function SourceManager({
   initialMissingEntities,
 }: {
   projectId: string;
-  initialSources: Source[];
-  initialMissingEntities: MissingSourceEntity[];
+  initialSources?: Source[];
+  initialMissingEntities?: MissingSourceEntity[];
 }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<SourceInput>(() => values());
-  const {
-    data = { sources: initialSources, missingEntities: initialMissingEntities },
-  } = useQuery({
+  const initialData =
+    initialSources && initialMissingEntities
+      ? { sources: initialSources, missingEntities: initialMissingEntities }
+      : undefined;
+  const { data, isPending } = useQuery({
     queryKey: sourceKeys.list(projectId),
     queryFn: () => listSources(projectId),
-    initialData: {
-      sources: initialSources,
-      missingEntities: initialMissingEntities,
-    },
+    initialData,
   });
+  const resolvedData = data ?? { sources: [], missingEntities: [] };
   const create = useMutation({
     mutationFn: () => createSource(projectId, draft),
     onSuccess: async () => {
@@ -297,11 +297,32 @@ export function SourceManager({
     },
   });
   return (
-    <div className="space-y-6">
+    <div aria-busy={isPending} className="space-y-6">
+      {isPending ? (
+        <p className="text-sm text-muted-foreground">資料を読み込んでいます…</p>
+      ) : null}
+      <section className="space-y-3">
+        <h2 className="font-medium">資料マスタ</h2>
+        {resolvedData.sources.length ? (
+          <ul className="space-y-4">
+            {resolvedData.sources.map((source) => (
+              <SourceRow
+                key={source.id}
+                projectId={projectId}
+                source={source}
+              />
+            ))}
+          </ul>
+        ) : (
+          <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+            資料はまだ登録されていません。
+          </p>
+        )}
+      </section>
       <section className="space-y-4 rounded-xl border bg-muted/20 p-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-medium">新しい資料</h2>
-          <Badge variant="outline">{data.sources.length}件</Badge>
+          <Badge variant="outline">{resolvedData.sources.length}件</Badge>
         </div>
         <SourceFields prefix="new-source" value={draft} onChange={setDraft} />
         {create.error ? (
@@ -322,25 +343,10 @@ export function SourceManager({
         <p className="text-sm text-muted-foreground">
           自由記述と詳細出典の両方が空の項目です。
         </p>
-        <MissingList entities={data.missingEntities} projectId={projectId} />
-      </section>
-      <section className="space-y-3">
-        <h2 className="font-medium">資料マスタ</h2>
-        {data.sources.length ? (
-          <ul className="space-y-4">
-            {data.sources.map((source) => (
-              <SourceRow
-                key={source.id}
-                projectId={projectId}
-                source={source}
-              />
-            ))}
-          </ul>
-        ) : (
-          <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            資料はまだ登録されていません。
-          </p>
-        )}
+        <MissingList
+          entities={resolvedData.missingEntities}
+          projectId={projectId}
+        />
       </section>
     </div>
   );

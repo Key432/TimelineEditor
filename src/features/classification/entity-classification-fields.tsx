@@ -19,6 +19,7 @@ import {
   updateEventType,
   updateTag,
 } from "@/features/classification/api";
+import { invalidateEventTypeDependents } from "@/features/classification/cache";
 import { MarkerShapeIcon } from "@/features/classification/marker-shape";
 import {
   MARKER_SHAPES,
@@ -312,10 +313,7 @@ export function EventTypeSelect({
     setOpen(false);
     setEditing(null);
   });
-  const refresh = () =>
-    queryClient.invalidateQueries({
-      queryKey: classificationKeys.all(projectId),
-    });
+  const refresh = () => invalidateEventTypeDependents(queryClient, projectId);
   const createMutation = useMutation({
     mutationFn: (name: string) =>
       createEventType(projectId, {
@@ -506,6 +504,7 @@ function EventTypeSettings({
             : current,
       );
     },
+    onSuccess: onSaved,
     onError: onSaved,
   });
   const remove = useMutation({

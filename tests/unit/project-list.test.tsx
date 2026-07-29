@@ -48,6 +48,29 @@ describe("ProjectList", () => {
     expect(screen.getByText("作家と作品を比較します。")).toBeInTheDocument();
     expect(screen.getAllByText("非公開")).toHaveLength(1);
     expect(screen.getByText("公開済")).toBeInTheDocument();
+    const firstCard = screen
+      .getByRole("link", {
+        name: "説明なしの年表のタイムラインを開く",
+      })
+      .closest("[data-slot='card']");
+    expect(firstCard).not.toBeNull();
+    const cardLinks = Array.from(firstCard!.querySelectorAll("a"));
+    const sourcesLink = screen.getByRole("link", {
+      name: "説明なしの年表の出典・参考文献を開く",
+    });
+    const settingsLink = screen.getByRole("link", {
+      name: "説明なしの年表の設定を開く",
+    });
+    expect(sourcesLink).toHaveAttribute(
+      "href",
+      "/projects/11111111-1111-4111-8111-111111111111/sources",
+    );
+    expect(cardLinks.indexOf(sourcesLink as HTMLAnchorElement)).toBeLessThan(
+      cardLinks.indexOf(settingsLink as HTMLAnchorElement),
+    );
+    expect(
+      screen.getAllByRole("link", { name: /出典・参考文献を開く/ }),
+    ).toHaveLength(2);
     expect(screen.getAllByRole("link", { name: /設定を開く/ })).toHaveLength(2);
   });
 });

@@ -2,7 +2,6 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { BookOpen, FileArchive, Settings, Shapes } from "lucide-react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -39,8 +38,11 @@ import { timelineItemKeys } from "@/features/timeline-items/api";
 import { cn } from "@/lib/utils";
 import { TrashManager } from "@/features/history/trash-manager";
 import { ClassificationManager } from "@/features/classification/classification-manager";
+import { invalidateEventTypeDependents } from "@/features/classification/cache";
+import { invalidateItemTypeDependents } from "@/features/item-types/cache";
+import { SourceManager } from "@/features/sources/source-manager";
 
-type Panel = "settings" | "classification" | "import-export" | null;
+type Panel = "settings" | "classification" | "sources" | "import-export" | null;
 
 export function TimelinePageClient({
   project,
@@ -71,9 +73,10 @@ export function TimelinePageClient({
   function handlePanelChange(open: boolean) {
     if (open) return;
     if (panel === "classification") {
-      void queryClient.invalidateQueries({
-        queryKey: itemTypeKeys.list(project.id),
-      });
+      void Promise.all([
+        invalidateItemTypeDependents(queryClient, project.id),
+        invalidateEventTypeDependents(queryClient, project.id),
+      ]);
     }
     setPanel(null);
   }
@@ -105,11 +108,13 @@ export function TimelinePageClient({
             <Shapes aria-hidden="true" className="size-4" />
             種別・タグ・カスタムフィールド
           </Button>
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/projects/${project.id}/sources`}>
-              <BookOpen aria-hidden="true" className="size-4" />
-              出典・参考文献
-            </Link>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setPanel("sources")}
+          >
+            <BookOpen aria-hidden="true" className="size-4" />
+            出典・参考文献
           </Button>
           <Button
             size="sm"
@@ -173,7 +178,7 @@ export function TimelinePageClient({
           }}
           className={cn(
             "w-full overflow-y-auto",
-            panel === "classification"
+            panel === "classification" || panel === "sources"
               ? "sm:!w-[calc(100vw-4rem)] sm:!max-w-5xl"
               : "sm:max-w-3xl",
           )}
@@ -184,14 +189,18 @@ export function TimelinePageClient({
                 ? "プロジェクト設定"
                 : panel === "classification"
                   ? "種別・タグ・カスタムフィールド"
-                  : "インポート／エクスポート"}
+                  : panel === "sources"
+                    ? "出典・参考文献"
+                    : "インポート／エクスポート"}
             </SheetTitle>
             <SheetDescription>
               {panel === "settings"
                 ? "名前、説明、タイムラインの初期表示を変更します。"
                 : panel === "classification"
                   ? "タイムライン種別、イベント種別、タグ、用途固有の型付きフィールドを管理します。"
-                  : "プロジェクトデータを保存または取り込みます。"}
+                  : panel === "sources"
+                    ? "資料の追加・編集・一覧確認と、出典未設定項目の確認を行います。"
+                    : "プロジェクトデータを保存または取り込みます。"}
             </SheetDescription>
           </SheetHeader>
           <div className="space-y-8 px-4 pb-6">
@@ -231,6 +240,8 @@ export function TimelinePageClient({
                 projectId={project.id}
                 itemTypes={itemTypes}
               />
+            ) : panel === "sources" ? (
+              <SourceManager projectId={project.id} />
             ) : panel === "import-export" ? (
               <ImportExportManager
                 projectId={project.id}

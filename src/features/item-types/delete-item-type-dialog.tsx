@@ -16,7 +16,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { deleteItemType, itemTypeKeys } from "@/features/item-types/api";
+import { deleteItemType } from "@/features/item-types/api";
+import { invalidateItemTypeDependents } from "@/features/item-types/cache";
 
 type DeleteItemTypeDialogProps = {
   projectId: string;
@@ -34,9 +35,7 @@ export function DeleteItemTypeDialog({
   const mutation = useMutation({
     mutationFn: () => deleteItemType(projectId, typeId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: itemTypeKeys.list(projectId),
-      });
+      await invalidateItemTypeDependents(queryClient, projectId);
       setOpen(false);
     },
   });

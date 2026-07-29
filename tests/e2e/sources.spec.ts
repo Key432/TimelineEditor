@@ -67,8 +67,38 @@ test("keeps free-text sources while optionally attaching a reusable detailed sou
   expect(headerActions.indexOf("出典・参考文献")).toBeLessThan(
     headerActions.indexOf("設定"),
   );
+  await page.getByRole("button", { name: "出典・参考文献" }).click();
+  const sourcePanel = page.getByRole("dialog");
   await expect(
-    page.getByRole("link", { name: "出典・参考文献" }),
+    sourcePanel.getByRole("heading", { name: "出典・参考文献" }),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      sourcePanel.evaluate((element) => element.getBoundingClientRect().width),
+    )
+    .toBeGreaterThan(800);
+  await expect
+    .poll(async () =>
+      (await sourcePanel.locator("section h2").allTextContents()).map(
+        (heading) => heading.trim(),
+      ),
+    )
+    .toEqual(["資料マスタ", "新しい資料", "出典未設定の項目"]);
+  await sourcePanel.getByRole("button", { name: "閉じる" }).click();
+
+  await navigateWithDocumentLoad(page, "/projects");
+  const projectCard = page.locator("[data-slot='card']").filter({
+    has: page.getByRole("link", {
+      name: "出典テストのタイムラインを開く",
+    }),
+  });
+  const projectActions = await projectCard.getByRole("link").allTextContents();
+  expect(projectActions.map((label) => label.trim()).slice(-2)).toEqual([
+    "出典・参考文献",
+    "設定を開く",
+  ]);
+  await expect(
+    projectCard.getByRole("link", { name: "出典テストの出典・参考文献を開く" }),
   ).toHaveAttribute("href", `/projects/${project.id}/sources`);
 
   await navigateWithDocumentLoad(page, `/projects/${project.id}/settings`);
@@ -86,6 +116,13 @@ test("keeps free-text sources while optionally attaching a reusable detailed sou
   await expect(
     page.getByRole("link", { name: "タイムラインへ" }),
   ).toHaveAttribute("href", `/projects/${project.id}/timeline`);
+  await expect
+    .poll(async () =>
+      (await page.locator("main h2").allTextContents()).map((heading) =>
+        heading.trim(),
+      ),
+    )
+    .toEqual(["資料マスタ", "新しい資料", "出典未設定の項目"]);
   await page.getByLabel("資料名").fill("日本近代文学史");
   await page.getByLabel("著者（1行に1名）").fill("山田 太郎");
   await page.getByLabel("刊行年").fill("2024");
@@ -108,7 +145,7 @@ test("keeps free-text sources while optionally attaching a reusable detailed sou
   await masterDetails.locator("summary").click();
   await expect(page.getByRole("textbox", { name: "資料名" })).toHaveCount(2);
   await expect(
-    page.getByRole("textbox", { name: "資料名" }).last(),
+    page.getByRole("textbox", { name: "資料名" }).first(),
   ).toHaveValue("日本近代文学史");
 
   const sourcesResponse = await page.request.get(
