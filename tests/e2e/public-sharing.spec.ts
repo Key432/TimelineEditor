@@ -151,16 +151,19 @@ test("publishes for anonymous viewing and unpublishes immediately", async ({
     ).toBeVisible();
     const main = anonymousPage.locator("main");
     await expect(main).toHaveCSS("overflow-y", "auto");
-    await main.evaluate((element) => {
-      const spacer = document.createElement("div");
-      spacer.setAttribute("aria-hidden", "true");
-      spacer.style.height = "200vh";
-      element.append(spacer);
+    const scrollMetrics = await main.evaluate((element) => {
+      element.style.height = "200px";
       element.scrollTop = element.scrollHeight;
+      return {
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+        scrollTop: element.scrollTop,
+      };
     });
-    await expect
-      .poll(() => main.evaluate((element) => element.scrollTop))
-      .toBeGreaterThan(0);
+    expect(scrollMetrics.scrollHeight).toBeGreaterThan(
+      scrollMetrics.clientHeight,
+    );
+    expect(scrollMetrics.scrollTop).toBeGreaterThan(0);
   }
 
   await navigateWithDocumentLoad(page, `/projects/${projectId}/settings`);
