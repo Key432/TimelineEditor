@@ -150,6 +150,26 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await expect(createForm).toBeVisible();
   await expect(createForm.getByText("親人物", { exact: true })).toBeVisible();
   await expect(createForm.getByLabel("イベント時代")).toContainText("紀元後");
+  const snappedPrecision = await createForm
+    .getByLabel("イベント日付精度")
+    .inputValue();
+  if (snappedPrecision === "day") {
+    await expect(createForm.getByLabel("イベント月")).toBeVisible();
+    await expect(
+      createForm.getByRole("spinbutton", { name: "イベント日", exact: true }),
+    ).toBeVisible();
+  } else if (snappedPrecision === "month") {
+    await expect(createForm.getByLabel("イベント月")).toBeVisible();
+    await expect(
+      createForm.getByRole("spinbutton", { name: "イベント日", exact: true }),
+    ).toHaveCount(0);
+  } else {
+    expect(snappedPrecision).toBe("year");
+    await expect(createForm.getByLabel("イベント月")).toHaveCount(0);
+    await expect(
+      createForm.getByRole("spinbutton", { name: "イベント日", exact: true }),
+    ).toHaveCount(0);
+  }
   await expect(
     createForm.getByLabel("イベント日付表記の手動入力"),
   ).toHaveAttribute("placeholder", "日付表記の手動入力（任意・例：平成10年）");

@@ -21,10 +21,11 @@ export function snapTimelineDate(
 ): HistoricalDate {
   const date = xToDate(x, originOrdinal, pixelsPerDay);
   const precision = eventSnapPrecision(pixelsPerDay);
-  if (precision === "year") return { year: date.year, month: null, day: null };
+  if (precision === "year")
+    return { precision, year: date.year, month: null, day: null };
   if (precision === "month")
-    return { year: date.year, month: date.month, day: null };
-  return date;
+    return { precision, year: date.year, month: date.month, day: null };
+  return { ...date, precision };
 }
 
 export function eventX(

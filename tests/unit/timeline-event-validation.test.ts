@@ -111,16 +111,19 @@ describe("timeline event validation and snapping", () => {
     const origin = historicalDateOrdinal({ year: 1900, month: 1, day: 1 });
     const target = historicalDateOrdinal({ year: 1905, month: 6, day: 17 });
     expect(snapTimelineDate((target - origin) * 0.03, origin, 0.03)).toEqual({
+      precision: "year",
       year: 1905,
       month: null,
       day: null,
     });
     expect(snapTimelineDate((target - origin) * 1.4, origin, 1.4)).toEqual({
+      precision: "month",
       year: 1905,
       month: 6,
       day: null,
     });
     expect(snapTimelineDate((target - origin) * 9, origin, 9)).toEqual({
+      precision: "day",
       year: 1905,
       month: 6,
       day: 17,

@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { QueryProvider } from "@/components/query-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { TimelineItemType } from "@/features/item-types/types";
+import type { EventType } from "@/features/classification/types";
 import { TimelineEventMarkers } from "@/features/timeline-events/timeline-event-markers";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import { historicalDateOrdinal } from "@/features/timeline-items/historical-date";
@@ -297,6 +298,76 @@ describe("TimelineWorkspace", () => {
     expect(
       screen.getByRole("button", { name: /イベントアイテム 一番目/ }),
     ).toHaveClass("hover:ring-2", "hover:ring-secondary");
+  });
+
+  it("keeps untyped and circle event markers identical at the pre-L9 diameter", () => {
+    const circleType: EventType = {
+      id: "66666666-6666-4666-8666-666666666666",
+      projectId: project.id,
+      name: "円",
+      color: "#00B0B0",
+      markerShape: "circle",
+      description: null,
+      sortOrder: 0,
+      usageCount: 1,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+    const squareType: EventType = {
+      ...circleType,
+      id: "77777777-7777-4777-8777-777777777777",
+      name: "四角",
+      markerShape: "square",
+    };
+    const untyped = timelineEvent("event-none", "種別なし", 1);
+    const circle = {
+      ...timelineEvent("event-circle", "丸イベント", 3),
+      eventTypeId: circleType.id,
+      eventType: circleType,
+    };
+    const square = {
+      ...timelineEvent("event-square", "四角イベント", 5),
+      eventTypeId: squareType.id,
+      eventType: squareType,
+    };
+    render(
+      <TooltipProvider>
+        <TimelineEventMarkers
+          domainStart={historicalDateOrdinal({ year: 1905, month: 1, day: 1 })}
+          events={[untyped, circle, square]}
+          horizontalPadding={24}
+          pixelsPerDay={36}
+          visibleEnd={240}
+          visibleStart={0}
+          onOpenEvent={vi.fn()}
+        />
+      </TooltipProvider>,
+    );
+
+    const untypedMarker = screen.getByRole("button", {
+      name: /イベントアイテム 種別なし/,
+    });
+    const circleMarker = screen.getByRole("button", {
+      name: /イベントアイテム 丸イベント/,
+    });
+    const squareMarker = screen.getByRole("button", {
+      name: /イベントアイテム 四角イベント/,
+    });
+    for (const marker of [untypedMarker, circleMarker, squareMarker]) {
+      expect(marker).toHaveClass("size-3", "rounded-full", "border-2");
+      expect(
+        within(marker).getByTestId("timeline-event-marker-shape"),
+      ).toHaveClass("size-2");
+    }
+    expect(
+      within(untypedMarker).getByTestId("timeline-event-marker-shape"),
+    ).toHaveStyle({ borderRadius: "9999px" });
+    expect(
+      within(circleMarker).getByTestId("timeline-event-marker-shape"),
+    ).toHaveStyle({ borderRadius: "9999px" });
+    expect(
+      within(squareMarker).getByTestId("timeline-event-marker-shape"),
+    ).toHaveStyle({ borderRadius: "2px" });
   });
 
   it("separates a glyph click from range double-click event creation", () => {
