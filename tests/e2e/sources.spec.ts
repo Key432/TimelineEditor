@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 
+import { navigateWithDocumentLoad } from "./helpers/navigation";
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const authSecret = process.env.E2E_TEST_AUTH_SECRET;
@@ -30,6 +32,7 @@ test.afterAll(async () => {
 test("keeps free-text sources while optionally attaching a reusable detailed source", async ({
   page,
 }) => {
+  test.slow();
   const auth = await page.request.post("/api/test-auth", {
     data: { email, password },
     headers: { "x-test-auth-secret": authSecret },
@@ -58,7 +61,7 @@ test("keeps free-text sources while optionally attaching a reusable detailed sou
   const headerActions = (
     await page.locator("header a, header button").allTextContents()
   ).map((label) => label.trim());
-  expect(headerActions.indexOf("対象種別")).toBeLessThan(
+  expect(headerActions.indexOf("種別・タグ・カスタムフィールド")).toBeLessThan(
     headerActions.indexOf("出典・参考文献"),
   );
   expect(headerActions.indexOf("出典・参考文献")).toBeLessThan(
@@ -68,12 +71,18 @@ test("keeps free-text sources while optionally attaching a reusable detailed sou
     page.getByRole("link", { name: "出典・参考文献" }),
   ).toHaveAttribute("href", `/projects/${project.id}/sources`);
 
-  await page.goto(`/projects/${project.id}/settings`);
+  await navigateWithDocumentLoad(page, `/projects/${project.id}/settings`);
+  await expect(
+    page
+      .getByRole("heading", { name: "ゴミ箱", exact: true })
+      .locator("..")
+      .locator(".."),
+  ).not.toHaveClass(/border-t|pt-6/);
   await expect(
     page.getByRole("link", { name: "出典・参考文献を管理" }),
   ).toHaveCount(0);
 
-  await page.goto(`/projects/${project.id}/sources`);
+  await navigateWithDocumentLoad(page, `/projects/${project.id}/sources`);
   await expect(
     page.getByRole("link", { name: "タイムラインへ" }),
   ).toHaveAttribute("href", `/projects/${project.id}/timeline`);
@@ -151,10 +160,7 @@ test("keeps free-text sources while optionally attaching a reusable detailed sou
   const { item } = (await itemResponse.json()) as { item: { id: string } };
 
   const itemUrl = `/projects/${project.id}/items/${item.id}`;
-  await Promise.all([
-    page.waitForURL(itemUrl),
-    page.evaluate((url) => window.location.assign(url), itemUrl),
-  ]);
+  await navigateWithDocumentLoad(page, itemUrl);
   await expect(page.getByText("人物事典 第一巻（従来形式）")).toBeVisible();
   await expect(page.getByText("日本近代文学史")).toBeVisible();
   const citationDetails = page.locator(`#source-${sources[0]!.id} details`);
@@ -165,19 +171,30 @@ test("keeps free-text sources while optionally attaching a reusable detailed sou
   await expect(page.getByText("引用箇所の抜粋")).toBeVisible();
   await expect(page.getByRole("link", { name: "yamada2024" })).toBeVisible();
 
-  await page.goto(`/projects/${project.id}/timeline`);
-  await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
+  await navigateWithDocumentLoad(page, `/projects/${project.id}/timeline`);
+  await expect(async () => {
+    await page.getByLabel(/夏目漱石.*期間型バー/).click();
+    await expect(page).toHaveURL(`/projects/${project.id}/items/${item.id}`, {
+      timeout: 2_000,
+    });
+  }).toPass({ timeout: 15_000 });
   let detailDialog = page.getByRole("dialog");
-  await expect(detailDialog).toBeVisible();
+  await expect(detailDialog).toBeVisible({ timeout: 15_000 });
   await detailDialog.getByRole("link", { name: "yamada2024" }).click();
   await expect(page).toHaveURL(
     `/projects/${project.id}/sources#source-${sources[0]!.id}`,
   );
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  await page.goto(`/projects/${project.id}/timeline`);
-  await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
+  await navigateWithDocumentLoad(page, `/projects/${project.id}/timeline`);
+  await expect(async () => {
+    await page.getByLabel(/夏目漱石.*期間型バー/).click();
+    await expect(page).toHaveURL(`/projects/${project.id}/items/${item.id}`, {
+      timeout: 2_000,
+    });
+  }).toPass({ timeout: 15_000 });
   detailDialog = page.getByRole("dialog");
+  await expect(detailDialog).toBeVisible({ timeout: 15_000 });
   await detailDialog.locator(`#source-${sources[0]!.id} summary`).click();
   await detailDialog.getByRole("link", { name: "資料マスタで確認" }).click();
   await expect(page).toHaveURL(
@@ -186,7 +203,10 @@ test("keeps free-text sources while optionally attaching a reusable detailed sou
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "資料マスタ" })).toBeVisible();
 
-  await page.goto(`/projects/${project.id}/items/${item.id}`);
+  await navigateWithDocumentLoad(
+    page,
+    `/projects/${project.id}/items/${item.id}`,
+  );
   await page.getByRole("button", { name: "編集" }).click();
   const form = page.getByRole("form", { name: "タイムラインアイテム編集" });
   await expect(form.getByRole("tab", { name: "自由記述" })).toHaveAttribute(

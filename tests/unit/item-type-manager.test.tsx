@@ -59,15 +59,22 @@ describe("ItemTypeManager", () => {
     renderManager();
 
     const combobox = screen.getByRole("combobox", {
-      name: "対象種別を検索・新規作成",
+      name: "タイムライン種別を検索・新規作成",
     });
+    await user.click(screen.getByRole("button", { name: "作品アイコン" }));
+    expect(
+      screen.getByRole("button", { name: "作品アイコン" }),
+    ).toHaveAttribute("aria-pressed", "true");
     await user.type(combobox, "建築{Enter}");
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const [url, init] = fetchMock.mock.calls[0] ?? [];
     expect(url).toBe(`/api/projects/${projectId}/item-types`);
     expect(init).toMatchObject({ method: "POST" });
-    expect(JSON.parse(String(init?.body))).toMatchObject({ name: "建築" });
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      name: "建築",
+      icon: "image",
+    });
   });
 
   it("does not offer creation for an existing normalized name", async () => {
@@ -102,7 +109,7 @@ describe("ItemTypeManager", () => {
 
     await user.type(
       screen.getByRole("combobox", {
-        name: "対象種別を検索・新規作成",
+        name: "タイムライン種別を検索・新規作成",
       }),
       "  文学   運動 ",
     );

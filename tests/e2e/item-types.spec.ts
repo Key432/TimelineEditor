@@ -59,10 +59,10 @@ test("adds, edits, hides, and reorders an item type", async ({ page }) => {
   await page.goto(`/projects/${projectId}/item-types`);
 
   await expect(
-    page.getByText("対象種別", { exact: true }).last(),
+    page.getByText("タイムライン種別", { exact: true }).last(),
   ).toBeVisible();
   const combobox = page.getByRole("combobox", {
-    name: "対象種別を検索・新規作成",
+    name: "タイムライン種別を検索・新規作成",
   });
   await combobox.fill("建築");
   await combobox.press("Enter");

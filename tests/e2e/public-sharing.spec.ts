@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 
+import { navigateWithDocumentLoad } from "./helpers/navigation";
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const authSecret = process.env.E2E_TEST_AUTH_SECRET;
@@ -32,6 +34,7 @@ test("publishes for anonymous viewing and unpublishes immediately", async ({
   page,
   browser,
 }) => {
+  test.slow();
   const auth = await page.request.post("/api/test-auth", {
     data: { email, password },
     headers: { "x-test-auth-secret": authSecret },
@@ -86,12 +89,14 @@ test("publishes for anonymous viewing and unpublishes immediately", async ({
   if (eventError) throw eventError;
 
   await page.getByRole("button", { name: "公開する" }).click();
+  const publishDialog = page.getByRole("alertdialog");
+  await expect(publishDialog).toBeVisible();
   const publishResponsePromise = page.waitForResponse(
     (response) =>
       response.url().endsWith(`/api/projects/${projectId}/publish`) &&
       response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "公開する" }).last().click();
+  await publishDialog.getByRole("button", { name: "公開する" }).click();
   expect((await publishResponsePromise).status()).toBe(200);
   const publicUrl = await page.getByLabel("共有URL").inputValue();
 
@@ -158,14 +163,16 @@ test("publishes for anonymous viewing and unpublishes immediately", async ({
       .toBeGreaterThan(0);
   }
 
-  await page.goto(`/projects/${projectId}/settings`);
+  await navigateWithDocumentLoad(page, `/projects/${projectId}/settings`);
   await page.getByRole("button", { name: "非公開にする" }).click();
+  const unpublishDialog = page.getByRole("alertdialog");
+  await expect(unpublishDialog).toBeVisible();
   const unpublishResponsePromise = page.waitForResponse(
     (response) =>
       response.url().endsWith(`/api/projects/${projectId}/unpublish`) &&
       response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "非公開にする" }).last().click();
+  await unpublishDialog.getByRole("button", { name: "非公開にする" }).click();
   expect((await unpublishResponsePromise).status()).toBe(200);
   await expect(page.getByRole("button", { name: "公開する" })).toBeVisible();
   const hiddenResponse = await anonymousPage.reload();

@@ -118,7 +118,7 @@ async function toggleTypeGrouping(user: TestUser) {
   await user.click(screen.getByRole("button", { name: "配置設定" }));
   await user.click(
     screen.getByRole("menuitemcheckbox", {
-      name: "対象種別でグループ化",
+      name: "タイムライン種別でグループ化",
     }),
   );
 }
@@ -352,10 +352,16 @@ describe("TimelineWorkspace", () => {
     expect(screen.getByLabelText(/期間型バー/)).toHaveClass(
       "hover:ring-2",
       "hover:ring-secondary",
+      "hover:ring-inset",
+    );
+    expect(screen.getByTestId("timeline-workspace")).toHaveAttribute(
+      "data-client-ready",
+      "true",
     );
     expect(screen.getByLabelText(/時点型マーカー/)).toHaveClass(
       "hover:ring-2",
       "hover:ring-secondary",
+      "hover:ring-inset",
     );
     const drag = screen.getByRole("button", { name: "夏目漱石を並べ替え" });
     expect(drag).toBeEnabled();
@@ -421,6 +427,9 @@ describe("TimelineWorkspace", () => {
 
     await toggleTypeGrouping(user);
     const heading = screen.getByRole("button", { name: /人物/ });
+    const groupIcon = heading.querySelector("svg.lucide-user-round");
+    expect(groupIcon).not.toBeNull();
+    expect(groupIcon).toHaveStyle({ color: type.defaultColor });
     expect(screen.getByText(/表示中 1 \/ 1 行/)).toBeInTheDocument();
     expect(screen.getByText("夏目漱石")).toBeInTheDocument();
     expect(
@@ -721,7 +730,7 @@ describe("TimelineWorkspace", () => {
       </QueryProvider>,
     );
 
-    await chooseArrangement(user, "対象種別");
+    await chooseArrangement(user, "タイムライン種別");
     const rows = screen.getAllByTestId(/^timeline-row-/);
     expect(rows[0]).toHaveTextContent("作品項目");
     expect(rows[1]).toHaveTextContent("人物項目");

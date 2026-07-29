@@ -99,7 +99,7 @@ export const TIMELINE_SORT_LABELS: Record<TimelineSortMode, string> = {
   startDate: "開始・時点日",
   endDate: "終了日",
   title: "名称",
-  itemType: "対象種別",
+  itemType: "タイムライン種別",
   createdAt: "作成日時",
   updatedAt: "更新日時",
 };

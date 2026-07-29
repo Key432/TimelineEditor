@@ -3,8 +3,8 @@ import { z } from "zod";
 const itemTypeNameSchema = z
   .string()
   .trim()
-  .min(1, "対象種別名を入力してください。")
-  .max(50, "対象種別名は50文字以内で入力してください。")
+  .min(1, "タイムライン種別名を入力してください。")
+  .max(50, "タイムライン種別名は50文字以内で入力してください。")
   .transform((value) => value.replace(/\s+/g, " "));
 
 const colorSchema = z

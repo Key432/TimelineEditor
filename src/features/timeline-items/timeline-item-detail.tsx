@@ -68,7 +68,7 @@ export function TimelineItemDetail({
           {currentItem.title}
         </h1>
         <dl className="grid gap-3 text-sm sm:grid-cols-[8rem_1fr]">
-          <dt className="text-muted-foreground">対象種別</dt>
+          <dt className="text-muted-foreground">タイムライン種別</dt>
           <dd>{currentItem.itemType.name}</dd>
           <dt className="text-muted-foreground">時間形式</dt>
           <dd>{currentItem.temporalType === "range" ? "期間" : "時点"}</dd>

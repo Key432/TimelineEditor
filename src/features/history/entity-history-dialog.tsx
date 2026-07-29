@@ -32,7 +32,7 @@ import { useRegisterDetailOption } from "@/features/timeline-items/detail-option
 
 const FIELD_LABELS: Record<string, string> = {
   title: "タイトル",
-  type_id: "対象種別",
+  type_id: "タイムライン種別",
   description: "本文",
   source_text: "出典・参考文献",
   external_url: "外部URL",

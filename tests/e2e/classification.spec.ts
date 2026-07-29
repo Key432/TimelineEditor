@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 
+import { navigateWithDocumentLoad } from "./helpers/navigation";
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const authSecret = process.env.E2E_TEST_AUTH_SECRET!;
@@ -158,12 +160,16 @@ test("customizes an event marker visually and assigns Notion-style tags and cust
   });
   await expect(marker).toBeVisible();
   await expect(marker).toHaveCSS("background-color", "rgb(18, 52, 86)");
+  await expect(marker).toHaveCSS("border-width", "0px");
   await expect(marker).toHaveCSS(
     "clip-path",
     "polygon(50% 0px, 100% 50%, 50% 100%, 0px 50%)",
   );
 
-  await page.goto(`/projects/${projectId}/events/${eventId}`);
+  await navigateWithDocumentLoad(
+    page,
+    `/projects/${projectId}/events/${eventId}`,
+  );
   await expect(page.getByText("分類：長編", { exact: true })).toBeVisible();
   await expect(page.getByText("出版", { exact: true })).toBeVisible();
   await expect(page.getByText("初版部数", { exact: true })).toBeVisible();
@@ -176,10 +182,27 @@ test("customizes an event marker visually and assigns Notion-style tags and cust
   await expect(
     form.getByRole("button", { name: "分類：長編の設定変更" }),
   ).toBeVisible();
-  await form.getByRole("button", { name: "閉じる" }).click();
-  await form.getByRole("button", { name: "出版" }).click();
+  await form
+    .getByRole("combobox", { name: "イベント種別を検索または作成" })
+    .click();
+  await expect(
+    form.getByRole("button", { name: "分類：長編の設定変更" }),
+  ).toHaveCount(0);
   await form.getByRole("button", { name: "出版の設定変更" }).click();
   await expect(
+    form.getByText("オプションを選択するか作成します"),
+  ).toBeVisible();
+  await expect(
     form.getByRole("button", { name: "diamond形状" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  const markerUpdate = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      response.url().includes("/classification/event-types/"),
+  );
+  await form.getByRole("button", { name: "circle形状" }).click();
+  expect((await markerUpdate).ok()).toBe(true);
+  await expect(
+    form.getByRole("button", { name: "circle形状" }),
   ).toHaveAttribute("aria-pressed", "true");
 });

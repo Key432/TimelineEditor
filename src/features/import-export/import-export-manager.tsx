@@ -37,7 +37,7 @@ function Preview({ preview }: { preview: ImportPreview }) {
     >
       <p className="font-medium">{preview.sourceProjectName}</p>
       <p>
-        対象種別 {preview.itemTypeCount}件・タイムライン{" "}
+        タイムライン種別 {preview.itemTypeCount}件・タイムライン{" "}
         {preview.timelineItemCount}件・イベント {preview.timelineEventCount}件
       </p>
       {preview.errors.length ? (
@@ -140,7 +140,7 @@ export function ImportExportManager({
         preview.payload,
       );
       setMessage(
-        `対象種別 ${result.imported.itemTypes}件、タイムライン ${result.imported.timelineItems}件、イベント ${result.imported.timelineEvents}件を取り込みました。`,
+        `タイムライン種別 ${result.imported.itemTypes}件、タイムライン ${result.imported.timelineItems}件、イベント ${result.imported.timelineEvents}件を取り込みました。`,
       );
       setJsonPreview(null);
       setCsvPreview(null);

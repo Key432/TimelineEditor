@@ -184,14 +184,14 @@ export const projectBackupSchema = z
         context.addIssue({
           code: "custom",
           path: ["customFields", index, "targetTypeId"],
-          message: "カスタムフィールドの対象種別が見つかりません。",
+          message: "カスタムフィールドのタイムライン種別が見つかりません。",
         });
     for (const [index, item] of backup.timelineItems.entries()) {
       if (validatesTypes && !typeIds.has(item.typeId))
         context.addIssue({
           code: "custom",
           path: ["timelineItems", index, "typeId"],
-          message: "対象種別が見つかりません。",
+          message: "タイムライン種別が見つかりません。",
         });
       const parsed = timelineItemSchema.safeParse(item);
       if (!parsed.success)

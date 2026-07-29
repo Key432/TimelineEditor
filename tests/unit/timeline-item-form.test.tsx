@@ -80,7 +80,11 @@ describe("TimelineItemForm", () => {
 
     expect(screen.queryByText("詳細編集を開く")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "対象種別を編集" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "種別・タグ・カスタムフィールドを管理",
+      }),
+    );
     expect(onEditItemTypes).toHaveBeenCalledOnce();
 
     expect(screen.getByLabelText("本文")).toBeVisible();
@@ -129,7 +133,7 @@ describe("TimelineItemForm", () => {
     );
 
     const form = within(container);
-    await user.click(form.getByLabelText("対象種別の色を上書き"));
+    await user.click(form.getByLabelText("タイムライン種別の色を上書き"));
     expect(form.getByLabelText("個別色カラーピッカー")).toHaveValue(
       itemType.defaultColor.toLowerCase(),
     );
@@ -155,7 +159,7 @@ describe("TimelineItemForm", () => {
     );
 
     const form = within(container);
-    const colorOverride = form.getByLabelText("対象種別の色を上書き");
+    const colorOverride = form.getByLabelText("タイムライン種別の色を上書き");
     const visibility = form.getByLabelText("タイムラインに表示");
     expect(colorOverride).toHaveClass("size-4", "accent-primary");
     expect(visibility).toHaveClass("size-4", "accent-primary");

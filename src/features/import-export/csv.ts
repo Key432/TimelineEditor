@@ -26,8 +26,8 @@ CSVスキーマバージョン: ${IMPORT_SCHEMA_VERSION}
 ### timeline-items.csv
 
 - id: タイムラインアイテムID。新規作成する場合は空欄にするとインポート時に採番される。
-- type_id: 対象種別。item-types.csv の id を指定する。
-- type_name: 対象種別名。IDがない場合は必須。
+- type_id: タイムライン種別。item-types.csv の id を指定する。
+- type_name: タイムライン種別名。IDがない場合は必須。
 - title: タイムラインアイテム名。必須。
 - description: 本文。任意。
 - source_text: 出典・参考文献。任意。
@@ -75,11 +75,11 @@ CSVスキーマバージョン: ${IMPORT_SCHEMA_VERSION}
 
 ### item-types.csv
 
-- id: 対象種別ID。新規作成する場合は空欄にするとインポート時に採番される。
-- name: 対象種別名。必須。
+- id: タイムライン種別ID。新規作成する場合は空欄にするとインポート時に採番される。
+- name: タイムライン種別名。必須。
 - default_color: デフォルト色のカラーコード（例: #33CCBB）。
 - icon: アイコン。未指定、または user-round/brain/sparkles/newspaper/users-round/book-open/image/swords/landmark/gallery-horizontal/circle-dot。
-- sort_order: 対象種別の並び順。
+- sort_order: タイムライン種別の並び順。
 - is_visible: 表示状態を TRUE/FALSE で指定。
 `;
 
@@ -636,7 +636,9 @@ export function parseCsvImport(
         `${createdTimelineItemCount}件のタイムライン項目を新規作成しました。`,
       );
     if (createdItemTypeCount > 0)
-      warnings.push(`${createdItemTypeCount}件の対象種別を新規作成しました`);
+      warnings.push(
+        `${createdItemTypeCount}件のタイムライン種別を新規作成しました`,
+      );
     const importSections = sections.map(
       (name: CsvName) =>
         ({

@@ -152,7 +152,9 @@ test("keeps mobile editing available while touch gestures never create an event 
     mimeType: "application/zip",
     buffer: await csvExport.body(),
   });
-  await expect(page.getByText(/対象種別 .*タイムライン 1件/)).toBeVisible();
+  await expect(
+    page.getByText(/タイムライン種別 .*タイムライン 1件/),
+  ).toBeVisible();
   await page.getByRole("button", { name: "全体を中止" }).click();
 
   await page.getByLabel("JSONバックアップ").setInputFiles({

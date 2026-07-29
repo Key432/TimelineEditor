@@ -44,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ItemTypeIcon } from "@/features/item-types/item-type-icon";
 import { eventX, snapTimelineDate } from "@/features/timeline-events/snap";
 import { TimelineEventMarkers } from "@/features/timeline-events/timeline-event-markers";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
@@ -146,6 +147,7 @@ export type TimelineDisplayGroup = {
   id: string;
   label: string;
   color: string;
+  icon: string | null;
   showHeader: boolean;
   items: TimelineItemSummary[];
   collapsed: boolean;
@@ -161,6 +163,7 @@ type TimelineDisplayEntry =
       id: string;
       label: string;
       color: string;
+      icon: string | null;
       itemCount: number;
       collapsed: boolean;
     }
@@ -231,7 +234,7 @@ function TimelineGlyph({
       <TimelineEntityTooltip date={itemDateLabel(item)} title={item.title}>
         <button
           aria-label={`${item.title}の詳細を表示 時点型マーカー ${formatHistoricalDate(item.point)}`}
-          className="absolute top-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-white shadow-sm transition-[box-shadow,transform] hover:z-20 hover:scale-125 hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-20 focus-visible:scale-125 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+          className="absolute top-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-white shadow-sm transition-[box-shadow,transform] hover:z-20 hover:scale-125 hover:ring-2 hover:ring-secondary hover:ring-inset focus-visible:z-20 focus-visible:scale-125 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:outline-none focus-visible:ring-inset"
           data-timeline-item-glyph="true"
           style={{ left: registeredStart, backgroundColor: color }}
           type="button"
@@ -289,7 +292,7 @@ function TimelineGlyph({
       <button
         aria-label={`${item.title}の詳細を表示 期間型バー ${itemDateLabel(item)}`}
         className={cn(
-          "absolute top-1/2 h-3 min-w-1 -translate-y-1/2 rounded-sm border border-transparent transition-[box-shadow,border-color,transform] hover:z-20 hover:scale-y-125 hover:border-secondary hover:ring-2 hover:ring-secondary hover:ring-offset-2 hover:ring-offset-background focus-visible:z-20 focus-visible:scale-y-125 focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none",
+          "absolute top-1/2 h-3 min-w-1 -translate-y-1/2 rounded-sm border border-transparent transition-[box-shadow,border-color,transform] hover:z-20 hover:scale-y-125 hover:border-secondary hover:ring-2 hover:ring-secondary hover:ring-inset focus-visible:z-20 focus-visible:scale-y-125 focus-visible:border-secondary focus-visible:ring-2 focus-visible:ring-secondary focus-visible:outline-none focus-visible:ring-inset",
           item.endDateStatus === "ongoing" &&
             "after:absolute after:top-0 after:-right-1 after:h-3 after:w-1 after:bg-current",
         )}
@@ -961,6 +964,7 @@ export function TimelineViewport({
                 id: group.id,
                 label: group.label,
                 color: group.color,
+                icon: group.icon,
                 itemCount: group.items.length,
                 collapsed: group.collapsed,
               },
@@ -988,6 +992,7 @@ export function TimelineViewport({
               id: group.id,
               label: group.label,
               color: group.color,
+              icon: group.icon,
               itemCount: group.items.length,
               collapsed: group.collapsed,
             },
@@ -1585,9 +1590,10 @@ export function TimelineViewport({
                             ) : (
                               <ChevronDown className="size-4" />
                             )}
-                            <span
-                              className="size-2.5 rounded-full"
-                              style={{ backgroundColor: entry.color }}
+                            <ItemTypeIcon
+                              className="size-4"
+                              color={entry.color}
+                              icon={entry.icon}
                             />
                             {entry.label}
                             <Badge variant="outline">{entry.itemCount}</Badge>

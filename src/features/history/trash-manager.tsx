@@ -14,13 +14,20 @@ import {
 import type { TrashEntry } from "@/features/history/types";
 import { timelineEventKeys } from "@/features/timeline-events/api";
 import { timelineItemKeys } from "@/features/timeline-items/api";
+import { cn } from "@/lib/utils";
 
 const TRASH_DATE_FORMATTER = new Intl.DateTimeFormat("ja-JP", {
   dateStyle: "medium",
   timeStyle: "short",
 });
 
-export function TrashManager({ projectId }: { projectId: string }) {
+export function TrashManager({
+  projectId,
+  separated = true,
+}: {
+  projectId: string;
+  separated?: boolean;
+}) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const key = historyKeys.trash(projectId);
@@ -55,7 +62,7 @@ export function TrashManager({ projectId }: { projectId: string }) {
   const error = trash.error ?? restore.error ?? purge.error;
 
   return (
-    <section className="space-y-3 border-t pt-6">
+    <section className={cn("space-y-3", separated && "border-t pt-6")}>
       <div>
         <h2 className="font-medium">ゴミ箱</h2>
         <p className="text-sm text-muted-foreground">

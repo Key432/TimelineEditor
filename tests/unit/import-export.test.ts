@@ -327,7 +327,7 @@ describe("project import and export formats", () => {
     expect(preview.errors).toEqual([]);
     expect(preview.warnings).toEqual([
       "2件のタイムライン項目を新規作成しました。",
-      "1件の対象種別を新規作成しました",
+      "1件のタイムライン種別を新規作成しました",
     ]);
     expect(preview.payload?.importSections).toEqual([
       "itemTypes",

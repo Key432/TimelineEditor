@@ -22,7 +22,8 @@ function Preview({ value }: { value: ImportPreview }) {
     >
       <p className="font-medium">{value.sourceProjectName}</p>
       <p>
-        対象種別 {value.itemTypeCount}件・タイムライン {value.timelineItemCount}
+        タイムライン種別 {value.itemTypeCount}件・タイムライン{" "}
+        {value.timelineItemCount}
         件・イベント {value.timelineEventCount}件
       </p>
       {value.errors.length ? (

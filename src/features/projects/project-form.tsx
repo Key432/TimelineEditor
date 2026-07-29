@@ -158,7 +158,7 @@ export function ProjectForm(props: ProjectFormProps) {
             ))}
           </select>
           <p className="text-xs leading-5 text-muted-foreground">
-            用途に合う対象種別を初期登録します。作成後に自由に変更できます。
+            用途に合うタイムライン種別を初期登録します。作成後に自由に変更できます。
           </p>
         </div>
       ) : null}

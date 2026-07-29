@@ -44,7 +44,7 @@ export function TimelineFilterPanel({
         <Label htmlFor="timeline-filter-query">タイムライン内検索</Label>
         <Input
           id="timeline-filter-query"
-          placeholder="名称、本文、イベント、出典、対象種別"
+          placeholder="名称、本文、イベント、出典、タイムライン種別"
           value={queryDraft}
           onChange={(event) => {
             const query = event.target.value;
@@ -62,7 +62,9 @@ export function TimelineFilterPanel({
       </div>
 
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">対象種別（複数選択）</legend>
+        <legend className="text-sm font-medium">
+          タイムライン種別（複数選択）
+        </legend>
         <div className="grid grid-cols-2 gap-2 rounded-lg border p-3">
           {itemTypes.map((type) => (
             <label key={type.id} className="flex items-center gap-2 text-sm">

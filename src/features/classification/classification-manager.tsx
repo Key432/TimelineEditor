@@ -22,6 +22,7 @@ import {
   type CustomFieldType,
 } from "@/features/classification/types";
 import type { TimelineItemType } from "@/features/item-types/types";
+import { TimelineItemTypeSelect } from "@/features/item-types/item-type-select";
 
 const FIELD_LABELS: Record<CustomFieldType, string> = {
   text: "文字列",
@@ -93,6 +94,29 @@ export function ClassificationManager({
   return (
     <div className="space-y-8">
       <section className="space-y-3">
+        <h2 className="font-medium">タイムライン種別</h2>
+        <p className="text-sm text-muted-foreground">
+          候補の「…」から名前、色、アイコン、表示状態、順序を変更できます。
+        </p>
+        <TimelineItemTypeSelect
+          initialItemTypes={itemTypes}
+          projectId={projectId}
+          value={null}
+          onChange={() => undefined}
+        />
+      </section>
+      <section className="space-y-3 border-t pt-6">
+        <h2 className="font-medium">イベント種別</h2>
+        <p className="text-sm text-muted-foreground">
+          候補の「…」から名前、説明、色、マーカー形状を変更できます。
+        </p>
+        <EventTypeSelect
+          projectId={projectId}
+          value={null}
+          onChange={() => undefined}
+        />
+      </section>
+      <section className="space-y-3 border-t pt-6">
         <h2 className="font-medium">タグの統合</h2>
         <p className="text-sm text-muted-foreground">
           元タグの関連を統合先へ移し、元タグを削除します。
@@ -135,17 +159,6 @@ export function ClassificationManager({
             統合
           </Button>
         </div>
-      </section>
-      <section className="space-y-3 border-t pt-6">
-        <h2 className="font-medium">イベント種別</h2>
-        <p className="text-sm text-muted-foreground">
-          候補の「…」から名前、説明、色、マーカー形状を変更できます。
-        </p>
-        <EventTypeSelect
-          projectId={projectId}
-          value={null}
-          onChange={() => undefined}
-        />
       </section>
       <section className="space-y-4 border-t pt-6">
         <h2 className="font-medium">カスタムフィールド</h2>
@@ -202,12 +215,12 @@ export function ClassificationManager({
               }}
             >
               <option value="project">プロジェクト共通</option>
-              <option value="type">対象種別ごと</option>
+              <option value="type">種別ごと</option>
             </select>
           </div>
           {scope === "type" ? (
             <div className="space-y-1">
-              <Label htmlFor="custom-field-target">対象種別</Label>
+              <Label htmlFor="custom-field-target">適用する種別</Label>
               <select
                 id="custom-field-target"
                 className="h-9 w-full rounded-md border bg-background px-2 text-sm"

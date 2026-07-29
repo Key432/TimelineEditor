@@ -2,13 +2,14 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, MoreHorizontal, Plus, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  type ClassificationData,
   classificationKeys,
   createEventType,
   createTag,
@@ -27,8 +28,10 @@ import {
   type MarkerShape,
   type Tag,
 } from "@/features/classification/types";
+import type { EventTypeInput } from "@/features/classification/validation";
 import { getInternalLinkCandidates } from "@/features/internal-links/api";
 import type { HistoricalDate } from "@/features/timeline-items/types";
+import { useClickOutside } from "@/hooks/use-click-outside";
 
 const PALETTE = [
   "#E5E7EB",
@@ -77,6 +80,11 @@ export function TagMultiSelect({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState<Tag | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useClickOutside(containerRef, () => {
+    setOpen(false);
+    setEditing(null);
+  });
   const refresh = () =>
     queryClient.invalidateQueries({
       queryKey: classificationKeys.all(projectId),
@@ -98,7 +106,7 @@ export function TagMultiSelect({
       .includes(draft.trim().toLocaleLowerCase("ja")),
   );
   return (
-    <div className="space-y-2">
+    <div ref={containerRef} className="space-y-2">
       <Label>タグ</Label>
       <div className="relative">
         <div className="flex min-h-10 flex-wrap gap-1.5 rounded-md border bg-background p-1.5 focus-within:ring-2 focus-within:ring-ring">
@@ -197,21 +205,15 @@ export function TagMultiSelect({
                 <Plus className="size-4" />「{draft.trim()}」を作成
               </button>
             ) : null}
-            <Button
-              className="mt-1 w-full"
-              size="sm"
-              type="button"
-              variant="ghost"
-              onClick={() => setOpen(false)}
-            >
-              閉じる
-            </Button>
           </div>
         ) : null}
         {editing ? (
           <TagSettings
             tag={editing}
-            onClose={() => setEditing(null)}
+            onClose={() => {
+              setEditing(null);
+              void refresh();
+            }}
             onSaved={refresh}
             projectId={projectId}
           />
@@ -304,6 +306,12 @@ export function EventTypeSelect({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState<EventType | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
+  useClickOutside(containerRef, () => {
+    setOpen(false);
+    setEditing(null);
+  });
   const refresh = () =>
     queryClient.invalidateQueries({
       queryKey: classificationKeys.all(projectId),
@@ -324,86 +332,121 @@ export function EventTypeSelect({
   });
   const types = query.data?.eventTypes ?? [];
   const selected = types.find((type) => type.id === value);
+  const filtered = types.filter((type) =>
+    type.name
+      .toLocaleLowerCase("ja")
+      .includes(draft.trim().toLocaleLowerCase("ja")),
+  );
+  const canCreate =
+    draft.trim().length > 0 &&
+    !types.some(
+      (type) =>
+        type.name.localeCompare(draft.trim(), "ja", {
+          sensitivity: "base",
+        }) === 0,
+    );
   return (
-    <div className="space-y-2">
+    <div ref={containerRef} className="space-y-2">
       <Label>イベント種別</Label>
       <div className="relative">
-        <button
-          aria-expanded={open}
-          aria-haspopup="listbox"
-          className="flex h-10 w-full items-center gap-2 rounded-md border px-3 text-left text-sm"
-          type="button"
-          onClick={() => setOpen(!open)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setOpen(false);
-          }}
-        >
+        <div className="flex min-h-10 flex-wrap gap-1.5 rounded-md border bg-background p-1.5 focus-within:ring-2 focus-within:ring-ring">
           {selected ? (
-            <>
+            <span className="flex items-center gap-1.5 rounded bg-muted px-2 py-1 text-xs">
               <MarkerShapeIcon
                 color={selected.color}
                 shape={selected.markerShape}
               />
-              {selected.name}
-            </>
-          ) : (
-            <span className="text-muted-foreground">種別なし</span>
-          )}
-        </button>
+              <span>{selected.name}</span>
+              <button
+                aria-label={`${selected.name}を外す`}
+                type="button"
+                onClick={() => onChange(null)}
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          ) : null}
+          <input
+            aria-autocomplete="list"
+            aria-controls={listboxId}
+            aria-expanded={open}
+            aria-label="イベント種別を検索または作成"
+            className="min-w-36 flex-1 bg-transparent px-1 text-sm outline-none"
+            placeholder={selected ? "別の種別を検索" : "検索または新規作成"}
+            role="combobox"
+            value={draft}
+            onFocus={() => setOpen(true)}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              setOpen(true);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setOpen(false);
+                return;
+              }
+              if (event.key === "Enter" && canCreate) {
+                event.preventDefault();
+                createMutation.mutate(draft.trim());
+              }
+            }}
+          />
+        </div>
         {open ? (
-          <div className="absolute z-50 mt-1 w-full rounded-lg border bg-popover p-1 shadow-xl">
-            <Input
-              aria-label="イベント種別を検索または作成"
-              className="mb-1"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") setOpen(false);
-              }}
-            />
+          <div
+            id={listboxId}
+            className="absolute z-50 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border bg-popover p-1 shadow-xl"
+          >
+            <p className="px-2 py-1 text-xs text-muted-foreground">
+              オプションを選択するか作成します
+            </p>
             <button
-              className="flex w-full items-center px-2 py-2 text-sm hover:bg-muted"
+              className="flex w-full items-center rounded px-2 py-2 text-sm hover:bg-muted"
               type="button"
               onClick={() => {
                 onChange(null);
+                setDraft("");
                 setOpen(false);
               }}
             >
               種別なし
             </button>
-            {types
-              .filter((type) => type.name.includes(draft))
-              .map((type) => (
-                <div
-                  key={type.id}
-                  className="flex items-center rounded hover:bg-muted"
+            {filtered.map((type) => (
+              <div
+                key={type.id}
+                className="flex items-center rounded hover:bg-muted"
+              >
+                <button
+                  className="flex flex-1 items-center gap-2 px-2 py-2 text-sm"
+                  type="button"
+                  onClick={() => {
+                    onChange(type.id);
+                    setDraft("");
+                    setOpen(false);
+                  }}
                 >
-                  <button
-                    className="flex flex-1 items-center gap-2 px-2 py-2 text-sm"
-                    type="button"
-                    onClick={() => {
-                      onChange(type.id);
-                      setOpen(false);
-                    }}
-                  >
-                    <MarkerShapeIcon
-                      color={type.color}
-                      shape={type.markerShape}
-                    />
-                    {type.name}
-                  </button>
-                  <button
-                    aria-label={`${type.name}の設定変更`}
-                    className="mr-1 p-1"
-                    type="button"
-                    onClick={() => setEditing(type)}
-                  >
-                    <MoreHorizontal className="size-4" />
-                  </button>
-                </div>
-              ))}
-            {draft.trim() &&
-            !types.some((type) => type.name === draft.trim()) ? (
+                  <MarkerShapeIcon
+                    color={type.color}
+                    shape={type.markerShape}
+                  />
+                  {type.name}
+                  {value === type.id ? (
+                    <Check className="ml-auto size-4" />
+                  ) : null}
+                </button>
+                <button
+                  aria-label={`${type.name}の設定変更`}
+                  className="mr-1 p-1"
+                  type="button"
+                  onClick={() => {
+                    setEditing(type);
+                  }}
+                >
+                  <MoreHorizontal className="size-4" />
+                </button>
+              </div>
+            ))}
+            {canCreate ? (
               <button
                 className="flex w-full items-center gap-2 px-2 py-2 text-sm hover:bg-muted"
                 type="button"
@@ -416,7 +459,7 @@ export function EventTypeSelect({
         ) : null}
         {editing ? (
           <EventTypeSettings
-            type={editing}
+            type={types.find((type) => type.id === editing.id) ?? editing}
             projectId={projectId}
             onClose={() => setEditing(null)}
             onSaved={refresh}
@@ -438,22 +481,32 @@ function EventTypeSettings({
   onClose: () => void;
   onSaved: () => Promise<unknown>;
 }) {
+  const queryClient = useQueryClient();
   const [name, setName] = useState(type.name);
   const [color, setColor] = useState(type.color);
   const [shape, setShape] = useState<MarkerShape>(type.markerShape);
   const [description, setDescription] = useState(type.description ?? "");
-  const save = useMutation({
-    mutationFn: () =>
-      updateEventType(projectId, type.id, {
-        name,
-        color,
-        markerShape: shape,
-        description,
-      }),
-    onSuccess: async () => {
-      await onSaved();
-      onClose();
+  const persist = useMutation({
+    scope: { id: `event-type-settings-${type.id}` },
+    mutationFn: (values: EventTypeInput) =>
+      updateEventType(projectId, type.id, values),
+    onMutate: (values) => {
+      queryClient.setQueryData<ClassificationData>(
+        classificationKeys.all(projectId),
+        (current) =>
+          current
+            ? {
+                ...current,
+                eventTypes: current.eventTypes.map((candidate) =>
+                  candidate.id === type.id
+                    ? { ...candidate, ...values }
+                    : candidate,
+                ),
+              }
+            : current,
+      );
     },
+    onError: onSaved,
   });
   const remove = useMutation({
     mutationFn: () => deleteEventType(projectId, type.id),
@@ -467,12 +520,32 @@ function EventTypeSettings({
       <Input
         aria-label="イベント種別名"
         value={name}
-        onChange={(event) => setName(event.target.value)}
+        onChange={(event) => {
+          const nextName = event.target.value;
+          setName(nextName);
+          if (nextName.trim()) {
+            persist.mutate({
+              name: nextName,
+              color,
+              markerShape: shape,
+              description,
+            });
+          }
+        }}
       />
       <Textarea
         aria-label="イベント種別の説明"
         value={description}
-        onChange={(event) => setDescription(event.target.value)}
+        onChange={(event) => {
+          const nextDescription = event.target.value;
+          setDescription(nextDescription);
+          persist.mutate({
+            name,
+            color,
+            markerShape: shape,
+            description: nextDescription,
+          });
+        }}
       />
       <fieldset>
         <legend className="mb-2 text-xs text-muted-foreground">
@@ -486,7 +559,15 @@ function EventTypeSettings({
               aria-pressed={shape === candidate}
               className="flex h-9 items-center justify-center rounded border aria-pressed:ring-2 aria-pressed:ring-primary"
               type="button"
-              onClick={() => setShape(candidate)}
+              onClick={() => {
+                setShape(candidate);
+                persist.mutate({
+                  name,
+                  color,
+                  markerShape: candidate,
+                  description,
+                });
+              }}
             >
               <MarkerShapeIcon
                 className="size-5"
@@ -497,11 +578,19 @@ function EventTypeSettings({
           ))}
         </div>
       </fieldset>
-      <ColorPalette value={color} onChange={setColor} />
+      <ColorPalette
+        value={color}
+        onChange={(nextColor) => {
+          setColor(nextColor);
+          persist.mutate({
+            name,
+            color: nextColor,
+            markerShape: shape,
+            description,
+          });
+        }}
+      />
       <div className="flex gap-2">
-        <Button size="sm" type="button" onClick={() => save.mutate()}>
-          保存
-        </Button>
         <Button
           size="sm"
           type="button"
@@ -515,6 +604,11 @@ function EventTypeSettings({
           閉じる
         </Button>
       </div>
+      {persist.error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {persist.error.message}
+        </p>
+      ) : null}
     </div>
   );
 }

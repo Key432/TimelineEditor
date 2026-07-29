@@ -67,7 +67,7 @@ export class TimelineItemService {
     const itemType = await this.itemTypes.findById(projectId, typeId);
     if (!itemType) {
       throw new ServiceError(
-        "対象種別が見つかりません。",
+        "タイムライン種別が見つかりません。",
         400,
         "ITEM_TYPE_NOT_FOUND",
       );

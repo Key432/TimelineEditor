@@ -55,8 +55,11 @@ export function DeleteTimelineEventDialog({
   });
   const mutation = useMutation({
     mutationFn: () => deleteTimelineEvent(projectId, eventId),
-    onSuccess: async () => {
-      await Promise.all([
+    onSuccess: () => {
+      setOpen(false);
+      if (closeOverlayAfterDelete) router.back();
+      else router.replace(`/projects/${projectId}/timeline`);
+      void Promise.all([
         queryClient.invalidateQueries({
           queryKey: timelineEventKeys.list(projectId),
           exact: true,
@@ -66,9 +69,6 @@ export function DeleteTimelineEventDialog({
           exact: true,
         }),
       ]);
-      setOpen(false);
-      if (closeOverlayAfterDelete) router.back();
-      else router.replace(`/projects/${projectId}/timeline`);
     },
   });
 

@@ -96,7 +96,7 @@ export default async function ProjectSettingsPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">対象種別</CardTitle>
+          <CardTitle className="text-base">タイムライン種別</CardTitle>
           <CardDescription>
             分類名、既定色、表示順、表示状態をプロジェクトごとに管理します。
           </CardDescription>
@@ -105,21 +105,15 @@ export default async function ProjectSettingsPage({
           <Button asChild variant="outline">
             <Link href={`/projects/${project.id}/item-types`}>
               <Tags aria-hidden="true" className="size-4" />
-              対象種別を管理
+              タイムライン種別を管理
             </Link>
           </Button>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">ゴミ箱</CardTitle>
-          <CardDescription>
-            削除したタイムラインアイテムとイベントアイテムを管理します。
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <TrashManager projectId={project.id} />
+        <CardContent className="pt-6">
+          <TrashManager projectId={project.id} separated={false} />
         </CardContent>
       </Card>
 

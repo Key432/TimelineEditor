@@ -64,13 +64,14 @@ export const customFieldDefinitionSchema = z
       context.addIssue({
         code: "custom",
         path: ["targetTypeId"],
-        message: "プロジェクト共通フィールドには対象種別を指定できません。",
+        message:
+          "プロジェクト共通フィールドにはタイムライン種別を指定できません。",
       });
     if (value.scope === "type" && value.targetTypeId === null)
       context.addIssue({
         code: "custom",
         path: ["targetTypeId"],
-        message: "対象種別を選択してください。",
+        message: "タイムライン種別を選択してください。",
       });
     if (
       ["single_select", "multi_select"].includes(value.fieldType) &&

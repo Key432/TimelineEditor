@@ -43,7 +43,7 @@ export default async function ItemTypesPage({
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>対象種別</CardTitle>
+          <CardTitle>タイムライン種別</CardTitle>
           <CardDescription>
             タイムラインアイテムの分類、既定色、表示順を管理します。非表示にしても登録済みデータは削除されません。
           </CardDescription>

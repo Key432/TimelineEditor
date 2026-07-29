@@ -41,7 +41,7 @@ export class ItemTypeService {
   private parseTypeId(typeId: string) {
     if (!z.uuid().safeParse(typeId).success) {
       throw new ServiceError(
-        "対象種別が見つかりません。",
+        "タイムライン種別が見つかりません。",
         404,
         "ITEM_TYPE_NOT_FOUND",
       );
@@ -51,7 +51,7 @@ export class ItemTypeService {
 
   private duplicateNameError() {
     return new ServiceError(
-      "同じ名前の対象種別がすでにあります。",
+      "同じ名前のタイムライン種別がすでにあります。",
       409,
       "ITEM_TYPE_NAME_CONFLICT",
     );
@@ -84,7 +84,7 @@ export class ItemTypeService {
     const current = await this.repository.findById(project.id, validTypeId);
     if (!current) {
       throw new ServiceError(
-        "対象種別が見つかりません。",
+        "タイムライン種別が見つかりません。",
         404,
         "ITEM_TYPE_NOT_FOUND",
       );
@@ -102,7 +102,7 @@ export class ItemTypeService {
       );
       if (!updated) {
         throw new ServiceError(
-          "対象種別が見つかりません。",
+          "タイムライン種別が見つかりません。",
           404,
           "ITEM_TYPE_NOT_FOUND",
         );
@@ -125,7 +125,7 @@ export class ItemTypeService {
       const deleted = await this.repository.delete(project.id, validTypeId);
       if (!deleted) {
         throw new ServiceError(
-          "対象種別が見つかりません。",
+          "タイムライン種別が見つかりません。",
           404,
           "ITEM_TYPE_NOT_FOUND",
         );
@@ -133,7 +133,7 @@ export class ItemTypeService {
     } catch (error) {
       if (isDatabaseError(error, "23503")) {
         throw new ServiceError(
-          "使用中の対象種別は削除できません。別の種別へ移行してください。",
+          "使用中のタイムライン種別は削除できません。別の種別へ移行してください。",
           409,
           "ITEM_TYPE_IN_USE",
         );

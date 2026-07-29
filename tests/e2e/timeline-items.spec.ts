@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page } from "@playwright/test";
 
+import { navigateWithDocumentLoad } from "./helpers/navigation";
+import { postAfterConnectionReset } from "./helpers/request";
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const authSecret = process.env.E2E_TEST_AUTH_SECRET;
@@ -32,7 +35,7 @@ async function chooseLayout(page: Page, name: "行表示" | "コンパクト") {
 async function toggleTypeGrouping(page: Page) {
   await page.getByRole("button", { name: "配置設定" }).click();
   await page
-    .getByRole("menuitemcheckbox", { name: "対象種別でグループ化" })
+    .getByRole("menuitemcheckbox", { name: "タイムライン種別でグループ化" })
     .click();
 }
 
@@ -53,6 +56,7 @@ test.afterAll(async () => {
 test("creates, draws, edits, groups, reorders, and deletes timeline items", async ({
   page,
 }) => {
+  test.slow();
   const hydrationWarnings: string[] = [];
   page.on("console", (message) => {
     if (
@@ -62,10 +66,14 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
       hydrationWarnings.push(message.text());
     }
   });
-  const authResponse = await page.request.post("/api/test-auth", {
-    data: { email, password },
-    headers: { "x-test-auth-secret": authSecret },
-  });
+  const authResponse = await postAfterConnectionReset(
+    page.request,
+    "/api/test-auth",
+    {
+      data: { email, password },
+      headers: { "x-test-auth-secret": authSecret },
+    },
+  );
   expect(authResponse.status()).toBe(204);
 
   const projectResponse = await page.request.post("/api/projects", {
@@ -132,11 +140,41 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     .click();
 
   await page.setViewportSize({ width: 1024, height: 800 });
-  await page.getByRole("button", { name: "対象種別", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "種別・タグ・カスタムフィールド",
+      exact: true,
+    })
+    .click();
   const desktopItemTypeDialog = page.getByRole("dialog");
   await expect(
-    desktopItemTypeDialog.getByRole("heading", { name: "対象種別" }),
+    desktopItemTypeDialog.getByRole("heading", {
+      name: "種別・タグ・カスタムフィールド",
+    }),
   ).toBeVisible();
+  await expect(
+    desktopItemTypeDialog.getByRole("combobox", {
+      name: "タイムライン種別を検索または作成",
+    }),
+  ).not.toBeFocused();
+  const classificationHeadings = await desktopItemTypeDialog
+    .locator("h2")
+    .allTextContents();
+  expect(
+    classificationHeadings.filter((heading) =>
+      [
+        "タイムライン種別",
+        "イベント種別",
+        "タグの統合",
+        "カスタムフィールド",
+      ].includes(heading.trim()),
+    ),
+  ).toEqual([
+    "タイムライン種別",
+    "イベント種別",
+    "タグの統合",
+    "カスタムフィールド",
+  ]);
   await expect
     .poll(() =>
       desktopItemTypeDialog.evaluate(
@@ -151,17 +189,33 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   const rangeForm = page.getByRole("form", {
     name: "タイムラインアイテム作成",
   });
-  await rangeForm.getByRole("button", { name: "対象種別を編集" }).click();
-  const itemTypeDialog = page.getByRole("dialog").last();
-  await itemTypeDialog.getByLabel("対象種別を検索・新規作成").fill("出来事");
-  await itemTypeDialog.getByRole("button", { name: "新規作成" }).click();
+  const itemTypeInput = rangeForm.getByRole("combobox", {
+    name: "タイムライン種別を検索または作成",
+  });
+  await itemTypeInput.fill("出来事");
+  await itemTypeInput.press("Enter");
   await expect(
-    itemTypeDialog.getByRole("textbox", { name: "名称" }).last(),
-  ).toHaveValue("出来事");
-  await itemTypeDialog.getByRole("button", { name: "閉じる" }).click();
-  await expect(rangeForm.getByLabel("対象種別", { exact: true })).toContainText(
-    "出来事",
+    rangeForm.getByText("出来事", { exact: true }).first(),
+  ).toBeVisible();
+  await itemTypeInput.click();
+  await rangeForm.getByRole("button", { name: "出来事の設定変更" }).click();
+  await expect(
+    rangeForm.getByText("オプションを選択するか作成します"),
+  ).toBeVisible();
+  const iconUpdate = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      response.url().includes("/item-types/"),
   );
+  await rangeForm.getByRole("button", { name: "作品アイコン" }).click();
+  expect((await iconUpdate).ok()).toBe(true);
+  await expect(
+    rangeForm.getByRole("button", { name: "作品アイコン" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await rangeForm.getByLabel("名称").click();
+  await expect(
+    rangeForm.getByText("オプションを選択するか作成します"),
+  ).toHaveCount(0);
 
   await rangeForm.getByLabel("名称").fill("夏目漱石");
   const rangeYears = rangeForm.getByLabel("年");
@@ -171,7 +225,7 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await rangeForm.getByLabel("本文").fill("明治・大正期の小説家");
   await rangeForm.getByLabel("出典・参考文献").fill("人物事典 第一巻");
   await rangeForm.getByLabel("外部URL").fill("https://example.com/");
-  await rangeForm.getByLabel("対象種別の色を上書き").check();
+  await rangeForm.getByLabel("タイムライン種別の色を上書き").check();
   await expect(rangeForm.getByLabel("個別色カラーピッカー")).toBeVisible();
   await rangeForm.getByRole("button", { name: "イベントを追加" }).click();
   const eventDraftForm = rangeForm.getByRole("group", {
@@ -221,7 +275,7 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     new RegExp(`/projects/${projectId}/events/[0-9a-f-]+$`),
   );
   await expect(page.getByRole("dialog")).toContainText("ロンドン留学");
-  await page.goto(`/projects/${projectId}/timeline`);
+  await navigateWithDocumentLoad(page, `/projects/${projectId}/timeline`);
   await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
   await expect(
     itemDetail.getByRole("article").getByRole("heading", {
@@ -332,7 +386,7 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     )
   ).json()) as { draft: unknown };
   expect(cloudDraftAfterSave.draft).toBeNull();
-  await page.goto(`/projects/${projectId}/timeline`);
+  await navigateWithDocumentLoad(page, `/projects/${projectId}/timeline`);
   await page.getByRole("button", { name: "夏目漱石", exact: true }).click();
   await expect(
     page.getByRole("dialog").getByRole("article").getByRole("heading", {
@@ -377,14 +431,17 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await page.goBack();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  await page.goto(`/projects/${projectId}/items/${rangeItemId}`);
+  await navigateWithDocumentLoad(
+    page,
+    `/projects/${projectId}/items/${rangeItemId}`,
+  );
   await page.getByText("イベント 1件").click();
   await page.getByRole("link", { name: "ロンドン留学" }).click();
   await expect(page).toHaveURL(
     new RegExp(`/projects/${projectId}/events/[0-9a-f-]+$`),
   );
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.goto(`/projects/${projectId}/timeline`);
+  await navigateWithDocumentLoad(page, `/projects/${projectId}/timeline`);
 
   await page.getByRole("button", { name: "アイテムを追加" }).click();
   await expect(
@@ -606,11 +663,12 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(rows.first()).toContainText("『吾輩は猫である』刊行");
 
   await toggleTypeGrouping(page);
-  const personGroup = page.getByRole("button", { name: /人物/ });
-  await expect(personGroup).toBeVisible();
-  await personGroup.click();
+  const createdTypeGroup = page.getByRole("button", { name: /出来事/ });
+  await expect(createdTypeGroup).toBeVisible();
+  await expect(createdTypeGroup.locator("svg.lucide-image")).toBeVisible();
+  await createdTypeGroup.click();
   await expect(page.getByText("夏目漱石", { exact: true })).toBeHidden();
-  await personGroup.click();
+  await createdTypeGroup.click();
 
   await toggleTypeGrouping(page);
   await chooseLayout(page, "コンパクト");

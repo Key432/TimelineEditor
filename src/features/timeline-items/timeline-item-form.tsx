@@ -1,7 +1,7 @@
 "use client";
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Save, Tags, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useId, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { LocalDraftStatusView } from "@/features/autosave/local-draft-status";
 import { useLocalDraft } from "@/features/autosave/use-local-draft";
 import type { TimelineItemType } from "@/features/item-types/types";
+import { itemTypeKeys, listItemTypes } from "@/features/item-types/api";
+import { TimelineItemTypeSelect } from "@/features/item-types/item-type-select";
 import { timelineEventKeys } from "@/features/timeline-events/api";
 import { TimelineEventDraftEditor } from "@/features/timeline-events/timeline-event-draft-editor";
 import type { TimelineEventDraftValues } from "@/features/timeline-events/validation";
@@ -162,6 +164,11 @@ export function TimelineItemForm({
 }: TimelineItemFormProps) {
   const formId = useId();
   const queryClient = useQueryClient();
+  const { data: currentItemTypes = itemTypes } = useQuery({
+    queryKey: itemTypeKeys.list(projectId),
+    queryFn: () => listItemTypes(projectId),
+    initialData: itemTypes,
+  });
   const {
     register,
     control,
@@ -221,17 +228,18 @@ export function TimelineItemForm({
 
   useEffect(() => {
     if (
-      itemTypes.length === 0 ||
-      itemTypes.some((itemType) => itemType.id === selectedTypeId)
+      currentItemTypes.length === 0 ||
+      currentItemTypes.some((itemType) => itemType.id === selectedTypeId)
     ) {
       return;
     }
     setValue(
       "typeId",
-      itemTypes.find((itemType) => itemType.isVisible)?.id ?? itemTypes[0].id,
+      currentItemTypes.find((itemType) => itemType.isVisible)?.id ??
+        currentItemTypes[0].id,
       { shouldDirty: true, shouldValidate: true },
     );
-  }, [itemTypes, selectedTypeId, setValue]);
+  }, [currentItemTypes, selectedTypeId, setValue]);
 
   const mutation = useMutation({
     mutationFn: async (values: TimelineItemValues) => {
@@ -332,19 +340,17 @@ export function TimelineItemForm({
       ) : null}
 
       <div className="space-y-2">
-        <Label htmlFor={`${formId}-type`}>対象種別</Label>
-        <select
-          id={`${formId}-type`}
-          className={selectClassName}
-          {...register("typeId")}
-        >
-          {itemTypes.map((itemType) => (
-            <option key={itemType.id} value={itemType.id}>
-              {itemType.name}
-              {itemType.isVisible ? "" : "（非表示）"}
-            </option>
-          ))}
-        </select>
+        <TimelineItemTypeSelect
+          initialItemTypes={itemTypes}
+          projectId={projectId}
+          value={selectedTypeId || null}
+          onChange={(next) =>
+            setValue("typeId", next, {
+              shouldDirty: true,
+              shouldValidate: true,
+            })
+          }
+        />
         {errors.typeId ? (
           <p className="text-sm text-destructive">{errors.typeId.message}</p>
         ) : null}
@@ -356,7 +362,7 @@ export function TimelineItemForm({
             onClick={onEditItemTypes}
           >
             <Tags aria-hidden="true" className="size-4" />
-            対象種別を編集
+            種別・タグ・カスタムフィールドを管理
           </Button>
         ) : null}
       </div>
@@ -490,14 +496,14 @@ export function TimelineItemForm({
               setValue(
                 "colorOverride",
                 event.target.checked
-                  ? (itemTypes.find((type) => type.id === selectedTypeId)
+                  ? (currentItemTypes.find((type) => type.id === selectedTypeId)
                       ?.defaultColor ?? "#00B0B0")
                   : null,
                 { shouldDirty: true, shouldValidate: true },
               )
             }
           />
-          対象種別の色を上書き
+          タイムライン種別の色を上書き
         </Label>
         {colorOverride ? (
           <div className="flex items-center gap-3 border-t bg-background/60 p-3">
@@ -666,7 +672,7 @@ export function TimelineItemForm({
           className="w-full"
           disabled={
             mutation.isPending ||
-            itemTypes.length === 0 ||
+            currentItemTypes.length === 0 ||
             Boolean(item && !isDirty)
           }
           type="submit"

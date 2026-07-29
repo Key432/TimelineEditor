@@ -121,7 +121,7 @@ const nullableHistoricalDateSchema = z
   .transform((value) => value ?? null);
 
 const baseTimelineItemSchema = z.object({
-  typeId: z.uuid("対象種別を選択してください。"),
+  typeId: z.uuid("タイムライン種別を選択してください。"),
   title: z
     .string()
     .trim()

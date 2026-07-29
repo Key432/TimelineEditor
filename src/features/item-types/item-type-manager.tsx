@@ -23,10 +23,8 @@ import {
   updateItemType,
 } from "@/features/item-types/api";
 import { DeleteItemTypeDialog } from "@/features/item-types/delete-item-type-dialog";
-import {
-  ITEM_TYPE_ICON_OPTIONS,
-  type TimelineItemType,
-} from "@/features/item-types/types";
+import { ItemTypeIconPicker } from "@/features/item-types/item-type-icon";
+import type { TimelineItemType } from "@/features/item-types/types";
 
 type ItemTypeManagerProps = {
   projectId: string;
@@ -97,13 +95,10 @@ function ItemTypeRow({
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor={`item-type-icon-${itemType.id}`}>アイコン</Label>
-        <Input
-          id={`item-type-icon-${itemType.id}`}
-          list="item-type-icon-options"
-          placeholder="任意"
+        <ItemTypeIconPicker
+          color={defaultColor}
           value={icon}
-          onChange={(event) => setIcon(event.target.value)}
+          onChange={setIcon}
         />
       </div>
       <div className="flex items-end justify-between gap-2 lg:justify-end">
@@ -175,6 +170,7 @@ export function ItemTypeManager({
   const searchId = useId();
   const [query, setQuery] = useState("");
   const [newColor, setNewColor] = useState("#00B0B0");
+  const [newIcon, setNewIcon] = useState("circle-dot");
   const { data: itemTypes = initialItemTypes } = useQuery({
     queryKey: itemTypeKeys.list(projectId),
     queryFn: () => listItemTypes(projectId),
@@ -197,7 +193,7 @@ export function ItemTypeManager({
       createItemType(projectId, {
         name: query,
         defaultColor: newColor,
-        icon: "",
+        icon: newIcon,
       }),
     onSuccess: async () => {
       setQuery("");
@@ -209,15 +205,9 @@ export function ItemTypeManager({
 
   return (
     <div className="space-y-5">
-      <datalist id="item-type-icon-options">
-        {ITEM_TYPE_ICON_OPTIONS.map((icon) => (
-          <option key={icon} value={icon} />
-        ))}
-      </datalist>
-
-      <div className="grid gap-3 rounded-lg border bg-muted/30 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+      <div className="grid gap-3 rounded-lg border bg-muted/30 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
         <div className="space-y-2">
-          <Label htmlFor={searchId}>対象種別を検索・新規作成</Label>
+          <Label htmlFor={searchId}>タイムライン種別を検索・新規作成</Label>
           <div className="relative">
             <Search
               aria-hidden="true"
@@ -256,6 +246,13 @@ export function ItemTypeManager({
             onChange={(event) => setNewColor(event.target.value)}
           />
         </div>
+        <div className="sm:col-span-2">
+          <ItemTypeIconPicker
+            color={newColor}
+            value={newIcon}
+            onChange={setNewIcon}
+          />
+        </div>
         <Button
           disabled={!canCreate || createMutation.isPending}
           onClick={() => createMutation.mutate()}
@@ -266,7 +263,7 @@ export function ItemTypeManager({
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground sm:col-span-3">
           <Badge variant="outline">{filtered.length}件表示</Badge>
           {query && !canCreate ? (
-            <span>同名の対象種別は追加できません。</span>
+            <span>同名のタイムライン種別は追加できません。</span>
           ) : canCreate ? (
             <span>Enterキーでも「{query.trim()}」を追加できます。</span>
           ) : (
@@ -282,7 +279,7 @@ export function ItemTypeManager({
 
       <div className="overflow-hidden rounded-lg border bg-card">
         {filtered.length ? (
-          <ul id="item-type-list" aria-label="対象種別一覧">
+          <ul id="item-type-list" aria-label="タイムライン種別一覧">
             {filtered.map((itemType) => {
               const index = itemTypes.findIndex(
                 (candidate) => candidate.id === itemType.id,
@@ -303,7 +300,7 @@ export function ItemTypeManager({
             id="item-type-list"
             className="px-6 py-12 text-center text-sm text-muted-foreground"
           >
-            一致する対象種別はありません。上の入力から新規作成できます。
+            一致するタイムライン種別はありません。上の入力から新規作成できます。
           </div>
         )}
       </div>

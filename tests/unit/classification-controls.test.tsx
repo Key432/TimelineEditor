@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -8,7 +8,10 @@ import {
   TagMultiSelect,
 } from "@/features/classification/entity-classification-fields";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 function mockClassification() {
   vi.stubGlobal(
@@ -85,7 +88,11 @@ describe("Notion-like classification controls", () => {
         />
       </QueryProvider>,
     );
-    await user.click(screen.getByRole("button", { name: "種別なし" }));
+    await user.click(
+      screen.getByRole("combobox", {
+        name: "イベント種別を検索または作成",
+      }),
+    );
     await user.click(
       await screen.findByRole("button", { name: "出版の設定変更" }),
     );
@@ -94,5 +101,59 @@ describe("Notion-like classification controls", () => {
       "true",
     );
     expect(screen.getAllByRole("button", { name: /形状$/ })).toHaveLength(6);
+    expect(screen.getByText("オプションを選択するか作成します")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "circle形状" }));
+    await waitFor(() =>
+      expect(
+        vi
+          .mocked(globalThis.fetch)
+          .mock.calls.some(([, init]) => init?.method === "PATCH"),
+      ).toBe(true),
+    );
+    const updateCall = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(JSON.parse(String(updateCall?.[1]?.body))).toMatchObject({
+      values: { markerShape: "circle" },
+    });
+    expect(screen.getByRole("button", { name: "circle形状" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("closes tag and event type candidates when focus moves outside", async () => {
+    mockClassification();
+    const user = userEvent.setup();
+    render(
+      <QueryProvider>
+        <TagMultiSelect
+          projectId="project"
+          value={[]}
+          onChange={() => undefined}
+        />
+        <EventTypeSelect
+          projectId="project"
+          value={null}
+          onChange={() => undefined}
+        />
+        <button type="button">外側</button>
+      </QueryProvider>,
+    );
+
+    await user.click(screen.getByLabelText("タグを検索または作成"));
+    expect(screen.getByText("オプションを選択するか作成します")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "閉じる" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "外側" }));
+    expect(screen.queryByText("オプションを選択するか作成します")).toBeNull();
+
+    await user.click(
+      screen.getByRole("combobox", {
+        name: "イベント種別を検索または作成",
+      }),
+    );
+    expect(screen.getByText("オプションを選択するか作成します")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "外側" }));
+    expect(screen.queryByText("オプションを選択するか作成します")).toBeNull();
   });
 });

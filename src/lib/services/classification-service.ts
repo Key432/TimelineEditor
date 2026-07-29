@@ -208,7 +208,7 @@ export class ClassificationService {
           );
     if (!exists)
       throw new ServiceError(
-        "対象種別が見つかりません。",
+        "タイムライン種別が見つかりません。",
         400,
         "CUSTOM_FIELD_TARGET_NOT_FOUND",
       );

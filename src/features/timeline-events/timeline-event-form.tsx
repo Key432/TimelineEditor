@@ -31,6 +31,7 @@ import { ApproximateDateCheckbox } from "@/features/timeline-items/approximate-d
 import { HistoricalDateFields } from "@/features/timeline-items/historical-date-fields";
 import { EntityContentFields } from "@/features/timeline-items/entity-content-fields";
 import { EntityAliasFields } from "@/features/timeline-items/entity-alias-fields";
+import { TimelineParentSelect } from "@/features/timeline-events/timeline-parent-select";
 import {
   CustomFieldsEditor,
   EventTypeSelect,
@@ -167,19 +168,16 @@ export function TimelineEventForm({
       onSubmit={handleSubmit((values) => mutation.mutate(values))}
     >
       <div className="space-y-2">
-        <Label htmlFor="event-parent">親タイムラインアイテム</Label>
-        <select
-          id="event-parent"
-          className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-          {...register("timelineItemId")}
-        >
-          <option value="">選択してください</option>
-          {rangeItems.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.title}
-            </option>
-          ))}
-        </select>
+        <TimelineParentSelect
+          rangeItems={rangeItems}
+          value={parentId}
+          onChange={(next) =>
+            setValue("timelineItemId", next, {
+              shouldDirty: true,
+              shouldValidate: true,
+            })
+          }
+        />
         {errors.timelineItemId ? (
           <p role="alert" className="text-sm text-destructive">
             {errors.timelineItemId.message}

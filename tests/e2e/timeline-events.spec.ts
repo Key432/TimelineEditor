@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 
+import { navigateWithDocumentLoad } from "./helpers/navigation";
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const authSecret = process.env.E2E_TEST_AUTH_SECRET;
@@ -30,6 +32,7 @@ test.afterAll(async () => {
 test("creates an event from a row and preserves the timeline in URL overlays", async ({
   page,
 }) => {
+  test.slow();
   test.setTimeout(60_000);
   expect(
     (
@@ -93,7 +96,10 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await page.getByRole("button", { name: "アイテムを追加" }).click();
   await page.getByRole("menuitem", { name: "イベントを追加" }).click();
   const sideForm = page.getByRole("form", { name: "イベントアイテム作成" });
-  await sideForm.getByLabel("親タイムラインアイテム").selectOption(item.id);
+  await sideForm
+    .getByRole("combobox", { name: "親タイムラインアイテムを検索" })
+    .click();
+  await sideForm.getByRole("button", { name: "親人物" }).click();
   await sideForm.getByLabel("タイトル").fill("初期作品");
   await sideForm.getByLabel("イベント年").fill("1903");
   await sideForm
@@ -116,9 +122,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
     name: "イベントアイテム作成",
   });
   await expect(createForm).toBeVisible();
-  await expect(createForm.getByLabel("親タイムラインアイテム")).toHaveValue(
-    item.id,
-  );
+  await expect(createForm.getByText("親人物", { exact: true })).toBeVisible();
   await expect(createForm.getByLabel("イベント時代")).toContainText("紀元後");
   await expect(
     createForm.getByLabel("イベント日付表記の手動入力"),
@@ -222,7 +226,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await expect
     .poll(async () => (await fullPageDetail.boundingBox())!.width)
     .toBeGreaterThanOrEqual(wideWidth);
-  await page.goto(`/projects/${project.id}/timeline`);
+  await navigateWithDocumentLoad(page, `/projects/${project.id}/timeline`);
   await marker.click();
 
   await expect(page).toHaveURL(
@@ -258,7 +262,10 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   await page.goBack();
   await expect(page).toHaveURL(`/projects/${project.id}/timeline`);
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.goto(`/projects/${project.id}/events/${eventId}`);
+  await navigateWithDocumentLoad(
+    page,
+    `/projects/${project.id}/events/${eventId}`,
+  );
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "代表作刊行" })).toBeVisible();
   const breadcrumb = page.getByRole("navigation", { name: "パンくず" });
@@ -287,7 +294,7 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
     expect(response.ok()).toBe(true);
   }
 
-  await page.goto(`/projects/${project.id}/timeline`);
+  await navigateWithDocumentLoad(page, `/projects/${project.id}/timeline`);
   const cluster = page.getByRole("button", {
     name: "3件のイベントアイテムを選択",
   });

@@ -253,6 +253,11 @@ function TimelineWorkspaceContent({
   const [groupByType, setGroupByType] = useState(false);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const clientReady = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
   const fullscreenSupported = useSyncExternalStore(
     () => () => undefined,
     () => document.fullscreenEnabled,
@@ -377,6 +382,7 @@ function TimelineWorkspaceContent({
             id: type.id,
             label: type.name,
             color: type.defaultColor,
+            icon: type.icon,
             showHeader: true,
             items: visibleItems.filter((item) => item.typeId === type.id),
           }))
@@ -386,6 +392,7 @@ function TimelineWorkspaceContent({
             id: "visible-items",
             label: "",
             color: "",
+            icon: null,
             showHeader: false,
             items: visibleItems,
           },
@@ -397,6 +404,7 @@ function TimelineWorkspaceContent({
             id: HIDDEN_ITEMS_GROUP_ID,
             label: "非表示にした項目",
             color: "#6B7280",
+            icon: "circle-dot",
             showHeader: true,
             items: hiddenItems,
           },
@@ -464,6 +472,7 @@ function TimelineWorkspaceContent({
         isMaximized && "fixed inset-0 z-40 p-3",
       )}
       data-maximized={isMaximized}
+      data-client-ready={clientReady}
       data-timeline-workspace="true"
       data-testid="timeline-workspace"
     >
@@ -588,7 +597,7 @@ function TimelineWorkspaceContent({
               checked={groupByType}
               onCheckedChange={(checked) => setGroupByType(checked === true)}
             >
-              対象種別でグループ化
+              タイムライン種別でグループ化
             </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -642,17 +651,17 @@ function TimelineWorkspaceContent({
         <div className="rounded-lg border border-dashed bg-card px-6 py-12 text-center">
           <p className="font-medium">
             {readOnly
-              ? "表示できる対象種別はありません。"
-              : "先に対象種別を作成してください。"}
+              ? "表示できるタイムライン種別はありません。"
+              : "先にタイムライン種別を作成してください。"}
           </p>
           {!readOnly ? (
             <p className="mt-1 text-sm text-muted-foreground">
-              プロジェクト設定の「対象種別」から追加できます。
+              プロジェクト設定の「タイムライン種別」から追加できます。
             </p>
           ) : null}
           {onEditItemTypes ? (
             <Button className="mt-4" onClick={onEditItemTypes}>
-              対象種別を作成
+              タイムライン種別を作成
             </Button>
           ) : null}
         </div>
