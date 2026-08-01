@@ -17,6 +17,7 @@ import {
   GripVertical,
   Maximize2,
   Minus,
+  MoreVertical,
   Pencil,
   Plus,
   Settings2,
@@ -38,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -81,9 +83,12 @@ import type {
 import type { Project } from "@/features/projects/types";
 import { cn } from "@/lib/utils";
 
-const HANDLE_WIDTH = 32;
-const INFO_WIDTH = 288;
-const ACTION_WIDTH = 112;
+const DESKTOP_HANDLE_WIDTH = 32;
+const DESKTOP_INFO_WIDTH = 288;
+const DESKTOP_ACTION_WIDTH = 112;
+const MOBILE_HANDLE_WIDTH = 28;
+const MOBILE_INFO_WIDTH = 132;
+const MOBILE_ACTION_WIDTH = 44;
 const AXIS_HEIGHT = 48;
 const HORIZONTAL_PADDING = 24;
 const SCROLL_STATE_INTERVAL_MS = 1000 / 30;
@@ -351,6 +356,10 @@ function TimelineItemRow({
   dimmed,
   highlightedEventIds,
   readOnly,
+  mobileLayout,
+  handleWidth,
+  infoWidth,
+  actionWidth,
 }: {
   item: TimelineItemSummary;
   canvasWidth: number;
@@ -377,6 +386,10 @@ function TimelineItemRow({
   dimmed: boolean;
   highlightedEventIds: ReadonlySet<string>;
   readOnly: boolean;
+  mobileLayout: boolean;
+  handleWidth: number;
+  infoWidth: number;
+  actionWidth: number;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -425,42 +438,43 @@ function TimelineItemRow({
         );
       }}
       style={{
-        width: HANDLE_WIDTH + INFO_WIDTH + canvasWidth + ACTION_WIDTH,
+        width: handleWidth + infoWidth + canvasWidth + actionWidth,
         height: rowHeight,
         transform: CSS.Transform.toString(transform),
         transition,
       }}
     >
-      {readOnly ? (
-        <span
-          aria-hidden="true"
-          className="sticky left-0 z-40 shrink-0 border-r bg-card"
-          data-timeline-fixed-column="reorder"
-          style={{ width: HANDLE_WIDTH }}
-        />
-      ) : (
+      {!readOnly ? (
         <button
           aria-label={`${item.title}を並べ替え`}
           className="sticky left-0 z-40 flex shrink-0 cursor-grab items-center justify-center border-r bg-card text-muted-foreground disabled:cursor-not-allowed"
           data-timeline-fixed-column="reorder"
           disabled={disabled}
-          style={{ width: HANDLE_WIDTH }}
+          style={{ width: handleWidth }}
           type="button"
           {...attributes}
           {...listeners}
         >
           <GripVertical aria-hidden="true" className="size-4" />
         </button>
-      )}
+      ) : null}
       <div
-        className="sticky z-40 min-w-0 shrink-0 border-r bg-card px-3 py-2"
+        className={cn(
+          "sticky z-40 min-w-0 shrink-0 border-r bg-card py-2",
+          mobileLayout ? "px-2" : "px-3",
+        )}
         data-timeline-fixed-column="info"
-        style={{ left: HANDLE_WIDTH, width: INFO_WIDTH }}
+        style={{ left: handleWidth, width: infoWidth }}
       >
-        <div className="flex items-center gap-2">
+        <div
+          className={cn("flex items-center", mobileLayout ? "gap-1" : "gap-2")}
+        >
           <span
             aria-hidden="true"
-            className="size-2.5 shrink-0 rounded-full"
+            className={cn(
+              "shrink-0 rounded-full",
+              mobileLayout ? "size-2" : "size-2.5",
+            )}
             style={{
               backgroundColor: item.colorOverride ?? item.itemType.defaultColor,
             }}
@@ -480,7 +494,7 @@ function TimelineItemRow({
             <EyeOff aria-label="非表示" className="size-3.5" />
           ) : null}
         </div>
-        {rowHeight >= 56 ? (
+        {rowHeight >= 56 && !mobileLayout ? (
           <p className="mt-1 truncate text-xs text-muted-foreground">
             {showItemType ? `${item.itemType.name} · ` : ""}
             {itemDateLabel(item)}
@@ -552,42 +566,79 @@ function TimelineItemRow({
           />
         ) : null}
       </div>
-      <div
-        className="sticky right-0 z-40 flex shrink-0 items-center gap-1 border-l bg-card px-2"
-        data-timeline-fixed-column="actions"
-        style={{ width: ACTION_WIDTH }}
-      >
-        {!readOnly ? (
-          <>
-            <Button
-              aria-label={`${item.title}を上へ移動`}
-              disabled={disabled || !canMoveUp}
-              size="icon-sm"
-              variant="ghost"
-              onClick={onMoveUp}
-            >
-              <ArrowUp aria-hidden="true" className="size-4" />
-            </Button>
-            <Button
-              aria-label={`${item.title}を下へ移動`}
-              disabled={disabled || !canMoveDown}
-              size="icon-sm"
-              variant="ghost"
-              onClick={onMoveDown}
-            >
-              <ArrowDown aria-hidden="true" className="size-4" />
-            </Button>
-            <Button
-              aria-label={`${item.title}を編集`}
-              size="icon-sm"
-              variant="ghost"
-              onClick={onEdit}
-            >
-              <Pencil aria-hidden="true" className="size-4" />
-            </Button>
-          </>
-        ) : null}
-      </div>
+      {!readOnly ? (
+        <div
+          className={cn(
+            "sticky right-0 z-40 flex shrink-0 items-center border-l bg-card",
+            mobileLayout ? "justify-center" : "gap-1 px-2",
+          )}
+          data-timeline-fixed-column="actions"
+          style={{ width: actionWidth }}
+        >
+          {mobileLayout ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  aria-label={`${item.title}の操作`}
+                  size="icon-sm"
+                  variant="ghost"
+                >
+                  <MoreVertical aria-hidden="true" className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  disabled={disabled || !canMoveUp}
+                  onSelect={onMoveUp}
+                >
+                  <ArrowUp aria-hidden="true" className="size-4" />
+                  上へ移動
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={disabled || !canMoveDown}
+                  onSelect={onMoveDown}
+                >
+                  <ArrowDown aria-hidden="true" className="size-4" />
+                  下へ移動
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={onEdit}>
+                  <Pencil aria-hidden="true" className="size-4" />
+                  編集
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <>
+              <Button
+                aria-label={`${item.title}を上へ移動`}
+                disabled={disabled || !canMoveUp}
+                size="icon-sm"
+                variant="ghost"
+                onClick={onMoveUp}
+              >
+                <ArrowUp aria-hidden="true" className="size-4" />
+              </Button>
+              <Button
+                aria-label={`${item.title}を下へ移動`}
+                disabled={disabled || !canMoveDown}
+                size="icon-sm"
+                variant="ghost"
+                onClick={onMoveDown}
+              >
+                <ArrowDown aria-hidden="true" className="size-4" />
+              </Button>
+              <Button
+                aria-label={`${item.title}を編集`}
+                size="icon-sm"
+                variant="ghost"
+                onClick={onEdit}
+              >
+                <Pencil aria-hidden="true" className="size-4" />
+              </Button>
+            </>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -818,6 +869,7 @@ export function TimelineViewport({
   } | null>(null);
   const [viewportWidth, setViewportWidth] = useState(1120);
   const [viewportMeasured, setViewportMeasured] = useState(false);
+  const [mobileLayout, setMobileLayout] = useState(false);
   const [pointerGuide, setPointerGuide] = useState<{
     left: number;
     label: string;
@@ -841,9 +893,23 @@ export function TimelineViewport({
   const navigationRequest = useTimelineStore(
     (state) => state.navigationRequest,
   );
+  const handleWidth = readOnly
+    ? 0
+    : mobileLayout
+      ? MOBILE_HANDLE_WIDTH
+      : DESKTOP_HANDLE_WIDTH;
+  const infoWidth = mobileLayout ? MOBILE_INFO_WIDTH : DESKTOP_INFO_WIDTH;
+  const actionWidth = readOnly
+    ? 0
+    : mobileLayout
+      ? MOBILE_ACTION_WIDTH
+      : DESKTOP_ACTION_WIDTH;
   const rowChromeWidth =
-    layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH + ACTION_WIDTH : 0;
-  const timelineViewportWidth = Math.max(240, viewportWidth - rowChromeWidth);
+    layoutMode === "row" ? handleWidth + infoWidth + actionWidth : 0;
+  const timelineViewportWidth = Math.max(
+    mobileLayout ? 1 : 240,
+    viewportWidth - rowChromeWidth,
+  );
   const eventsByParent = useMemo(() => {
     const grouped = new Map<string, TimelineEventSummary[]>();
     for (const timelineEvent of events) {
@@ -1089,7 +1155,7 @@ export function TimelineViewport({
     timeSliceStart,
     Math.min(timeSlice?.endOrdinal ?? bounds.domainEnd, bounds.domainEnd),
   );
-  const canvasOffset = layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0;
+  const canvasOffset = layoutMode === "row" ? handleWidth + infoWidth : 0;
   const timeSliceStartX =
     canvasOffset +
     HORIZONTAL_PADDING +
@@ -1112,6 +1178,15 @@ export function TimelineViewport({
   const onPinchZoom = useEffectEvent((offset: -1 | 1, cursorX: number) =>
     changeZoom(zoomLevel + offset, cursorX),
   );
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(max-width: 639px)");
+    const updateMobileLayout = () => setMobileLayout(media.matches);
+    updateMobileLayout();
+    media.addEventListener("change", updateMobileLayout);
+    return () => media.removeEventListener("change", updateMobileLayout);
+  }, []);
 
   useEffect(() => {
     const element = viewportRef.current;
@@ -1228,7 +1303,7 @@ export function TimelineViewport({
             const cursorX =
               (first!.x + second!.x) / 2 -
               rect.left -
-              (layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0);
+              (layoutMode === "row" ? handleWidth + infoWidth : 0);
             onPinchZoom(ratio > 1 ? 1 : -1, Math.max(0, cursorX));
             pinchDistanceRef.current = distance;
           }
@@ -1271,6 +1346,8 @@ export function TimelineViewport({
   }, [
     bounds.domainStart,
     flushScrollSync,
+    handleWidth,
+    infoWidth,
     layoutMode,
     onCreateEvent,
     pixelsPerDay,
@@ -1360,7 +1437,7 @@ export function TimelineViewport({
   useEffect(() => {
     const element = viewportRef.current;
     if (!element || !navigationRequest) return;
-    const canvasOffset = layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0;
+    const canvasOffset = layoutMode === "row" ? handleWidth + infoWidth : 0;
     const target =
       HORIZONTAL_PADDING +
       (navigationRequest.ordinal - bounds.domainStart) * pixelsPerDay;
@@ -1372,6 +1449,8 @@ export function TimelineViewport({
   }, [
     bounds.domainStart,
     flushScrollSync,
+    handleWidth,
+    infoWidth,
     layoutMode,
     navigationRequest,
     pixelsPerDay,
@@ -1433,14 +1512,14 @@ export function TimelineViewport({
       0,
       event.clientX -
         rect.left -
-        (layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0),
+        (layoutMode === "row" ? handleWidth + infoWidth : 0),
     );
     changeZoom(zoomLevel + (event.deltaY < 0 ? 1 : -1), cursorX);
   }
 
   function updatePointerGuide(event: React.MouseEvent<HTMLDivElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
-    const canvasOffset = layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0;
+    const canvasOffset = layoutMode === "row" ? handleWidth + infoWidth : 0;
     const viewportX = event.clientX - rect.left - canvasOffset;
     if (viewportX < 0 || viewportX > timelineViewportWidth) {
       setPointerGuide(null);
@@ -1500,7 +1579,7 @@ export function TimelineViewport({
               style={{
                 width:
                   layoutMode === "row"
-                    ? HANDLE_WIDTH + INFO_WIDTH + canvasWidth + ACTION_WIDTH
+                    ? handleWidth + infoWidth + canvasWidth + actionWidth
                     : canvasWidth,
                 height: AXIS_HEIGHT + virtualizer.getTotalSize(),
               }}
@@ -1520,15 +1599,20 @@ export function TimelineViewport({
               <div className="sticky top-0 z-40 flex h-12 border-b bg-muted/95 text-xs font-medium text-muted-foreground backdrop-blur-sm">
                 {layoutMode === "row" ? (
                   <>
+                    {!readOnly ? (
+                      <span
+                        className="sticky left-0 z-40 shrink-0 border-r bg-muted"
+                        style={{ width: handleWidth }}
+                      />
+                    ) : null}
                     <span
-                      className="sticky left-0 z-40 shrink-0 border-r bg-muted"
-                      style={{ width: HANDLE_WIDTH }}
-                    />
-                    <span
-                      className="sticky z-40 shrink-0 border-r bg-muted px-3 py-4"
-                      style={{ left: HANDLE_WIDTH, width: INFO_WIDTH }}
+                      className={cn(
+                        "sticky z-40 shrink-0 border-r bg-muted py-4",
+                        mobileLayout ? "px-2" : "px-3",
+                      )}
+                      style={{ left: handleWidth, width: infoWidth }}
                     >
-                      タイムライン
+                      {mobileLayout ? "項目" : "タイムライン"}
                     </span>
                   </>
                 ) : null}
@@ -1559,10 +1643,10 @@ export function TimelineViewport({
                     );
                   })}
                 </div>
-                {layoutMode === "row" ? (
+                {layoutMode === "row" && !readOnly ? (
                   <span
                     className="sticky right-0 z-40 shrink-0 border-l bg-muted"
-                    style={{ width: ACTION_WIDTH }}
+                    style={{ width: actionWidth }}
                   />
                 ) : null}
               </div>
@@ -1593,10 +1677,10 @@ export function TimelineViewport({
                           style={{
                             width:
                               layoutMode === "row"
-                                ? HANDLE_WIDTH +
-                                  INFO_WIDTH +
+                                ? handleWidth +
+                                  infoWidth +
                                   canvasWidth +
-                                  ACTION_WIDTH
+                                  actionWidth
                                 : canvasWidth,
                           }}
                         >
@@ -1607,7 +1691,7 @@ export function TimelineViewport({
                             style={{
                               width:
                                 layoutMode === "row"
-                                  ? HANDLE_WIDTH + INFO_WIDTH
+                                  ? handleWidth + infoWidth
                                   : Math.min(360, canvasWidth),
                             }}
                             type="button"
@@ -1646,7 +1730,11 @@ export function TimelineViewport({
                           item={entry.item}
                           events={eventsByParent.get(entry.item.id) ?? []}
                           highlightedEventIds={highlightedEvents}
+                          mobileLayout={mobileLayout}
                           readOnly={readOnly}
+                          actionWidth={actionWidth}
+                          handleWidth={handleWidth}
+                          infoWidth={infoWidth}
                           draftEvent={
                             draftEvent?.parentId === entry.item.id
                               ? draftEvent.date
@@ -1723,10 +1811,9 @@ export function TimelineViewport({
               data-testid="timeline-period-highlight-layer"
               style={{
                 top: AXIS_HEIGHT + 1,
-                right: (layoutMode === "row" ? ACTION_WIDTH : 0) + 1,
+                right: (layoutMode === "row" ? actionWidth : 0) + 1,
                 bottom: 1,
-                left:
-                  (layoutMode === "row" ? HANDLE_WIDTH + INFO_WIDTH : 0) + 1,
+                left: (layoutMode === "row" ? handleWidth + infoWidth : 0) + 1,
               }}
             >
               <div
@@ -1761,9 +1848,9 @@ export function TimelineViewport({
             className="pointer-events-none absolute bottom-3 left-3 z-50 flex flex-col-reverse items-end gap-2 sm:left-auto sm:w-[40rem]"
             data-testid="timeline-floating-panels"
             style={{
-              right: (layoutMode === "row" ? ACTION_WIDTH : 0) + 12,
+              right: (layoutMode === "row" ? actionWidth : 0) + 12,
               maxWidth: `calc(100% - ${
-                (layoutMode === "row" ? ACTION_WIDTH : 0) + 24
+                (layoutMode === "row" ? actionWidth : 0) + 24
               }px)`,
             }}
           >

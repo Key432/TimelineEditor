@@ -59,6 +59,30 @@ test("keeps mobile editing available while touch gestures never create an event 
     page.getByText("モバイル編集対象", { exact: true }),
   ).toBeVisible();
 
+  const viewport = page.getByTestId("timeline-viewport");
+  const fixedColumns = viewport
+    .getByTestId(/^timeline-row-/)
+    .first()
+    .locator("[data-timeline-fixed-column]");
+  const [infoBox, actionsBox, viewportBox] = await Promise.all([
+    fixedColumns
+      .filter({ has: page.getByText("モバイル編集対象") })
+      .boundingBox(),
+    fixedColumns.last().boundingBox(),
+    viewport.boundingBox(),
+  ]);
+  if (!infoBox || !actionsBox || !viewportBox)
+    throw new Error("Mobile timeline columns are required.");
+  expect(infoBox.width).toBeLessThanOrEqual(132);
+  expect(actionsBox.width).toBeLessThanOrEqual(44);
+  expect(actionsBox.x - (infoBox.x + infoBox.width)).toBeGreaterThanOrEqual(
+    120,
+  );
+  await page.getByRole("button", { name: "モバイル編集対象の操作" }).click();
+  await expect(page.getByRole("menuitem", { name: "上へ移動" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "編集" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
   await page.getByRole("button", { name: "タイムライン操作を開く" }).click();
   const zoom = page.getByLabel("ズーム段階");
   await zoom.fill("1");
