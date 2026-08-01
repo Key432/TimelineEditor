@@ -147,6 +147,7 @@ export type Database = {
           owner_id: string;
           entity_type: "timeline_item" | "timeline_event";
           visible_columns: Json;
+          column_order: Json;
           column_widths: Json;
           wrapped_columns: Json;
           frozen_column_count: number;
@@ -159,6 +160,7 @@ export type Database = {
           owner_id: string;
           entity_type: "timeline_item" | "timeline_event";
           visible_columns?: Json;
+          column_order?: Json;
           column_widths?: Json;
           wrapped_columns?: Json;
           frozen_column_count?: number;

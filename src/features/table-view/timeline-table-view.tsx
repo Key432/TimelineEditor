@@ -1,10 +1,25 @@
 "use client";
 
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowDown,
-  ArrowUp,
   Check,
   ChevronDown,
   Download,
@@ -84,6 +99,7 @@ import {
   tablePreferenceKeys,
   undoBulkEdit,
   type BulkOperation,
+  type SavedTablePreference,
 } from "@/features/table-view/api";
 import {
   buildTableColumns,
@@ -96,6 +112,7 @@ import {
   type TableColumn,
   type TableEntityType,
 } from "@/features/table-view/table-model";
+import type { TablePreferenceInput } from "@/features/table-view/validation";
 import { cn } from "@/lib/utils";
 
 type RowSummary = TimelineItemSummary | TimelineEventSummary;
@@ -424,6 +441,69 @@ function handleCellKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     event.preventDefault();
     target.focus();
   }
+}
+
+function SortableColumnControl({
+  column,
+  visible,
+  onVisibilityChange,
+}: {
+  column: TableColumn;
+  visible: boolean;
+  onVisibilityChange: (visible: boolean) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: column.id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
+        isDragging && "z-50 bg-background shadow-md",
+      )}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+    >
+      <button
+        aria-label={`${column.label}をドラッグして並べ替え`}
+        className="cursor-grab touch-none rounded p-0.5 text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary active:cursor-grabbing"
+        type="button"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-4" aria-hidden="true" />
+      </button>
+      <span className={cn("min-w-0 flex-1 truncate", !visible && "opacity-50")}>
+        {column.label}
+      </span>
+      <button
+        aria-label={`${column.label}を${visible ? "非表示" : "表示"}`}
+        aria-pressed={visible}
+        className="rounded p-1 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-30"
+        disabled={column.id === "title"}
+        type="button"
+        onPointerDown={(event) => event.stopPropagation()}
+        onPointerUp={(event) => {
+          event.stopPropagation();
+          onVisibilityChange(!visible);
+        }}
+        onClick={(event) => {
+          if (event.detail === 0) onVisibilityChange(!visible);
+        }}
+      >
+        {visible ? (
+          <Eye className="size-4" aria-hidden="true" />
+        ) : (
+          <EyeOff className="size-4" aria-hidden="true" />
+        )}
+      </button>
+    </div>
+  );
 }
 
 function ItemRow({
@@ -1124,23 +1204,46 @@ export function TimelineTableView({
     timeline_item: [],
     timeline_event: [],
   });
+  const [localOrder, setLocalOrder] = useState<
+    Record<TableEntityType, string[]>
+  >({
+    timeline_item: [],
+    timeline_event: [],
+  });
   const [widths, setWidths] = useState<Record<string, number>>({});
   const [wrapped, setWrapped] = useState<Set<string>>(new Set());
   const [frozenCount, setFrozenCount] = useState(1);
+  const preferenceSnapshotRef = useRef<TablePreferenceInput | null>(null);
+  const preferenceSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
     if (!saved) return;
     setLocalVisible((value) => ({
       ...value,
       [entityType]: saved.visibleColumns,
     }));
+    setLocalOrder((value) => ({
+      ...value,
+      [entityType]: saved.columnOrder,
+    }));
     setWidths(saved.columnWidths);
     setWrapped(new Set(saved.wrappedColumns));
     setFrozenCount(saved.frozenColumnCount);
+    if (preferenceSnapshotRef.current?.entityType !== entityType)
+      preferenceSnapshotRef.current = saved;
   }, [entityType, saved]);
   const visibleIds = localVisible[entityType].length
     ? localVisible[entityType]
     : allColumns.map((column) => column.id);
-  const columns = visibleIds
+  const columnOrderIds = [
+    ...localOrder[entityType].filter((id) =>
+      allColumns.some((column) => column.id === id),
+    ),
+    ...allColumns
+      .map((column) => column.id)
+      .filter((id) => !localOrder[entityType].includes(id)),
+  ];
+  const columns = columnOrderIds
+    .filter((id) => visibleIds.includes(id))
     .map((id) => allColumns.find((column) => column.id === id))
     .filter((column): column is TableColumn => Boolean(column));
   const rows: RowSummary[] = entityType === "timeline_item" ? items : events;
@@ -1152,95 +1255,103 @@ export function TimelineTableView({
   });
   const persist = (next: {
     visibleColumns?: string[];
+    columnOrder?: string[];
     columnWidths?: Record<string, number>;
     wrappedColumns?: string[];
     frozenColumnCount?: number;
   }) => {
+    const current =
+      preferenceSnapshotRef.current?.entityType === entityType
+        ? preferenceSnapshotRef.current
+        : {
+            entityType,
+            visibleColumns: visibleIds,
+            columnOrder: columnOrderIds,
+            columnWidths: widths,
+            wrappedColumns: [...wrapped],
+            frozenColumnCount: frozenCount,
+          };
     const input = {
       entityType,
-      visibleColumns: next.visibleColumns ?? visibleIds,
-      columnWidths: next.columnWidths ?? widths,
-      wrappedColumns: next.wrappedColumns ?? [...wrapped],
-      frozenColumnCount: next.frozenColumnCount ?? frozenCount,
+      visibleColumns: next.visibleColumns ?? current.visibleColumns,
+      columnOrder: next.columnOrder ?? current.columnOrder,
+      columnWidths: next.columnWidths ?? current.columnWidths,
+      wrappedColumns: next.wrappedColumns ?? current.wrappedColumns,
+      frozenColumnCount: next.frozenColumnCount ?? current.frozenColumnCount,
     };
-    void saveTablePreference(projectId, input).then(() =>
-      client.invalidateQueries({
-        queryKey: tablePreferenceKeys.list(projectId),
-      }),
+    preferenceSnapshotRef.current = input;
+    const saveLatestPreference = async () => {
+      const savedPreference = await saveTablePreference(projectId, input);
+      client.setQueryData<SavedTablePreference[]>(
+        tablePreferenceKeys.list(projectId),
+        (current = []) => [
+          ...current.filter(
+            (preference) => preference.entityType !== input.entityType,
+          ),
+          savedPreference,
+        ],
+      );
+    };
+    preferenceSaveQueueRef.current = preferenceSaveQueueRef.current.then(
+      saveLatestPreference,
+      saveLatestPreference,
     );
+    void preferenceSaveQueueRef.current;
   };
   const setVisibleColumns = (next: string[]) => {
     setLocalVisible((value) => ({ ...value, [entityType]: next }));
     persist({ visibleColumns: next });
   };
-  const moveVisibleColumn = (columnId: string, offset: -1 | 1) => {
-    const currentIndex = visibleIds.indexOf(columnId);
-    const nextIndex = currentIndex + offset;
-    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= visibleIds.length)
-      return;
-    const next = [...visibleIds];
-    [next[currentIndex], next[nextIndex]] = [
-      next[nextIndex]!,
-      next[currentIndex]!,
-    ];
-    setVisibleColumns(next);
+  const columnSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+  const handleColumnDragEnd = (event: DragEndEvent) => {
+    if (!event.over || event.active.id === event.over.id) return;
+    const oldIndex = columnOrderIds.indexOf(String(event.active.id));
+    const newIndex = columnOrderIds.indexOf(String(event.over.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(columnOrderIds, oldIndex, newIndex);
+    setLocalOrder((value) => ({ ...value, [entityType]: next }));
+    persist({ columnOrder: next });
   };
-  const orderedColumns = [
-    ...columns,
-    ...allColumns.filter((column) => !visibleIds.includes(column.id)),
-  ];
-  const renderColumnControls = () => (
+  const orderedColumns = columnOrderIds
+    .map((id) => allColumns.find((column) => column.id === id))
+    .filter((column): column is TableColumn => Boolean(column));
+  const renderColumnControls = (source: "toolbar" | "header") => (
     <>
-      <DropdownMenuLabel>表示する列</DropdownMenuLabel>
-      {orderedColumns.map((column) => (
-        <DropdownMenuCheckboxItem
-          key={column.id}
-          checked={visibleIds.includes(column.id)}
-          disabled={column.id === "title"}
-          onCheckedChange={(checked) => {
-            const next = checked
-              ? [...visibleIds, column.id]
-              : visibleIds.filter((id) => id !== column.id);
-            setVisibleColumns(next);
-          }}
+      <DropdownMenuLabel>列の表示・非表示と順番</DropdownMenuLabel>
+      <DndContext
+        id={`table-columns-${source}-${entityType}`}
+        collisionDetection={closestCenter}
+        sensors={columnSensors}
+        onDragEnd={handleColumnDragEnd}
+      >
+        <SortableContext
+          items={columnOrderIds}
+          strategy={verticalListSortingStrategy}
         >
-          {column.label}
-        </DropdownMenuCheckboxItem>
-      ))}
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel>列の順番</DropdownMenuLabel>
-      {columns.map((column, index) => (
-        <div
-          key={column.id}
-          className="flex items-center gap-1 px-2 py-1 text-sm"
-        >
-          <span className="min-w-0 flex-1 truncate">{column.label}</span>
-          <button
-            aria-label={`${column.label}を左へ移動`}
-            className="rounded p-1 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-30"
-            disabled={index === 0}
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              moveVisibleColumn(column.id, -1);
-            }}
-          >
-            <ArrowUp className="size-4" aria-hidden="true" />
-          </button>
-          <button
-            aria-label={`${column.label}を右へ移動`}
-            className="rounded p-1 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-30"
-            disabled={index === columns.length - 1}
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              moveVisibleColumn(column.id, 1);
-            }}
-          >
-            <ArrowDown className="size-4" aria-hidden="true" />
-          </button>
-        </div>
-      ))}
+          <div className="space-y-0.5 py-1">
+            {orderedColumns.map((column) => (
+              <SortableColumnControl
+                key={column.id}
+                column={column}
+                visible={visibleIds.includes(column.id)}
+                onVisibilityChange={(visible) => {
+                  const next = visible
+                    ? columnOrderIds.filter(
+                        (id) => id === column.id || visibleIds.includes(id),
+                      )
+                    : visibleIds.filter((id) => id !== column.id);
+                  setVisibleColumns(next);
+                }}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
       <DropdownMenuSeparator />
       <DropdownMenuLabel>左から固定する列数</DropdownMenuLabel>
       {[1, 2, 3, 4].map((count) => (
@@ -1422,7 +1533,7 @@ export function TimelineTableView({
             align="start"
             className="max-h-96 w-72 overflow-y-auto"
           >
-            {renderColumnControls()}
+            {renderColumnControls("toolbar")}
           </DropdownMenuContent>
         </DropdownMenu>
         {selected.size ? (
@@ -1795,7 +1906,7 @@ export function TimelineTableView({
             );
           })}
           <div
-            className="sticky right-0 z-40 flex h-10 w-20 shrink-0 items-center justify-center gap-1 border-l bg-muted"
+            className="flex h-10 w-20 shrink-0 items-center justify-center gap-1 border-l bg-muted"
             role="columnheader"
             aria-label="列の操作"
           >
@@ -1821,7 +1932,7 @@ export function TimelineTableView({
                 align="end"
                 className="max-h-96 w-72 overflow-y-auto"
               >
-                {renderColumnControls()}
+                {renderColumnControls("header")}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

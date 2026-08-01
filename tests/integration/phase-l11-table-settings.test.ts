@@ -89,13 +89,20 @@ describe("Phase L11 preference and operation RLS", () => {
         owner_id: ownerId,
         entity_type: "timeline_item",
         visible_columns: ["title", "start"],
+        column_order: ["title", "temporalType", "start", "end"],
         wrapped_columns: ["title"],
         column_widths: { title: 320 },
         frozen_column_count: 2,
       })
-      .select("id")
+      .select("id, column_order")
       .single();
     expect(preference.error).toBeNull();
+    expect(preference.data?.column_order).toEqual([
+      "title",
+      "temporalType",
+      "start",
+      "end",
+    ]);
 
     const profile = await owner.from("csv_mapping_profiles").insert({
       project_id: projectId,

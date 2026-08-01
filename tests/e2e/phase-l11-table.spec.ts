@@ -32,6 +32,17 @@ test.afterAll(async () => {
 
 test("edits and adds rows in the Notion-style table view", async ({ page }) => {
   test.slow();
+  const preferenceWrites: { visibleColumns?: string[] }[] = [];
+  page.on("request", (request) => {
+    if (
+      request.method() === "PUT" &&
+      request.url().includes("/table-preferences")
+    ) {
+      preferenceWrites.push(
+        request.postDataJSON() as { visibleColumns?: string[] },
+      );
+    }
+  });
   const auth = await postAfterConnectionReset(page.request, "/api/test-auth", {
     data: { email, password },
     headers: { "x-test-auth-secret": authSecret },
@@ -132,6 +143,9 @@ test("edits and adds rows in the Notion-style table view", async ({ page }) => {
     page.getByRole("button", { name: "列の表示と順番" }),
   ).toBeVisible();
   await expect(
+    page.getByRole("columnheader", { name: "列の操作" }),
+  ).not.toHaveClass(/sticky/);
+  await expect(
     page.getByText("long body is not rendered in the table"),
   ).toHaveCount(0);
   await expect(
@@ -160,17 +174,89 @@ test("edits and adds rows in the Notion-style table view", async ({ page }) => {
     .toBeGreaterThan(40);
 
   await page.getByRole("button", { name: "列", exact: true }).click();
-  await page.getByRole("button", { name: "開始・時点日を左へ移動" }).click();
+  const startHandle = page.getByRole("button", {
+    name: "開始・時点日をドラッグして並べ替え",
+  });
+  const temporalTypeHandle = page.getByRole("button", {
+    name: "形式をドラッグして並べ替え",
+  });
+  const startBox = await startHandle.boundingBox();
+  const temporalTypeBox = await temporalTypeHandle.boundingBox();
+  if (!startBox || !temporalTypeBox)
+    throw new Error("列のドラッグ位置が必要です。");
+  await page.mouse.move(
+    startBox.x + startBox.width / 2,
+    startBox.y + startBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    temporalTypeBox.x + temporalTypeBox.width / 2,
+    temporalTypeBox.y + temporalTypeBox.height / 2,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  const endVisibilityButton = page.getByRole("button", {
+    name: "終了日を非表示",
+  });
+  await endVisibilityButton.click();
+  await expect(
+    page.getByRole("button", { name: "終了日を表示" }),
+  ).toHaveAttribute("aria-pressed", "false");
   await page.keyboard.press("Escape");
   await expect
     .poll(async () =>
       page
         .locator('[role="columnheader"] > span')
         .evaluateAll((labels) =>
-          labels.slice(0, 4).map((label) => label.textContent),
+          labels.slice(0, 3).map((label) => label.textContent),
         ),
     )
-    .toEqual(["名称", "開始・時点日", "形式", "終了日"]);
+    .toEqual(["名称", "開始・時点日", "形式"]);
+  await expect(page.getByRole("columnheader", { name: /終了日/ })).toHaveCount(
+    0,
+  );
+  await expect
+    .poll(() => preferenceWrites.at(-1)?.visibleColumns?.includes("end"))
+    .toBe(false);
+
+  await expect
+    .poll(async () => {
+      const response = await page.request.get(
+        `/api/projects/${projectId}/table-preferences`,
+      );
+      const payload = (await response.json()) as {
+        preferences: {
+          entityType: string;
+          visibleColumns: string[];
+          columnOrder: string[];
+        }[];
+      };
+      const preference = payload.preferences.find(
+        (entry) => entry.entityType === "timeline_item",
+      );
+      return {
+        visible: preference?.visibleColumns.includes("end"),
+        order: preference?.columnOrder.slice(0, 3),
+      };
+    })
+    .toEqual({
+      visible: false,
+      order: ["title", "start", "temporalType"],
+    });
+
+  await page.reload();
+  await expect
+    .poll(async () =>
+      page
+        .locator('[role="columnheader"] > span')
+        .evaluateAll((labels) =>
+          labels.slice(0, 3).map((label) => label.textContent),
+        ),
+    )
+    .toEqual(["名称", "開始・時点日", "形式"]);
+  await expect(page.getByRole("columnheader", { name: /終了日/ })).toHaveCount(
+    0,
+  );
 
   await page.getByRole("button", { name: "新しい行" }).click();
   await page.getByLabel("新しい項目の名称").fill("Draft row");

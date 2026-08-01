@@ -12,6 +12,7 @@ function mapPreference(row: {
   id: string;
   entity_type: "timeline_item" | "timeline_event";
   visible_columns: unknown;
+  column_order: unknown;
   column_widths: unknown;
   wrapped_columns: unknown;
   frozen_column_count: number;
@@ -23,6 +24,7 @@ function mapPreference(row: {
     visibleColumns: Array.isArray(row.visible_columns)
       ? row.visible_columns
       : [],
+    columnOrder: Array.isArray(row.column_order) ? row.column_order : [],
     columnWidths:
       row.column_widths && typeof row.column_widths === "object"
         ? row.column_widths
@@ -75,6 +77,7 @@ export async function PUT(request: Request, context: RouteContext) {
           owner_id: auth.user.id,
           entity_type: input.data.entityType,
           visible_columns: input.data.visibleColumns,
+          column_order: input.data.columnOrder,
           column_widths: input.data.columnWidths,
           wrapped_columns: input.data.wrappedColumns,
           frozen_column_count: input.data.frozenColumnCount,

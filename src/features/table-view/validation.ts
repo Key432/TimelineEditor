@@ -8,6 +8,7 @@ export const tableEntityTypeSchema = z.enum([
 export const tablePreferenceSchema = z.object({
   entityType: tableEntityTypeSchema,
   visibleColumns: z.array(z.string().min(1).max(100)).max(100),
+  columnOrder: z.array(z.string().min(1).max(100)).max(100).default([]),
   columnWidths: z.record(z.string(), z.number().int().min(80).max(800)),
   wrappedColumns: z.array(z.string().min(1).max(100)).max(100),
   frozenColumnCount: z.number().int().min(1).max(20),
