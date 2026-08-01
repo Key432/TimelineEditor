@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { BookOpen, FileArchive, Settings, Shapes } from "lucide-react";
+import { BookOpen, FileArchive, Layers3, Settings, Shapes } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -41,8 +41,16 @@ import { ClassificationManager } from "@/features/classification/classification-
 import { invalidateEventTypeDependents } from "@/features/classification/cache";
 import { invalidateItemTypeDependents } from "@/features/item-types/cache";
 import { SourceManager } from "@/features/sources/source-manager";
+import { BackgroundLayerManager } from "@/features/background-layers/background-layer-manager";
+import type { TimelineBackgroundLayer } from "@/features/background-layers/types";
 
-type Panel = "settings" | "classification" | "sources" | "import-export" | null;
+type Panel =
+  | "settings"
+  | "classification"
+  | "backgrounds"
+  | "sources"
+  | "import-export"
+  | null;
 
 export function TimelinePageClient({
   project,
@@ -51,6 +59,7 @@ export function TimelinePageClient({
   itemTypes,
   currentDate,
   layoutMode,
+  initialBackgroundLayers,
 }: {
   project: Project;
   initialItems: TimelineItemSummary[];
@@ -58,6 +67,7 @@ export function TimelinePageClient({
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
   layoutMode: TimelineLayoutMode;
+  initialBackgroundLayers: TimelineBackgroundLayer[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -103,6 +113,14 @@ export function TimelinePageClient({
           <Button
             size="sm"
             variant="outline"
+            onClick={() => setPanel("backgrounds")}
+          >
+            <Layers3 aria-hidden="true" className="size-4" />
+            年代背景を管理
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             onClick={() => setPanel("classification")}
           >
             <Shapes aria-hidden="true" className="size-4" />
@@ -140,6 +158,7 @@ export function TimelinePageClient({
         currentDate={currentDate}
         initialItems={initialItems}
         initialEvents={initialEvents}
+        initialBackgroundLayers={initialBackgroundLayers}
         itemTypes={itemTypes}
         layoutMode={layoutMode}
         filters={filters}
@@ -178,7 +197,9 @@ export function TimelinePageClient({
           }}
           className={cn(
             "w-full overflow-y-auto",
-            panel === "classification" || panel === "sources"
+            panel === "classification" ||
+              panel === "backgrounds" ||
+              panel === "sources"
               ? "sm:!w-[calc(100vw-4rem)] sm:!max-w-5xl"
               : "sm:max-w-3xl",
           )}
@@ -189,18 +210,22 @@ export function TimelinePageClient({
                 ? "プロジェクト設定"
                 : panel === "classification"
                   ? "種別・タグ・カスタムフィールド"
-                  : panel === "sources"
-                    ? "出典・参考文献"
-                    : "インポート／エクスポート"}
+                  : panel === "backgrounds"
+                    ? "年代背景レイヤー"
+                    : panel === "sources"
+                      ? "出典・参考文献"
+                      : "インポート／エクスポート"}
             </SheetTitle>
             <SheetDescription>
               {panel === "settings"
                 ? "名前、説明、タイムラインの初期表示を変更します。"
                 : panel === "classification"
                   ? "タイムライン種別、イベント種別、タグ、用途固有の型付きフィールドを管理します。"
-                  : panel === "sources"
-                    ? "資料の追加・編集・一覧確認と、出典未設定項目の確認を行います。"
-                    : "プロジェクトデータを保存または取り込みます。"}
+                  : panel === "backgrounds"
+                    ? "時代区分、王朝、政権、文化潮流などを複数の背景として管理します。"
+                    : panel === "sources"
+                      ? "資料の追加・編集・一覧確認と、出典未設定項目の確認を行います。"
+                      : "プロジェクトデータを保存または取り込みます。"}
             </SheetDescription>
           </SheetHeader>
           <div className="space-y-8 px-4 pb-6">
@@ -239,6 +264,11 @@ export function TimelinePageClient({
               <ClassificationManager
                 projectId={project.id}
                 itemTypes={itemTypes}
+              />
+            ) : panel === "backgrounds" ? (
+              <BackgroundLayerManager
+                initialLayers={initialBackgroundLayers}
+                projectId={project.id}
               />
             ) : panel === "sources" ? (
               <SourceManager projectId={project.id} />

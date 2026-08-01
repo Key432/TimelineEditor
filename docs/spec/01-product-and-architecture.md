@@ -266,6 +266,14 @@ POST   /api/projects/[projectId]/item-types
 PATCH  /api/projects/[projectId]/item-types/[typeId]
 DELETE /api/projects/[projectId]/item-types/[typeId]
 
+GET    /api/projects/[projectId]/background-layers
+POST   /api/projects/[projectId]/background-layers
+PATCH  /api/projects/[projectId]/background-layers/[layerId]
+DELETE /api/projects/[projectId]/background-layers/[layerId]
+POST   /api/projects/[projectId]/background-layers/[layerId]/periods
+PUT    /api/projects/[projectId]/background-layers/[layerId]/periods/[periodId]
+DELETE /api/projects/[projectId]/background-layers/[layerId]/periods/[periodId]
+
 POST   /api/projects/[projectId]/publish
 POST   /api/projects/[projectId]/unpublish
 POST   /api/projects/[projectId]/public-id/regenerate

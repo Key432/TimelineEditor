@@ -21,6 +21,7 @@ import {
   CalendarPlus,
   ChevronDown,
   LayoutGrid,
+  Layers3,
   Plus,
   Rows3,
   SlidersHorizontal,
@@ -98,6 +99,11 @@ import type { Project } from "@/features/projects/types";
 import { TimelineViewControls } from "@/features/timeline-views/timeline-view-controls";
 import { TimelineTableView } from "@/features/table-view/timeline-table-view";
 import { cn } from "@/lib/utils";
+import {
+  backgroundLayerKeys,
+  listBackgroundLayers,
+} from "@/features/background-layers/api";
+import type { TimelineBackgroundLayer } from "@/features/background-layers/types";
 
 const HIDDEN_ITEMS_GROUP_ID = "hidden-items";
 
@@ -215,6 +221,7 @@ function TimelineWorkspaceContent({
   project,
   initialItems,
   initialEvents,
+  initialBackgroundLayers,
   itemTypes,
   currentDate,
   onEditItemTypes,
@@ -229,6 +236,7 @@ function TimelineWorkspaceContent({
   project: Project;
   initialItems: TimelineItemSummary[];
   initialEvents: TimelineEventSummary[];
+  initialBackgroundLayers: TimelineBackgroundLayer[];
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
   onEditItemTypes?: () => void;
@@ -253,6 +261,13 @@ function TimelineWorkspaceContent({
   const [sortMode, setSortMode] = useState<TimelineSortMode>("manual");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
   const [groupByType, setGroupByType] = useState(false);
+  const [visibleBackgroundLayerIds, setVisibleBackgroundLayerIds] = useState<
+    string[]
+  >(() =>
+    initialBackgroundLayers
+      .filter((layer) => layer.isVisible)
+      .map((layer) => layer.id),
+  );
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const clientReady = useSyncExternalStore(
@@ -285,6 +300,41 @@ function TimelineWorkspaceContent({
     queryFn: () => listItemTypes(project.id),
     initialData: itemTypes,
   });
+  const { data: backgroundLayers = initialBackgroundLayers } = useQuery({
+    queryKey: backgroundLayerKeys.list(project.id),
+    queryFn: () => listBackgroundLayers(project.id),
+    initialData: initialBackgroundLayers,
+  });
+  const backgroundVisibilityRef = useRef(
+    new Map(
+      initialBackgroundLayers.map((layer) => [layer.id, layer.isVisible]),
+    ),
+  );
+  useEffect(() => {
+    const previous = backgroundVisibilityRef.current;
+    const available = new Set(backgroundLayers.map((layer) => layer.id));
+    setVisibleBackgroundLayerIds((current) => {
+      const next = new Set(current.filter((id) => available.has(id)));
+      for (const layer of backgroundLayers) {
+        const priorVisibility = previous.get(layer.id);
+        if (
+          priorVisibility === undefined ||
+          priorVisibility !== layer.isVisible
+        ) {
+          if (layer.isVisible) next.add(layer.id);
+          else next.delete(layer.id);
+        }
+      }
+      return [...next];
+    });
+    backgroundVisibilityRef.current = new Map(
+      backgroundLayers.map((layer) => [layer.id, layer.isVisible]),
+    );
+  }, [backgroundLayers]);
+  const visibleBackgroundIdSet = useMemo(
+    () => new Set(visibleBackgroundLayerIds),
+    [visibleBackgroundLayerIds],
+  );
   useEffect(() => {
     const timer = window.setTimeout(
       () => setDebouncedQuery(filters.query.trim()),
@@ -629,7 +679,45 @@ function TimelineWorkspaceContent({
             </Badge>
           ) : null}
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline">
+              <Layers3 aria-hidden="true" className="size-4" />
+              年代背景
+              {visibleBackgroundLayerIds.length > 0 ? (
+                <Badge className="h-5 px-1.5" variant="secondary">
+                  {visibleBackgroundLayerIds.length}
+                </Badge>
+              ) : null}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-56">
+            <DropdownMenuLabel>表示する背景レイヤー</DropdownMenuLabel>
+            {backgroundLayers.length === 0 ? (
+              <DropdownMenuItem disabled>
+                背景レイヤーはありません
+              </DropdownMenuItem>
+            ) : (
+              backgroundLayers.map((layer) => (
+                <DropdownMenuCheckboxItem
+                  key={layer.id}
+                  checked={visibleBackgroundIdSet.has(layer.id)}
+                  onCheckedChange={(checked) =>
+                    setVisibleBackgroundLayerIds((current) =>
+                      checked
+                        ? [...new Set([...current, layer.id])]
+                        : current.filter((id) => id !== layer.id),
+                    )
+                  }
+                >
+                  {layer.name}
+                </DropdownMenuCheckboxItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <TimelineViewControls
+          backgroundLayerIds={visibleBackgroundLayerIds}
           canSaveViews={!readOnly}
           filters={filters}
           fullscreenSupported={fullscreenSupported}
@@ -642,6 +730,7 @@ function TimelineWorkspaceContent({
           onFiltersChange={onFiltersChange}
           onGroupByTypeChange={setGroupByType}
           onLayoutModeChange={onLayoutModeChange}
+          onBackgroundLayerIdsChange={setVisibleBackgroundLayerIds}
           onSortChange={(mode, nextDirection) => {
             setSortMode(mode);
             setDirection(nextDirection);
@@ -749,6 +838,9 @@ function TimelineWorkspaceContent({
                       )
                     : events
                 }
+                backgroundLayers={backgroundLayers.filter((layer) =>
+                  visibleBackgroundIdSet.has(layer.id),
+                )}
                 dimmedItemIds={dimmedItemIds}
                 highlightedEventIds={filterResult.matchingEventIds}
                 layoutMode={layoutMode}
@@ -917,6 +1009,7 @@ export function TimelineWorkspace(props: {
   project: Project;
   initialItems: TimelineItemSummary[];
   initialEvents?: TimelineEventSummary[];
+  initialBackgroundLayers?: TimelineBackgroundLayer[];
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
   onEditItemTypes?: () => void;
@@ -937,6 +1030,7 @@ export function TimelineWorkspace(props: {
       <TimelineWorkspaceContent
         {...props}
         initialEvents={props.initialEvents ?? []}
+        initialBackgroundLayers={props.initialBackgroundLayers ?? []}
         filters={props.filters ?? DEFAULT_TIMELINE_FILTERS}
         layoutMode={layoutMode}
         onLayoutModeChange={(nextLayoutMode) => {

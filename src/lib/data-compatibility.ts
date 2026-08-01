@@ -1,10 +1,10 @@
 export const DATA_COMPATIBILITY_BASELINE = {
   database: {
-    version: 5,
-    migration: "20260729153613_phase_l10_event_multiple_parents.sql",
+    version: 6,
+    migration: "20260801085852_phase_l12_background_layers.sql",
   },
-  json: { version: 5 },
-  csv: { version: 5 },
+  json: { version: 6 },
+  csv: { version: 6 },
 } as const;
 
 export const LEGACY_UNVERSIONED_SCHEMA_VERSION = 0 as const;

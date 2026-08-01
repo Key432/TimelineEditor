@@ -53,10 +53,12 @@ type Props = {
   isMaximized: boolean;
   fullscreenSupported: boolean;
   canSaveViews: boolean;
+  backgroundLayerIds: string[];
   onFiltersChange?: (filters: TimelineFilters) => void;
   onSortChange: (mode: TimelineSortMode, direction: "asc" | "desc") => void;
   onGroupByTypeChange: (grouped: boolean) => void;
   onLayoutModeChange?: (mode: TimelineLayoutMode) => void;
+  onBackgroundLayerIdsChange: (ids: string[]) => void;
   onToggleMaximized: () => void;
   onToggleFullscreen: () => void;
 };
@@ -99,7 +101,7 @@ export function TimelineViewControls(props: Props) {
             layoutMode: props.layoutMode,
             density,
             tags: [],
-            backgroundLayerIds: [],
+            backgroundLayerIds: props.backgroundLayerIds,
             showRelationships: false,
             visibleColumns: [],
           }
@@ -107,6 +109,7 @@ export function TimelineViewControls(props: Props) {
     [
       density,
       props.filters,
+      props.backgroundLayerIds,
       props.groupByType,
       props.layoutMode,
       props.sortDirection,
@@ -158,6 +161,7 @@ export function TimelineViewControls(props: Props) {
     props.onSortChange(value.sortMode, value.sortDirection);
     props.onGroupByTypeChange(value.groupByType);
     props.onLayoutModeChange?.(value.layoutMode);
+    props.onBackgroundLayerIdsChange(value.backgroundLayerIds);
     navigateTo((value.visibleStartOrdinal + value.visibleEndOrdinal) / 2);
   }
 

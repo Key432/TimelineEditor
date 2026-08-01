@@ -5,6 +5,7 @@ import { ServiceError } from "@/lib/services/errors";
 import { TimelineEventService } from "@/lib/services/timeline-event-service";
 import { TimelineItemService } from "@/lib/services/timeline-item-service";
 import { createClient } from "@/lib/supabase/server";
+import { BackgroundLayerService } from "@/lib/services/background-layer-service";
 
 export default async function TimelinePage({
   params,
@@ -19,11 +20,12 @@ export default async function TimelinePage({
 
   try {
     const client = await createClient();
-    const [listing, events] = await Promise.all([
+    const [listing, events, backgroundLayers] = await Promise.all([
       new TimelineItemService(client).list(projectId),
       new TimelineEventService(client).list(projectId),
+      new BackgroundLayerService(client).list(projectId),
     ]);
-    result = { ...listing, events };
+    result = { ...listing, events, backgroundLayers };
   } catch (error) {
     if (error instanceof ServiceError && error.status === 404) notFound();
     throw error;
@@ -40,6 +42,7 @@ export default async function TimelinePage({
       }}
       initialItems={result.items}
       initialEvents={result.events}
+      initialBackgroundLayers={result.backgroundLayers}
       itemTypes={result.itemTypes}
       layoutMode={
         layout === "compact" ? "compact" : layout === "table" ? "table" : "row"

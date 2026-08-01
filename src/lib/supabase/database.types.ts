@@ -108,6 +108,92 @@ export type Database = {
         };
         Relationships: [];
       };
+      timeline_background_layers: {
+        Row: {
+          id: string;
+          project_id: string;
+          name: string;
+          description: string | null;
+          sort_order: number;
+          is_visible: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          name: string;
+          description?: string | null;
+          sort_order: number;
+          is_visible?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["timeline_background_layers"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      timeline_background_periods: {
+        Row: {
+          id: string;
+          project_id: string;
+          layer_id: string;
+          title: string;
+          description: string | null;
+          color: string;
+          start_era: "ce" | "bce";
+          start_precision: "day" | "month" | "year" | "decade" | "century";
+          start_year: number;
+          start_month: number | null;
+          start_day: number | null;
+          start_original_text: string | null;
+          start_calendar: string;
+          is_start_approximate: boolean;
+          end_era: "ce" | "bce";
+          end_precision: "day" | "month" | "year" | "decade" | "century";
+          end_year: number;
+          end_month: number | null;
+          end_day: number | null;
+          end_original_text: string | null;
+          end_calendar: string;
+          is_end_approximate: boolean;
+          start_normalized_min: number;
+          end_normalized_max: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          layer_id: string;
+          title: string;
+          description?: string | null;
+          color: string;
+          start_era: "ce" | "bce";
+          start_precision: "day" | "month" | "year" | "decade" | "century";
+          start_year: number;
+          start_month?: number | null;
+          start_day?: number | null;
+          start_original_text?: string | null;
+          start_calendar: string;
+          is_start_approximate?: boolean;
+          end_era: "ce" | "bce";
+          end_precision: "day" | "month" | "year" | "decade" | "century";
+          end_year: number;
+          end_month?: number | null;
+          end_day?: number | null;
+          end_original_text?: string | null;
+          end_calendar: string;
+          is_end_approximate?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["timeline_background_periods"]["Insert"]
+        >;
+        Relationships: [];
+      };
       cloud_drafts: {
         Row: {
           id: string;

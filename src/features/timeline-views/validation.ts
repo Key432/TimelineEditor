@@ -34,7 +34,7 @@ export const timelineViewConfigurationSchema = z
     layoutMode: z.enum(TIMELINE_LAYOUT_MODES),
     density: z.enum(["comfortable", "compact"]),
     tags: z.array(z.string().max(100)).max(100),
-    backgroundLayerIds: z.array(z.string().max(100)).max(100),
+    backgroundLayerIds: z.array(z.uuid()).max(100),
     showRelationships: z.boolean(),
     visibleColumns: z.array(z.string().max(100)).max(100),
   })

@@ -109,6 +109,7 @@ function backup(): ProjectBackup {
         externalUrl: null,
       },
     ],
+    backgroundLayers: [],
   };
 }
 
@@ -141,7 +142,7 @@ describe("project import and export formats", () => {
 
     expect(preview.errors).toEqual([]);
     expect(preview.warnings).toContain(
-      "旧JSON形式をスキーマバージョン5へ移行しました。",
+      "旧JSON形式をスキーマバージョン6へ移行しました。",
     );
     expect(preview.payload?.schemaVersion).toBe(IMPORT_SCHEMA_VERSION);
   });
@@ -155,6 +156,7 @@ describe("project import and export formats", () => {
       "timeline-events.csv",
       "item-types.csv",
       "classification.json",
+      "background-layers.json",
       "README.md",
     ]);
     expect(JSON.parse(files.get("manifest.json")!)).toMatchObject({
@@ -254,6 +256,60 @@ describe("project import and export formats", () => {
     });
   });
 
+  it("round-trips L12 background layers in the current ZIP", () => {
+    const source = backup();
+    source.backgroundLayers = [
+      {
+        id: "88888888-8888-4888-8888-888888888888",
+        name: "時代区分",
+        description: null,
+        sortOrder: 0,
+        isVisible: true,
+        periods: [
+          {
+            id: "99999999-9999-4999-8999-999999999999",
+            title: "明治時代",
+            description: "近代化",
+            color: "#7C9A92",
+            start: {
+              era: "ce",
+              precision: "year",
+              year: 1868,
+              month: null,
+              day: null,
+              originalText: null,
+              calendar: "proleptic_gregorian",
+            },
+            end: {
+              era: "ce",
+              precision: "year",
+              year: 1912,
+              month: null,
+              day: null,
+              originalText: null,
+              calendar: "proleptic_gregorian",
+            },
+            isStartApproximate: true,
+            isEndApproximate: false,
+          },
+        ],
+      },
+    ];
+    const preview = parseCsvImport(
+      createCsvArchive(source),
+      "backgrounds.zip",
+      backup(),
+    );
+    expect(preview.errors).toEqual([]);
+    expect(preview.payload?.backgroundLayers[0]).toMatchObject({
+      name: "時代区分",
+      periods: [{ title: "明治時代", isStartApproximate: true }],
+    });
+    expect(preview.payload?.backgroundLayers[0]?.id).not.toBe(
+      source.backgroundLayers[0]?.id,
+    );
+  });
+
   it("migrates a legacy CSV archive without version metadata", () => {
     const currentFiles = readStoredZip(createCsvArchive(backup()));
     const legacyFiles = [...currentFiles]
@@ -261,7 +317,9 @@ describe("project import and export formats", () => {
       .map(([name, content]) => ({
         name,
         content: content.replace(
-          /^\uFEFF?# timeline-editor-schema-version=5\r?\n/,
+          new RegExp(
+            `^\\uFEFF?# timeline-editor-schema-version=${IMPORT_SCHEMA_VERSION}\\r?\\n`,
+          ),
           "\uFEFF",
         ),
       }));
@@ -274,7 +332,7 @@ describe("project import and export formats", () => {
 
     expect(preview.errors).toEqual([]);
     expect(preview.warnings).toContain(
-      "旧CSV形式をスキーマバージョン5へ移行しました。",
+      "旧CSV形式をスキーマバージョン6へ移行しました。",
     );
     expect(preview.payload?.schemaVersion).toBe(IMPORT_SCHEMA_VERSION);
   });
@@ -285,7 +343,7 @@ describe("project import and export formats", () => {
       files
         .get("timeline-items.csv")!
         .replace(
-          "# timeline-editor-schema-version=5",
+          `# timeline-editor-schema-version=${IMPORT_SCHEMA_VERSION}`,
           "# timeline-editor-schema-version=99",
         ),
     );
@@ -299,7 +357,9 @@ describe("project import and export formats", () => {
         content:
           name === "timeline-events.csv"
             ? content.replace(
-                /^\uFEFF?# timeline-editor-schema-version=5\r?\n/,
+                new RegExp(
+                  `^\\uFEFF?# timeline-editor-schema-version=${IMPORT_SCHEMA_VERSION}\\r?\\n`,
+                ),
                 "\uFEFF",
               )
             : content,

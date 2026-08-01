@@ -167,6 +167,60 @@ export class ImportExportRepository {
     }
   }
 
+  private async listBackgroundLayers(projectId: string) {
+    const [layers, periods] = await Promise.all([
+      this.client
+        .from("timeline_background_layers")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("sort_order")
+        .order("id"),
+      this.client
+        .from("timeline_background_periods")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("start_normalized_min")
+        .order("id"),
+    ]);
+    if (layers.error) throw layers.error;
+    if (periods.error) throw periods.error;
+    return layers.data.map((layer) => ({
+      id: layer.id,
+      name: layer.name,
+      description: layer.description,
+      sortOrder: layer.sort_order,
+      isVisible: layer.is_visible,
+      periods: periods.data
+        .filter((period) => period.layer_id === layer.id)
+        .map((period) => ({
+          id: period.id,
+          title: period.title,
+          description: period.description,
+          color: period.color,
+          start: date(
+            period.start_year,
+            period.start_month,
+            period.start_day,
+            period.start_era,
+            period.start_precision,
+            period.start_original_text,
+            period.start_calendar,
+          )!,
+          end: date(
+            period.end_year,
+            period.end_month,
+            period.end_day,
+            period.end_era,
+            period.end_precision,
+            period.end_original_text,
+            period.end_calendar,
+          )!,
+          isStartApproximate: period.is_start_approximate,
+          isEndApproximate: period.is_end_approximate,
+        })),
+    }));
+  }
+
   async export(projectId: string): Promise<ProjectBackup | null> {
     const [
       projectResult,
@@ -181,6 +235,7 @@ export class ImportExportRepository {
       itemTagLinks,
       eventTagLinks,
       customValues,
+      backgroundLayers,
     ] = await Promise.all([
       this.client
         .from("projects")
@@ -202,6 +257,7 @@ export class ImportExportRepository {
       this.listItemTagLinks(projectId),
       this.listEventTagLinks(projectId),
       this.listCustomValues(projectId),
+      this.listBackgroundLayers(projectId),
     ]);
     for (const result of [projectResult, settingsResult])
       if (result.error) throw result.error;
@@ -390,6 +446,7 @@ export class ImportExportRepository {
         sourceText: event.source_text,
         externalUrl: event.external_url,
       })),
+      backgroundLayers,
     };
   }
 

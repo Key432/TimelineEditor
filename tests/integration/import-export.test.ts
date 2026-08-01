@@ -2,6 +2,9 @@ import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { waitUntilAccessTokenIsCurrent } from "./auth-helpers";
+import { previewBackup } from "@/features/import-export/schema";
+import { ImportExportRepository } from "@/lib/repositories/import-export-repository";
+import type { Database } from "@/lib/supabase/database.types";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -9,16 +12,16 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !publishableKey || !serviceRoleKey)
   throw new Error("Local Supabase environment is required.");
 
-const admin = createClient(url, serviceRoleKey, {
+const admin = createClient<Database>(url, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-const owner = createClient(url, publishableKey, {
+const owner = createClient<Database>(url, publishableKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-const other = createClient(url, publishableKey, {
+const other = createClient<Database>(url, publishableKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-const anonymous = createClient(url, publishableKey, {
+const anonymous = createClient<Database>(url, publishableKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 const password = `Import-${crypto.randomUUID()}`;
@@ -123,6 +126,7 @@ function payload(name = "取り込み元") {
         externalUrl: null,
       },
     ],
+    backgroundLayers: [],
   };
 }
 
@@ -304,6 +308,94 @@ describe("transactional project import", () => {
     expect(anonymousResult.error).not.toBeNull();
   });
 
+  it("imports L12 background layers through the backup repository", async () => {
+    const input = payload() as unknown as Record<string, unknown>;
+    input.schemaVersion = 6;
+    input.tags = [];
+    input.eventTypes = [];
+    input.customFields = [];
+    for (const item of input.timelineItems as Record<string, unknown>[]) {
+      item.tagIds = [];
+      item.customFields = [];
+    }
+    for (const event of input.timelineEvents as Record<string, unknown>[]) {
+      event.eventTypeId = null;
+      event.tagIds = [];
+      event.customFields = [];
+    }
+    const preview = previewBackup(input);
+    if (!preview.payload) throw new Error(preview.errors.join("\n"));
+    preview.payload.backgroundLayers = [
+      {
+        id: crypto.randomUUID(),
+        name: "時代区分",
+        description: null,
+        sortOrder: 0,
+        isVisible: true,
+        periods: [
+          {
+            id: crypto.randomUUID(),
+            title: "明治時代",
+            description: null,
+            color: "#7C9A92",
+            start: {
+              era: "ce",
+              precision: "year",
+              year: 1868,
+              month: null,
+              day: null,
+              originalText: null,
+              calendar: "proleptic_gregorian",
+            },
+            end: {
+              era: "ce",
+              precision: "year",
+              year: 1912,
+              month: null,
+              day: null,
+              originalText: null,
+              calendar: "proleptic_gregorian",
+            },
+            isStartApproximate: true,
+            isEndApproximate: false,
+          },
+        ],
+      },
+    ];
+    preview.payload.itemTypes = [];
+    preview.payload.timelineItems = [];
+    preview.payload.timelineEvents = [];
+    preview.payload.importSections = ["backgroundLayers"];
+    const repository = new ImportExportRepository(owner);
+    await repository.import(targetId, "append", preview.payload);
+    const layers = await owner
+      .from("timeline_background_layers")
+      .select("name, timeline_background_periods(title, is_start_approximate)")
+      .eq("project_id", targetId);
+    expect(layers.data).toEqual([
+      {
+        name: "時代区分",
+        timeline_background_periods: [
+          { title: "明治時代", is_start_approximate: true },
+        ],
+      },
+    ]);
+
+    const invalid = structuredClone(preview.payload);
+    invalid.backgroundLayers[0]!.name = "ロールバック確認";
+    invalid.backgroundLayers[0]!.periods[0]!.start.year = 2000;
+    invalid.backgroundLayers[0]!.periods[0]!.end.year = 1900;
+    await expect(
+      repository.import(targetId, "append", invalid),
+    ).rejects.toBeDefined();
+    const rolledBack = await owner
+      .from("timeline_background_layers")
+      .select("id")
+      .eq("project_id", targetId)
+      .eq("name", "ロールバック確認");
+    expect(rolledBack.data).toEqual([]);
+  });
+
   it("updates an ID-matched item when importing only timeline-items.csv", async () => {
     const current = await owner
       .from("timeline_items")
@@ -322,6 +414,7 @@ describe("transactional project import", () => {
         ...partial,
         itemTypes: [],
         timelineEvents: [],
+        backgroundLayers: [],
         importSections: ["timelineItems"],
       },
     });
@@ -359,6 +452,7 @@ describe("transactional project import", () => {
       p_payload: {
         ...partial,
         timelineEvents: [],
+        backgroundLayers: [],
         importSections: ["itemTypes", "timelineItems"],
       },
     });

@@ -30,11 +30,11 @@ describe("data compatibility foundations", () => {
   it("pins the database and import/export baseline versions", () => {
     expect(DATA_COMPATIBILITY_BASELINE).toEqual({
       database: {
-        version: 5,
-        migration: "20260729153613_phase_l10_event_multiple_parents.sql",
+        version: 6,
+        migration: "20260801085852_phase_l12_background_layers.sql",
       },
-      json: { version: 5 },
-      csv: { version: 5 },
+      json: { version: 6 },
+      csv: { version: 6 },
     });
 
     const migrations = join(process.cwd(), "supabase", "migrations");
@@ -43,7 +43,7 @@ describe("data compatibility foundations", () => {
         join(migrations, DATA_COMPATIBILITY_BASELINE.database.migration),
         "utf8",
       ),
-    ).toContain("create function public.import_project_data(");
+    ).toContain("create table public.timeline_background_layers (");
     expect(
       readFileSync(
         join(migrations, "20260726142840_phase_l0_data_compatibility.sql"),

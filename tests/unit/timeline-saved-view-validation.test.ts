@@ -28,6 +28,21 @@ describe("timeline saved view validation", () => {
     ).toEqual({ name: "明治期", configuration });
   });
 
+  it("stores selected background layer ids without storing rendered periods", () => {
+    const backgroundLayerId = "11111111-1111-4111-8111-111111111111";
+    const parsed = createTimelineSavedViewSchema.parse({
+      name: "時代背景付き",
+      configuration: {
+        ...configuration,
+        backgroundLayerIds: [backgroundLayerId],
+      },
+    });
+    expect(parsed.configuration.backgroundLayerIds).toEqual([
+      backgroundLayerId,
+    ]);
+    expect(parsed.configuration).not.toHaveProperty("backgroundPeriods");
+  });
+
   it("rejects reversed ranges and oversized names", () => {
     expect(
       createTimelineSavedViewSchema.safeParse({

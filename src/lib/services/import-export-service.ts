@@ -103,6 +103,7 @@ export class ImportExportService {
       customFields: [],
       timelineItems: [],
       timelineEvents: [],
+      backgroundLayers: [],
     });
   }
 
@@ -134,6 +135,7 @@ export class ImportExportService {
         itemTypes: parsed.data.payload.itemTypes.length,
         timelineItems: parsed.data.payload.timelineItems.length,
         timelineEvents: parsed.data.payload.timelineEvents.length,
+        backgroundLayers: parsed.data.payload.backgroundLayers.length,
       },
     };
   }
@@ -158,6 +160,7 @@ export class ImportExportService {
         itemTypes: parsed.data.payload.itemTypes.length,
         timelineItems: parsed.data.payload.timelineItems.length,
         timelineEvents: parsed.data.payload.timelineEvents.length,
+        backgroundLayers: parsed.data.payload.backgroundLayers.length,
       },
     };
   }

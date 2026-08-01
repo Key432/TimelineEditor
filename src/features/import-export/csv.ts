@@ -15,6 +15,7 @@ const PRIMARY_COLOR = "#00B0B0";
 const CSV_VERSION_PREFIX = "# timeline-editor-schema-version=";
 const CSV_MANIFEST_NAME = "manifest.json";
 const CLASSIFICATION_NAME = "classification.json";
+const BACKGROUND_LAYERS_NAME = "background-layers.json";
 const README = `# Timeline Editor CSV
 
 CSVスキーマバージョン: ${IMPORT_SCHEMA_VERSION}
@@ -72,6 +73,10 @@ CSVスキーマバージョン: ${IMPORT_SCHEMA_VERSION}
 ### classification.json
 
 タグ、イベント種別、カスタムフィールド定義を保持する。ZIP全体での往復時に使用する。
+
+### background-layers.json
+
+年代背景レイヤーと背景期間を保持する。通常アイテムや描画結果は複製しない。
 
 ### item-types.csv
 
@@ -278,6 +283,10 @@ export function createCsvArchive(backup: ProjectBackup) {
         null,
         2,
       ),
+    },
+    {
+      name: BACKGROUND_LAYERS_NAME,
+      content: JSON.stringify(backup.backgroundLayers, null, 2),
     },
     { name: "README.md", content: BOM + README.replaceAll("\n", "\r\n") },
   ]);
@@ -489,15 +498,17 @@ export function parseCsvImport(
       throw new Error("CSVスキーマバージョンが不正です。");
     }
     if (schemaVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION) {
-      warnings.push("旧CSV形式をスキーマバージョン5へ移行しました。");
+      warnings.push("旧CSV形式をスキーマバージョン6へ移行しました。");
     } else if (schemaVersion === 1) {
-      warnings.push("CSVスキーマバージョン1をバージョン5へ移行しました。");
+      warnings.push("CSVスキーマバージョン1をバージョン6へ移行しました。");
     } else if (schemaVersion === 2) {
-      warnings.push("CSVスキーマバージョン2をバージョン5へ移行しました。");
+      warnings.push("CSVスキーマバージョン2をバージョン6へ移行しました。");
     } else if (schemaVersion === 3) {
-      warnings.push("CSVスキーマバージョン3をバージョン5へ移行しました。");
+      warnings.push("CSVスキーマバージョン3をバージョン6へ移行しました。");
     } else if (schemaVersion === 4) {
-      warnings.push("CSVスキーマバージョン4をバージョン5へ移行しました。");
+      warnings.push("CSVスキーマバージョン4をバージョン6へ移行しました。");
+    } else if (schemaVersion === 5) {
+      warnings.push("CSVスキーマバージョン5をバージョン6へ移行しました。");
     } else if (schemaVersion !== IMPORT_SCHEMA_VERSION) {
       throw new Error(
         `CSVスキーマバージョン${schemaVersion}の移行処理がありません。`,
@@ -670,6 +681,8 @@ export function parseCsvImport(
         })[name],
     );
     if (files.has(CLASSIFICATION_NAME)) importSections.push("classification");
+    if (files.has(BACKGROUND_LAYERS_NAME))
+      importSections.push("backgroundLayers");
     if (createdItemTypeCount > 0 && !importSections.includes("itemTypes"))
       importSections.unshift("itemTypes");
     const classification = files.has(CLASSIFICATION_NAME)
@@ -683,6 +696,28 @@ export function parseCsvImport(
           eventTypes: base.eventTypes,
           customFields: base.customFields,
         };
+    const backgroundLayers = files.has(BACKGROUND_LAYERS_NAME)
+      ? (JSON.parse(files.get(BACKGROUND_LAYERS_NAME)!) as unknown[]).map(
+          (layer) => {
+            if (!layer || typeof layer !== "object" || Array.isArray(layer))
+              return layer;
+            const value = layer as Record<string, unknown>;
+            return {
+              ...value,
+              id: crypto.randomUUID(),
+              periods: Array.isArray(value.periods)
+                ? value.periods.map((period) =>
+                    period &&
+                    typeof period === "object" &&
+                    !Array.isArray(period)
+                      ? { ...period, id: crypto.randomUUID() }
+                      : period,
+                  )
+                : value.periods,
+            };
+          },
+        )
+      : [];
     const preview = previewBackup({
       schemaVersion: IMPORT_SCHEMA_VERSION,
       appVersion: base.appVersion,
@@ -695,6 +730,7 @@ export function parseCsvImport(
       customFields: classification.customFields ?? [],
       timelineItems,
       timelineEvents,
+      backgroundLayers,
       importSections,
     });
     return {

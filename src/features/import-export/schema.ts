@@ -19,6 +19,7 @@ export const importSectionSchema = z.enum([
   "timelineItems",
   "timelineEvents",
   "classification",
+  "backgroundLayers",
 ]);
 
 const nullableString = z.string().nullable();
@@ -82,6 +83,26 @@ const eventSchema = z.object({
   description: nullableString,
   sourceText: nullableString,
   externalUrl: nullableString,
+});
+
+const backgroundPeriodBackupSchema = z.object({
+  id: z.uuid(),
+  title: z.string().trim().min(1).max(200),
+  description: nullableString,
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  start: historicalDate.unwrap(),
+  end: historicalDate.unwrap(),
+  isStartApproximate: z.boolean(),
+  isEndApproximate: z.boolean(),
+});
+
+const backgroundLayerBackupSchema = z.object({
+  id: z.uuid(),
+  name: z.string().trim().min(1).max(100),
+  description: nullableString,
+  sortOrder: z.number().int().min(0),
+  isVisible: z.boolean(),
+  periods: z.array(backgroundPeriodBackupSchema).max(10000),
 });
 
 export const projectBackupSchema = z
@@ -149,6 +170,7 @@ export const projectBackupSchema = z
       .default([]),
     timelineItems: z.array(itemSchema).max(5000),
     timelineEvents: z.array(eventSchema).max(50000),
+    backgroundLayers: z.array(backgroundLayerBackupSchema).max(1000),
     importSections: z.array(importSectionSchema).min(1).optional(),
   })
   .superRefine((backup, context) => {
@@ -415,6 +437,10 @@ function migrateVersionFour(input: Record<string, unknown>) {
   };
 }
 
+function migrateVersionFive(input: Record<string, unknown>) {
+  return { ...input, schemaVersion: 6, backgroundLayers: [] };
+}
+
 const importMigrations: Record<number, ImportMigration> = {
   [LEGACY_UNVERSIONED_SCHEMA_VERSION]: (input) => ({
     ...input,
@@ -424,6 +450,7 @@ const importMigrations: Record<number, ImportMigration> = {
   2: migrateVersionTwo,
   3: migrateVersionThree,
   4: migrateVersionFour,
+  5: migrateVersionFive,
 };
 
 export type ImportMigrationResult = {
@@ -484,16 +511,18 @@ export function migrateProjectBackup(input: unknown): ImportMigrationResult {
     errors: [],
     warnings:
       inputVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION
-        ? ["旧JSON形式をスキーマバージョン5へ移行しました。"]
+        ? ["旧JSON形式をスキーマバージョン6へ移行しました。"]
         : inputVersion === 1
-          ? ["JSONスキーマバージョン1をバージョン5へ移行しました。"]
+          ? ["JSONスキーマバージョン1をバージョン6へ移行しました。"]
           : inputVersion === 2
-            ? ["JSONスキーマバージョン2をバージョン5へ移行しました。"]
+            ? ["JSONスキーマバージョン2をバージョン6へ移行しました。"]
             : inputVersion === 3
-              ? ["JSONスキーマバージョン3をバージョン5へ移行しました。"]
+              ? ["JSONスキーマバージョン3をバージョン6へ移行しました。"]
               : inputVersion === 4
-                ? ["JSONスキーマバージョン4をバージョン5へ移行しました。"]
-                : [],
+                ? ["JSONスキーマバージョン4をバージョン6へ移行しました。"]
+                : inputVersion === 5
+                  ? ["JSONスキーマバージョン5をバージョン6へ移行しました。"]
+                  : [],
   };
 }
 

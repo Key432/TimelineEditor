@@ -956,4 +956,78 @@ describe("TimelineWorkspace", () => {
     Reflect.deleteProperty(HTMLElement.prototype, "releasePointerCapture");
     Reflect.deleteProperty(HTMLElement.prototype, "hasPointerCapture");
   });
+
+  it("toggles background layers and keeps them in compact mode", async () => {
+    const user = userEvent.setup();
+    const backgroundLayer = {
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      projectId: project.id,
+      name: "日本の時代区分",
+      description: null,
+      sortOrder: 0,
+      isVisible: true,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+      periods: [
+        {
+          id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          projectId: project.id,
+          layerId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          title: "明治時代",
+          description: null,
+          color: "#7C9A92",
+          start: {
+            era: "ce" as const,
+            precision: "year" as const,
+            year: 1868,
+            month: null,
+            day: null,
+            originalText: null,
+            calendar: "proleptic_gregorian",
+          },
+          end: {
+            era: "ce" as const,
+            precision: "year" as const,
+            year: 1912,
+            month: null,
+            day: null,
+            originalText: null,
+            calendar: "proleptic_gregorian",
+          },
+          isStartApproximate: true,
+          isEndApproximate: false,
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+      ],
+    };
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 22 }}
+          initialBackgroundLayers={[backgroundLayer]}
+          initialItems={[
+            item("33333333-3333-4333-8333-333333333333", "夏目漱石", "range"),
+          ]}
+          itemTypes={[type]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    expect(screen.getByTestId("timeline-background-layers")).toHaveTextContent(
+      "日本の時代区分 · 明治時代",
+    );
+    await user.click(screen.getByRole("button", { name: /年代背景/ }));
+    await user.click(
+      screen.getByRole("menuitemcheckbox", { name: "日本の時代区分" }),
+    );
+    expect(screen.queryByTestId("timeline-background-layers")).toBeNull();
+    await user.click(screen.getByRole("button", { name: /年代背景/ }));
+    await user.click(
+      screen.getByRole("menuitemcheckbox", { name: "日本の時代区分" }),
+    );
+    await chooseLayout(user, "コンパクト");
+    expect(screen.getByTestId("timeline-background-layers")).toBeVisible();
+  });
 });

@@ -82,6 +82,7 @@ import type {
 } from "@/features/timeline-items/types";
 import type { Project } from "@/features/projects/types";
 import { cn } from "@/lib/utils";
+import type { TimelineBackgroundLayer } from "@/features/background-layers/types";
 
 const DESKTOP_HANDLE_WIDTH = 32;
 const DESKTOP_INFO_WIDTH = 288;
@@ -814,6 +815,7 @@ export function TimelineViewport({
   showItemType,
   dimmedItemIds,
   highlightedEventIds,
+  backgroundLayers,
   readOnly = false,
 }: {
   project: Project;
@@ -833,6 +835,7 @@ export function TimelineViewport({
   showItemType: boolean;
   dimmedItemIds?: ReadonlySet<string>;
   highlightedEventIds?: ReadonlySet<string>;
+  backgroundLayers: TimelineBackgroundLayer[];
   readOnly?: boolean;
 }) {
   const dimmed = dimmedItemIds ?? EMPTY_ID_SET;
@@ -983,13 +986,23 @@ export function TimelineViewport({
     const eventOrdinals = events.map((timelineEvent) =>
       historicalDateOrdinal(timelineEvent.date),
     );
+    const backgroundStarts = backgroundLayers.flatMap((layer) =>
+      layer.periods.map((period) =>
+        historicalDateOrdinal(period.start, "start"),
+      ),
+    );
+    const backgroundEnds = backgroundLayers.flatMap((layer) =>
+      layer.periods.map((period) => historicalDateOrdinal(period.end, "end")),
+    );
     const rawFitStart = Math.min(
       ...itemBounds.map((bound) => bound.start),
       ...eventOrdinals,
+      ...backgroundStarts,
     );
     const rawFitEnd = Math.max(
       ...itemBounds.map((bound) => bound.end),
       ...eventOrdinals,
+      ...backgroundEnds,
     );
     const { start: fitStart, end: fitEnd } = expandDegenerateFitRange(
       rawFitStart,
@@ -1002,7 +1015,7 @@ export function TimelineViewport({
       fitStart,
       fitEnd,
     };
-  }, [allItems, currentDate, events, project.settings]);
+  }, [allItems, backgroundLayers, currentDate, events, project.settings]);
 
   const fitScale = fitPixelsPerDay(
     historicalDateFromOrdinal(bounds.fitStart),
@@ -1802,6 +1815,74 @@ export function TimelineViewport({
                   );
                 })}
               </div>
+              {backgroundLayers.length > 0 ? (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute z-[5] overflow-hidden"
+                  data-testid="timeline-background-layers"
+                  style={{
+                    top: AXIS_HEIGHT,
+                    bottom: 0,
+                    left: layoutMode === "row" ? handleWidth + infoWidth : 0,
+                    width: canvasWidth,
+                  }}
+                >
+                  {backgroundLayers.flatMap((layer, layerIndex) =>
+                    layer.periods.map((period) => {
+                      const left =
+                        HORIZONTAL_PADDING +
+                        (historicalDateOrdinal(period.start, "start") -
+                          bounds.domainStart) *
+                          pixelsPerDay;
+                      const right =
+                        HORIZONTAL_PADDING +
+                        (historicalDateOrdinal(period.end, "end") -
+                          bounds.domainStart) *
+                          pixelsPerDay;
+                      const width = Math.max(1, right - left);
+                      const fade = Math.min(
+                        width / 2,
+                        Math.max(
+                          12,
+                          project.settings.defaultUncertaintyYears *
+                            365.25 *
+                            pixelsPerDay,
+                        ),
+                      );
+                      const startStop = period.isStartApproximate
+                        ? (fade / width) * 100
+                        : 0;
+                      const endStop = period.isEndApproximate
+                        ? 100 - (fade / width) * 100
+                        : 100;
+                      return (
+                        <div
+                          key={period.id}
+                          className="absolute inset-y-0 border-x"
+                          data-background-period-id={period.id}
+                          style={{
+                            left,
+                            width,
+                            borderColor: `${period.color}66`,
+                            background: `linear-gradient(to right, ${period.isStartApproximate ? "transparent" : `${period.color}20`} 0%, ${period.color}20 ${startStop}%, ${period.color}20 ${endStop}%, ${period.isEndApproximate ? "transparent" : `${period.color}20`} 100%)`,
+                          }}
+                        >
+                          <span
+                            className="absolute left-1 max-w-48 truncate rounded-sm px-1.5 py-0.5 text-[11px] font-medium shadow-sm"
+                            style={{
+                              top: 3 + layerIndex * 22,
+                              color: "#333333",
+                              backgroundColor: `${period.color}CC`,
+                            }}
+                          >
+                            {layer.name} · {period.title}
+                          </span>
+                        </div>
+                      );
+                    }),
+                  )}
+                </div>
+              ) : null}
             </div>
           </div>
           {timeSlicerVisible ? (
