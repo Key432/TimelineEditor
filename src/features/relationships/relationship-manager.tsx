@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import type { z } from "zod";
+import Link from "next/link";
 
 import {
   AlertDialog,
@@ -73,16 +74,29 @@ function relationshipValues(
   };
 }
 
+export function relationshipDisplaySymbol(relationship: EntityRelationship) {
+  if (
+    relationship.sourceMarker === "arrow" &&
+    relationship.targetMarker === "arrow"
+  )
+    return "⇔";
+  if (relationship.targetMarker === "arrow") return "⇒";
+  if (relationship.sourceMarker === "arrow") return "⇐";
+  return relationship.lineStyle === "double" ? "＝" : "—";
+}
+
 export function RelationshipManager({
   projectId,
   entity,
   readOnly = false,
   initialData,
+  basePath,
 }: {
   projectId: string;
   entity?: { type: RelationshipEntityType; id: string };
   readOnly?: boolean;
   initialData?: RelationshipDataset;
+  basePath?: string;
 }) {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -160,6 +174,8 @@ export function RelationshipManager({
     data.entities.filter((option) => option.type === type);
   const entityLabel = (type: RelationshipEntityType, id: string) =>
     labels.get(`${type}:${id}`) ?? "削除済みの項目";
+  const entityHref = (type: RelationshipEntityType, id: string) =>
+    `${basePath ?? `/projects/${projectId}`}/${type === "timeline_item" ? "items" : "events"}/${id}`;
 
   return (
     <section className="space-y-4" data-testid="relationship-manager">
@@ -324,14 +340,28 @@ export function RelationshipManager({
           <li key={relationship.id} className="space-y-2 px-3 py-3 text-sm">
             <div className="flex flex-wrap items-center gap-2">
               <span className="min-w-0 flex-1">
-                {entityLabel(relationship.sourceType, relationship.sourceId)}
-                {relationship.sourceMarker === "arrow" ? " ←" : " —"}
-                <strong className="mx-1">{relationship.relationType}</strong>
-                {relationship.targetMarker === "arrow" ? "→ " : "— "}
-                {entityLabel(relationship.targetType, relationship.targetId)}
-                <span className="ml-2 text-muted-foreground">
-                  {relationship.lineStyle === "double" ? "二重線" : "直線"}
-                </span>
+                <strong className="mr-2">{relationship.relationType}</strong>
+                <Link
+                  className="text-primary underline underline-offset-4"
+                  href={entityHref(
+                    relationship.sourceType,
+                    relationship.sourceId,
+                  )}
+                >
+                  {entityLabel(relationship.sourceType, relationship.sourceId)}
+                </Link>{" "}
+                <span aria-label="関係の向き">
+                  {relationshipDisplaySymbol(relationship)}
+                </span>{" "}
+                <Link
+                  className="text-primary underline underline-offset-4"
+                  href={entityHref(
+                    relationship.targetType,
+                    relationship.targetId,
+                  )}
+                >
+                  {entityLabel(relationship.targetType, relationship.targetId)}
+                </Link>
               </span>
               {!readOnly ? (
                 <>

@@ -20,6 +20,7 @@ import {
   ArrowUpDown,
   CalendarPlus,
   ChevronDown,
+  GitBranch,
   LayoutGrid,
   Layers3,
   Plus,
@@ -108,7 +109,11 @@ import {
   listRelationships,
   relationshipKeys,
 } from "@/features/relationships/api";
-import type { RelationshipDataset } from "@/features/relationships/types";
+import type {
+  RelationshipCreationFailure,
+  RelationshipDataset,
+} from "@/features/relationships/types";
+import type { RelationshipDisplayMode } from "@/features/relationships/relationship-layer";
 
 const HIDDEN_ITEMS_GROUP_ID = "hidden-items";
 
@@ -261,6 +266,8 @@ function TimelineWorkspaceContent({
   const [creationFailures, setCreationFailures] = useState<
     TimelineEventCreationFailure[]
   >([]);
+  const [relationshipCreationFailures, setRelationshipCreationFailures] =
+    useState<RelationshipCreationFailure[]>([]);
   const [eventDraft, setEventDraft] = useState<{
     parentId?: string;
     date?: HistoricalDate;
@@ -268,6 +275,8 @@ function TimelineWorkspaceContent({
   const [sortMode, setSortMode] = useState<TimelineSortMode>("manual");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
   const [groupByType, setGroupByType] = useState(false);
+  const [relationshipDisplayMode, setRelationshipDisplayMode] =
+    useState<RelationshipDisplayMode>("standard");
   const [visibleBackgroundLayerIds, setVisibleBackgroundLayerIds] = useState<
     string[]
   >(() =>
@@ -728,6 +737,38 @@ function TimelineWorkspaceContent({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline">
+              <GitBranch aria-hidden="true" className="size-4" />
+              関係線:{" "}
+              {relationshipDisplayMode === "standard"
+                ? "標準"
+                : relationshipDisplayMode === "all"
+                  ? "すべて表示"
+                  : "すべて非表示"}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel>関係線の表示</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={relationshipDisplayMode}
+              onValueChange={(value) =>
+                setRelationshipDisplayMode(value as RelationshipDisplayMode)
+              }
+            >
+              <DropdownMenuRadioItem value="standard">
+                標準
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="all">
+                すべて表示
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="hidden">
+                すべて非表示
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <TimelineViewControls
           backgroundLayerIds={visibleBackgroundLayerIds}
           canSaveViews={!readOnly}
@@ -856,6 +897,7 @@ function TimelineWorkspaceContent({
                 )}
                 relationships={relationshipData.relationships}
                 relationshipEntities={relationshipData.entities}
+                relationshipDisplayMode={relationshipDisplayMode}
                 dimmedItemIds={dimmedItemIds}
                 highlightedEventIds={filterResult.matchingEventIds}
                 layoutMode={layoutMode}
@@ -917,6 +959,24 @@ function TimelineWorkspaceContent({
         </div>
       ) : null}
 
+      {!readOnly && relationshipCreationFailures.length > 0 ? (
+        <div
+          role="status"
+          className="rounded-lg border border-warning/40 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+        >
+          <p className="font-medium">
+            項目は作成されましたが、次の関係性は追加できませんでした。
+          </p>
+          <ul className="mt-1 list-disc pl-5">
+            {relationshipCreationFailures.map((failure, index) => (
+              <li key={`${failure.label}-${index}`}>
+                {failure.label}: {failure.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <Sheet open={filterPanelOpen} onOpenChange={setFilterPanelOpen}>
         <SheetContent
           className="styled-scrollbar w-full overflow-y-auto sm:max-w-lg"
@@ -957,8 +1017,13 @@ function TimelineWorkspaceContent({
                   projectId={project.id}
                   onDirtyChange={setEditorDirty}
                   onEditItemTypes={onEditItemTypes}
-                  onSaved={(_saved, failures = []) => {
+                  onSaved={(
+                    _saved,
+                    failures = [],
+                    relationshipFailures = [],
+                  ) => {
                     setCreationFailures(failures);
+                    setRelationshipCreationFailures(relationshipFailures);
                     setEditorDirty(false);
                     setEditor(null);
                   }}
@@ -1009,7 +1074,10 @@ function TimelineWorkspaceContent({
                   rangeItems={items.filter(
                     (item) => item.temporalType === "range",
                   )}
-                  onSaved={() => setEventDraft(null)}
+                  onSaved={(_saved, relationshipFailures = []) => {
+                    setRelationshipCreationFailures(relationshipFailures);
+                    setEventDraft(null);
+                  }}
                 />
               ) : null}
             </div>

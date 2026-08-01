@@ -2,7 +2,7 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,15 @@ import {
   EventTypeSelect,
   TagMultiSelect,
 } from "@/features/classification/entity-classification-fields";
+import {
+  createDraftRelationships,
+  relationshipKeys,
+} from "@/features/relationships/api";
+import { RelationshipDraftEditor } from "@/features/relationships/relationship-draft-editor";
+import type {
+  RelationshipCreationFailure,
+  RelationshipDraft,
+} from "@/features/relationships/types";
 
 export function TimelineEventForm({
   projectId,
@@ -54,7 +63,10 @@ export function TimelineEventForm({
   event?: TimelineEvent;
   initialParentId?: string;
   initialDate?: HistoricalDate;
-  onSaved?: (event: TimelineEvent) => void;
+  onSaved?: (
+    event: TimelineEvent,
+    failedRelationships?: RelationshipCreationFailure[],
+  ) => void;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const queryClient = useQueryClient();
@@ -95,41 +107,69 @@ export function TimelineEventForm({
     defaultValues: defaults,
   });
 
-  useEffect(() => onDirtyChange?.(isDirty), [isDirty, onDirtyChange]);
   const formValues = useWatch({ control }) as TimelineEventInput;
+  const [relationshipDrafts, setRelationshipDrafts] = useState<
+    RelationshipDraft[]
+  >([]);
+  useEffect(
+    () => onDirtyChange?.(isDirty || relationshipDrafts.length > 0),
+    [isDirty, onDirtyChange, relationshipDrafts.length],
+  );
 
+  const draftValue = { values: formValues, relationshipDrafts };
   const restoreDraft = useCallback(
-    (draft: TimelineEventInput) => {
-      reset(draft, { keepDefaultValues: true });
+    (draft: typeof draftValue) => {
+      reset(draft.values, { keepDefaultValues: true });
+      setRelationshipDrafts(draft.relationshipDrafts ?? []);
     },
     [reset],
   );
   const localDraft = useLocalDraft({
     baseVersion: event?.updatedAt ?? null,
-    dirty: isDirty,
+    dirty: isDirty || relationshipDrafts.length > 0,
     draftKey: `timeline-event:${projectId}:${event?.id ?? "new"}`,
     projectId,
     entityType: "timeline_event",
     draftScope: event?.id ?? "new",
     onRestore: restoreDraft,
-    value: formValues,
+    value: draftValue,
   });
 
   const mutation = useMutation({
-    mutationFn: (values: TimelineEventValues) =>
-      event
-        ? updateTimelineEvent(projectId, event.id, values, event.updatedAt)
-        : createTimelineEvent(projectId, values),
+    mutationFn: async (values: TimelineEventValues) => {
+      const saved = event
+        ? await updateTimelineEvent(
+            projectId,
+            event.id,
+            values,
+            event.updatedAt,
+          )
+        : await createTimelineEvent(projectId, values);
+      return {
+        event: saved,
+        failedRelationships: event
+          ? []
+          : await createDraftRelationships(
+              projectId,
+              "timeline_event",
+              saved.id,
+              relationshipDrafts,
+            ),
+      };
+    },
     onSuccess: async (saved) => {
       await localDraft.discard();
       await queryClient.invalidateQueries({
         queryKey: timelineEventKeys.list(projectId),
       });
+      await queryClient.invalidateQueries({
+        queryKey: relationshipKeys.all(projectId),
+      });
       queryClient.setQueryData(
-        timelineEventKeys.detail(projectId, saved.id),
-        saved,
+        timelineEventKeys.detail(projectId, saved.event.id),
+        saved.event,
       );
-      onSaved?.(saved);
+      onSaved?.(saved.event, saved.failedRelationships);
     },
   });
   const parentIds = useWatch({ control, name: "timelineItemIds" }) ?? [];
@@ -296,6 +336,14 @@ export function TimelineEventForm({
           })
         }
       />
+      {!event ? (
+        <RelationshipDraftEditor
+          projectId={projectId}
+          sourceType="timeline_event"
+          value={relationshipDrafts}
+          onChange={setRelationshipDrafts}
+        />
+      ) : null}
       {mutation.error ? (
         <p role="alert" className="text-sm text-destructive">
           {mutation.error.message}

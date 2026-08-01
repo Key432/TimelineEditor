@@ -19,12 +19,13 @@ export type RelationshipAnchor = RelationshipPoint & {
   entityId: string;
 };
 
+export type RelationshipDisplayMode = "standard" | "all" | "hidden";
+
 export function RelationshipLayer({
   relationships,
   entities,
   anchors,
-  selectedEntity,
-  showAll,
+  displayMode,
   visibleStart,
   visibleEnd,
   left = 0,
@@ -34,8 +35,7 @@ export function RelationshipLayer({
   relationships: EntityRelationship[];
   entities: RelationshipEntityOption[];
   anchors: ReadonlyMap<string, RelationshipAnchor>;
-  selectedEntity: { type: RelationshipEntityType; id: string } | null;
-  showAll: boolean;
+  displayMode: RelationshipDisplayMode;
   visibleStart: number;
   visibleEnd: number;
   left?: number;
@@ -62,17 +62,11 @@ export function RelationshipLayer({
       relationshipEndpointKey(relationship.targetType, relationship.targetId),
     );
     if (!source || !target) return false;
-    if (showAll)
-      return (
-        (source.x >= visibleStart && source.x <= visibleEnd) ||
-        (target.x >= visibleStart && target.x <= visibleEnd)
-      );
-    return selectedEntity
-      ? (relationship.sourceType === selectedEntity.type &&
-          relationship.sourceId === selectedEntity.id) ||
-          (relationship.targetType === selectedEntity.type &&
-            relationship.targetId === selectedEntity.id)
-      : false;
+    if (displayMode === "hidden") return false;
+    return (
+      (source.x >= visibleStart && source.x <= visibleEnd) ||
+      (target.x >= visibleStart && target.x <= visibleEnd)
+    );
   });
   const selected = relationships.find((item) => item.id === selectedId) ?? null;
   const label = (type: RelationshipEntityType, id: string) =>
@@ -82,11 +76,14 @@ export function RelationshipLayer({
     <>
       <svg
         aria-label="関係線"
-        className="pointer-events-none absolute top-0 z-50 overflow-visible"
+        className="pointer-events-none absolute top-0 z-50 overflow-hidden"
         data-visible-count={visible.length}
         data-testid="relationship-layer"
         height={height}
-        style={{ left }}
+        style={{
+          left,
+          clipPath: `inset(0px ${Math.max(0, width - visibleEnd)}px 0px ${Math.max(0, visibleStart)}px)`,
+        }}
         width={width}
       >
         <defs>
@@ -123,7 +120,11 @@ export function RelationshipLayer({
           ).d;
           const active =
             hoveredId === relationship.id || selectedId === relationship.id;
-          const color = active ? "#FF3399" : "#007F7F";
+          const color = active
+            ? "#FF3399"
+            : displayMode === "all"
+              ? "#007F7F"
+              : "rgba(107, 114, 128, 0.42)";
           const markers = {
             markerStart:
               relationship.sourceMarker === "arrow"
@@ -137,6 +138,7 @@ export function RelationshipLayer({
           return (
             <g key={relationship.id}>
               <path
+                data-testid={`relationship-stroke-${relationship.id}`}
                 d={path}
                 fill="none"
                 stroke={color}

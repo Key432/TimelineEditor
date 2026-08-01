@@ -54,7 +54,7 @@ const anchors = new Map([
 afterEach(cleanup);
 
 describe("Phase L14 relationship timeline layer", () => {
-  it("defaults to selected direct relationships and supports hover/click details", () => {
+  it("shows standard relationships in translucent gray and colors them on hover", () => {
     const { rerender } = render(
       <RelationshipLayer
         anchors={anchors}
@@ -62,8 +62,7 @@ describe("Phase L14 relationship timeline layer", () => {
         height={200}
         left={0}
         relationships={[relationship]}
-        selectedEntity={null}
-        showAll={false}
+        displayMode="hidden"
         visibleEnd={400}
         visibleStart={0}
         width={400}
@@ -77,31 +76,31 @@ describe("Phase L14 relationship timeline layer", () => {
         entities={entities}
         height={200}
         relationships={[relationship]}
-        selectedEntity={{
-          type: relationship.sourceType,
-          id: relationship.sourceId,
-        }}
-        showAll={false}
+        displayMode="standard"
         visibleEnd={400}
         visibleStart={0}
         width={400}
       />,
     );
     const line = screen.getByRole("button", { name: /人物Aと事件B.*影響/ });
+    const visibleLine = screen.getByTestId(
+      `relationship-stroke-${relationship.id}`,
+    );
+    expect(visibleLine).toHaveAttribute("stroke", "rgba(107, 114, 128, 0.42)");
     fireEvent.mouseEnter(line);
+    expect(visibleLine).toHaveAttribute("stroke", "#FF3399");
     fireEvent.click(line);
     expect(screen.getByText("注記")).toBeInTheDocument();
   });
 
-  it("shows all relationships only when an endpoint is in the visible range", () => {
+  it("shows colored relationships in all mode only when an endpoint is visible", () => {
     const { rerender } = render(
       <RelationshipLayer
         anchors={anchors}
         entities={entities}
         height={200}
         relationships={[relationship]}
-        selectedEntity={null}
-        showAll
+        displayMode="all"
         visibleEnd={300}
         visibleStart={0}
         width={400}
@@ -110,19 +109,40 @@ describe("Phase L14 relationship timeline layer", () => {
     expect(
       screen.getByRole("button", { name: /人物Aと事件B/ }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByTestId(`relationship-stroke-${relationship.id}`),
+    ).toHaveAttribute("stroke", "#007F7F");
     rerender(
       <RelationshipLayer
         anchors={anchors}
         entities={entities}
         height={200}
         relationships={[relationship]}
-        selectedEntity={null}
-        showAll
+        displayMode="all"
         visibleEnd={700}
         visibleStart={500}
         width={400}
       />,
     );
     expect(screen.queryByRole("button", { name: /人物Aと事件B/ })).toBeNull();
+  });
+
+  it("clips relationship strokes to the currently visible timeline canvas", () => {
+    render(
+      <RelationshipLayer
+        anchors={anchors}
+        displayMode="standard"
+        entities={entities}
+        height={200}
+        relationships={[relationship]}
+        visibleEnd={300}
+        visibleStart={50}
+        width={400}
+      />,
+    );
+
+    expect(screen.getByTestId("relationship-layer")).toHaveStyle({
+      clipPath: "inset(0px 100px 0px 50px)",
+    });
   });
 });

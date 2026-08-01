@@ -10,6 +10,7 @@ import {
 import { DeleteTimelineItemDialog } from "@/features/timeline-items/delete-timeline-item-dialog";
 import { TimelineItemForm } from "@/features/timeline-items/timeline-item-form";
 import { useDetailEditorActions } from "@/features/timeline-items/detail-editor-context";
+import { RelationshipManager } from "@/features/relationships/relationship-manager";
 import type {
   TimelineItem,
   TimelineItemSummary,
@@ -45,6 +46,10 @@ export function TimelineItemDetailEditor({
         projectId={projectId}
         onDirtyChange={onDirtyChange}
         onSaved={onSaved}
+      />
+      <RelationshipManager
+        entity={{ type: "timeline_item", id: currentItem.id }}
+        projectId={projectId}
       />
       {currentItem.temporalType === "range" ? (
         <TimelineEventSection

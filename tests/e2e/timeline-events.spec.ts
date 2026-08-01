@@ -148,7 +148,9 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
     name: "イベントアイテム作成",
   });
   await expect(createForm).toBeVisible();
-  await expect(createForm.getByText("親人物", { exact: true })).toBeVisible();
+  await expect(
+    createForm.getByRole("button", { name: "親人物を外す", exact: true }),
+  ).toBeVisible();
   await expect(createForm.getByLabel("イベント時代")).toContainText("紀元後");
   const snappedPrecision = await createForm
     .getByLabel("イベント日付精度")

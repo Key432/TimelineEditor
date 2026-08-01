@@ -1,6 +1,9 @@
 import type {
   EntityRelationship,
+  RelationshipCreationFailure,
   RelationshipDataset,
+  RelationshipDraft,
+  RelationshipEntityType,
 } from "@/features/relationships/types";
 import type { relationshipInputSchema } from "@/features/relationships/validation";
 import type { z } from "zod";
@@ -62,4 +65,30 @@ export async function deleteRelationship(
     { method: "DELETE" },
   );
   if (!response.ok) await payload<Record<string, never>>(response);
+}
+
+export async function createDraftRelationships(
+  projectId: string,
+  sourceType: RelationshipEntityType,
+  sourceId: string,
+  drafts: RelationshipDraft[],
+): Promise<RelationshipCreationFailure[]> {
+  const results = await Promise.allSettled(
+    drafts.map((draft) =>
+      createRelationship(projectId, { sourceType, sourceId, ...draft }),
+    ),
+  );
+  return results.flatMap((result, index) =>
+    result.status === "rejected"
+      ? [
+          {
+            label: drafts[index]?.relationType ?? "関係性",
+            reason:
+              result.reason instanceof Error
+                ? result.reason.message
+                : "関係性を追加できませんでした。",
+          },
+        ]
+      : [],
+  );
 }

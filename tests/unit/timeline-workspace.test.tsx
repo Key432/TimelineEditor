@@ -142,6 +142,76 @@ async function openFloatingControls(user: TestUser) {
 }
 
 describe("TimelineWorkspace", () => {
+  it("keeps timeline chrome isolated and switches relationship display modes from the toolbar", async () => {
+    const user = userEvent.setup();
+    const source = item(
+      "33333333-3333-4333-8333-333333333333",
+      "源流A",
+      "range",
+    );
+    const target = item(
+      "44444444-4444-4444-8444-444444444444",
+      "後継B",
+      "point",
+    );
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 23 }}
+          initialItems={[source, target]}
+          initialRelationships={{
+            entities: [
+              { type: "timeline_item", id: source.id, title: source.title },
+              { type: "timeline_item", id: target.id, title: target.title },
+            ],
+            relationships: [
+              {
+                id: "relationship-1",
+                projectId: project.id,
+                sourceType: "timeline_item",
+                sourceId: source.id,
+                targetType: "timeline_item",
+                targetId: target.id,
+                relationType: "影響",
+                direction: "directed",
+                lineStyle: "single",
+                sourceMarker: "none",
+                targetMarker: "arrow",
+                note: null,
+                createdAt: "2026-08-01T00:00:00Z",
+                updatedAt: "2026-08-01T00:00:00Z",
+              },
+            ],
+          }}
+          itemTypes={[type]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    expect(screen.getByTestId("timeline-viewport")).toHaveClass("isolate");
+    expect(screen.getByTestId("relationship-layer")).toHaveClass(
+      "overflow-hidden",
+    );
+    const stroke = screen.getByTestId("relationship-stroke-relationship-1");
+    expect(stroke).toHaveAttribute("stroke", "rgba(107, 114, 128, 0.42)");
+
+    await user.click(screen.getByRole("button", { name: "関係線: 標準" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "すべて表示" }));
+    expect(stroke).toHaveAttribute("stroke", "#007F7F");
+
+    await user.click(
+      screen.getByRole("button", { name: "関係線: すべて表示" }),
+    );
+    await user.click(
+      screen.getByRole("menuitemradio", { name: "すべて非表示" }),
+    );
+    expect(screen.getByTestId("relationship-layer")).toHaveAttribute(
+      "data-visible-count",
+      "0",
+    );
+  });
+
   it("keeps the floating controls collapsed until the round controller is opened", async () => {
     const user = userEvent.setup();
     render(

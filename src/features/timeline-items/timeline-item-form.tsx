@@ -41,6 +41,15 @@ import {
   type TimelineItemInput,
   type TimelineItemValues,
 } from "@/features/timeline-items/validation";
+import {
+  createDraftRelationships,
+  relationshipKeys,
+} from "@/features/relationships/api";
+import { RelationshipDraftEditor } from "@/features/relationships/relationship-draft-editor";
+import type {
+  RelationshipCreationFailure,
+  RelationshipDraft,
+} from "@/features/relationships/types";
 
 const selectClassName =
   "h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -52,6 +61,7 @@ type TimelineItemFormProps = {
   onSaved?: (
     item: TimelineItem,
     failedEvents?: TimelineEventCreationFailure[],
+    failedRelationships?: RelationshipCreationFailure[],
   ) => void;
   onDirtyChange?: (dirty: boolean) => void;
   onEditItemTypes?: () => void;
@@ -196,17 +206,21 @@ export function TimelineItemForm({
     [],
   );
   const [editingEvent, setEditingEvent] = useState<number | "new" | null>(null);
-  const draftValue = { values: formValues, eventDrafts };
+  const [relationshipDrafts, setRelationshipDrafts] = useState<
+    RelationshipDraft[]
+  >([]);
+  const draftValue = { values: formValues, eventDrafts, relationshipDrafts };
   const restoreDraft = useCallback(
     (draft: typeof draftValue) => {
       reset(draft.values, { keepDefaultValues: true });
       setEventDrafts(draft.eventDrafts);
+      setRelationshipDrafts(draft.relationshipDrafts ?? []);
     },
     [reset],
   );
   const localDraft = useLocalDraft({
     baseVersion: item?.updatedAt ?? null,
-    dirty: isDirty || eventDrafts.length > 0,
+    dirty: isDirty || eventDrafts.length > 0 || relationshipDrafts.length > 0,
     draftKey: `timeline-item:${projectId}:${item?.id ?? "new"}`,
     projectId,
     entityType: "timeline_item",
@@ -216,15 +230,18 @@ export function TimelineItemForm({
   });
 
   useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
+    onDirtyChange?.(
+      isDirty || eventDrafts.length > 0 || relationshipDrafts.length > 0,
+    );
+  }, [eventDrafts.length, isDirty, onDirtyChange, relationshipDrafts.length]);
 
   useEffect(() => {
-    if (!isDirty) return;
+    if (!isDirty && eventDrafts.length === 0 && relationshipDrafts.length === 0)
+      return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [isDirty]);
+  }, [eventDrafts.length, isDirty, relationshipDrafts.length]);
 
   useEffect(() => {
     if (
@@ -252,9 +269,19 @@ export function TimelineItemForm({
             item.updatedAt,
           ),
           failedEvents: [],
+          failedRelationships: [],
         };
       }
-      return createTimelineItem(projectId, values, eventDrafts);
+      const saved = await createTimelineItem(projectId, values, eventDrafts);
+      return {
+        ...saved,
+        failedRelationships: await createDraftRelationships(
+          projectId,
+          "timeline_item",
+          saved.item.id,
+          relationshipDrafts,
+        ),
+      };
     },
     onSuccess: async (saved) => {
       await localDraft.discard();
@@ -265,12 +292,15 @@ export function TimelineItemForm({
         queryClient.invalidateQueries({
           queryKey: timelineEventKeys.list(projectId),
         }),
+        queryClient.invalidateQueries({
+          queryKey: relationshipKeys.all(projectId),
+        }),
       ]);
       queryClient.setQueryData(
         timelineItemKeys.detail(projectId, saved.item.id),
         saved.item,
       );
-      onSaved?.(saved.item, saved.failedEvents);
+      onSaved?.(saved.item, saved.failedEvents, saved.failedRelationships);
     },
   });
 
@@ -635,6 +665,15 @@ export function TimelineItemForm({
             />
           ) : null}
         </section>
+      ) : null}
+
+      {!item ? (
+        <RelationshipDraftEditor
+          projectId={projectId}
+          sourceType="timeline_item"
+          value={relationshipDrafts}
+          onChange={setRelationshipDrafts}
+        />
       ) : null}
 
       <EntityContentFields

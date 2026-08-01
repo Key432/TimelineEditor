@@ -59,6 +59,7 @@ import {
 import { TimelineEntityTooltip } from "@/features/timeline-items/timeline-entity-tooltip";
 import {
   calculateCompactLaneLayout,
+  compactLaneGlyphCenterY,
   measureCompactLaneTitle,
   type CompactLanePlacement,
 } from "@/features/timeline-items/compact-lane-layout";
@@ -86,12 +87,12 @@ import type { TimelineBackgroundLayer } from "@/features/background-layers/types
 import {
   RelationshipLayer,
   type RelationshipAnchor,
+  type RelationshipDisplayMode,
 } from "@/features/relationships/relationship-layer";
 import { relationshipEndpointKey } from "@/features/relationships/routing";
 import type {
   EntityRelationship,
   RelationshipEntityOption,
-  RelationshipEntityType,
 } from "@/features/relationships/types";
 
 const DESKTOP_HANDLE_WIDTH = 32;
@@ -828,6 +829,7 @@ export function TimelineViewport({
   backgroundLayers,
   relationships = [],
   relationshipEntities = [],
+  relationshipDisplayMode,
   readOnly = false,
 }: {
   project: Project;
@@ -850,6 +852,7 @@ export function TimelineViewport({
   backgroundLayers: TimelineBackgroundLayer[];
   relationships: EntityRelationship[];
   relationshipEntities: RelationshipEntityOption[];
+  relationshipDisplayMode: RelationshipDisplayMode;
   readOnly?: boolean;
 }) {
   const dimmed = dimmedItemIds ?? EMPTY_ID_SET;
@@ -898,11 +901,6 @@ export function TimelineViewport({
   const [timeSlicerVisible, setTimeSlicerVisible] = useState(false);
   const [floatingControlsExpanded, setFloatingControlsExpanded] =
     useState(false);
-  const [selectedRelationshipEntity, setSelectedRelationshipEntity] = useState<{
-    type: RelationshipEntityType;
-    id: string;
-  } | null>(null);
-  const [showAllRelationships, setShowAllRelationships] = useState(false);
   const zoomLevel = useTimelineStore((state) => state.zoomLevel);
   const setZoomLevel = useTimelineStore((state) => state.setZoomLevel);
   const scrollLeft = useTimelineStore((state) => state.scrollLeft);
@@ -1457,7 +1455,7 @@ export function TimelineViewport({
       if (entry.kind === "item") itemY.set(entry.item.id, offset + height / 2);
       if (entry.kind === "lane")
         for (const placement of entry.placements)
-          itemY.set(placement.itemId, offset + height / 2);
+          itemY.set(placement.itemId, offset + compactLaneGlyphCenterY(height));
       offset += height;
     }
     for (const group of groups) {
@@ -1664,7 +1662,7 @@ export function TimelineViewport({
             ref={viewportRef}
             aria-label="タイムライン表示領域"
             className={cn(
-              "styled-scrollbar relative h-full min-h-48 touch-none overflow-auto rounded-lg border bg-card select-none",
+              "styled-scrollbar relative isolate h-full min-h-48 touch-none overflow-auto rounded-lg border bg-card select-none",
               isPanning && "cursor-grabbing",
             )}
             data-testid="timeline-viewport"
@@ -1698,7 +1696,10 @@ export function TimelineViewport({
                   </span>
                 </div>
               ) : null}
-              <div className="sticky top-0 z-[70] flex h-12 border-b bg-muted/95 text-xs font-medium text-muted-foreground backdrop-blur-sm">
+              <div
+                className="sticky top-0 z-[70] flex h-12 border-b bg-muted/95 text-xs font-medium text-muted-foreground backdrop-blur-sm"
+                data-testid="timeline-axis-header"
+              >
                 {layoutMode === "row" ? (
                   <>
                     {!readOnly ? (
@@ -1759,12 +1760,11 @@ export function TimelineViewport({
               >
                 <RelationshipLayer
                   anchors={relationshipAnchors}
+                  displayMode={relationshipDisplayMode}
                   entities={relationshipEntities}
                   height={virtualizer.getTotalSize()}
                   left={layoutMode === "row" ? handleWidth + infoWidth : 0}
                   relationships={relationships}
-                  selectedEntity={selectedRelationshipEntity}
-                  showAll={showAllRelationships}
                   visibleEnd={visibleEnd}
                   visibleStart={visibleStart}
                   width={canvasWidth}
@@ -1860,20 +1860,12 @@ export function TimelineViewport({
                           visibleStart={visibleStart}
                           onEdit={() => onEdit(entry.item.id)}
                           onOpenItem={() => {
-                            setSelectedRelationshipEntity({
-                              type: "timeline_item",
-                              id: entry.item.id,
-                            });
                             onOpenItem(entry.item.id);
                           }}
                           onCreateEvent={(date) =>
                             onCreateEvent(entry.item.id, date)
                           }
                           onOpenEvent={(eventId, editing) => {
-                            setSelectedRelationshipEntity({
-                              type: "timeline_event",
-                              id: eventId,
-                            });
                             onOpenEvent(eventId, editing);
                           }}
                           onMoveDown={() => onMove(entry.item.id, 1)}
@@ -1919,17 +1911,9 @@ export function TimelineViewport({
                               visibleStart={visibleStart}
                               onEdit={() => onEdit(placement.itemId)}
                               onOpenEvent={(eventId, editing) => {
-                                setSelectedRelationshipEntity({
-                                  type: "timeline_event",
-                                  id: eventId,
-                                });
                                 onOpenEvent(eventId, editing);
                               }}
                               onOpenItem={() => {
-                                setSelectedRelationshipEntity({
-                                  type: "timeline_item",
-                                  id: placement.itemId,
-                                });
                                 onOpenItem(placement.itemId);
                               }}
                             />
@@ -2083,20 +2067,6 @@ export function TimelineViewport({
                 data-testid="timeline-floating-controls"
               >
                 <div className="flex h-8 items-center gap-1 rounded-md bg-muted/70 p-1">
-                  <Button
-                    aria-pressed={showAllRelationships}
-                    className="h-6 px-2 text-xs"
-                    size="sm"
-                    type="button"
-                    variant={showAllRelationships ? "default" : "ghost"}
-                    onClick={() =>
-                      setShowAllRelationships((showAll) => !showAll)
-                    }
-                  >
-                    {showAllRelationships
-                      ? "関係: 範囲内すべて"
-                      : "関係: 選択項目"}
-                  </Button>
                   <Button
                     aria-label="縮小"
                     className="size-6"

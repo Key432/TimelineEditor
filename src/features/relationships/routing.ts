@@ -14,22 +14,16 @@ export function buildOrthogonalRelationshipPath(
   target: RelationshipPoint,
   channelOffset = 16,
 ) {
-  if (source.y === target.y) {
-    return {
-      d: `M ${source.x} ${source.y} L ${target.x} ${target.y}`,
-      points: [source, target],
-    };
-  }
-  const direction = target.x >= source.x ? 1 : -1;
-  const channelX =
-    source.x === target.x
-      ? source.x + channelOffset
-      : source.x +
-        direction * Math.min(channelOffset, Math.abs(target.x - source.x) / 2);
+  const verticalDistance = Math.abs(target.y - source.y);
+  const direction = target.y > source.y ? 1 : -1;
+  const channelY =
+    source.y === target.y
+      ? source.y - channelOffset
+      : source.y + direction * Math.min(channelOffset, verticalDistance / 2);
   const points = [
     source,
-    { x: channelX, y: source.y },
-    { x: channelX, y: target.y },
+    { x: source.x, y: channelY },
+    { x: target.x, y: channelY },
     target,
   ];
   return {

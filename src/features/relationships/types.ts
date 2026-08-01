@@ -47,3 +47,19 @@ export type RelationshipDataset = {
   relationships: EntityRelationship[];
   entities: RelationshipEntityOption[];
 };
+
+export type RelationshipDraft = Pick<
+  EntityRelationship,
+  | "targetType"
+  | "targetId"
+  | "relationType"
+  | "lineStyle"
+  | "sourceMarker"
+  | "targetMarker"
+  | "note"
+>;
+
+export type RelationshipCreationFailure = {
+  label: string;
+  reason: string;
+};

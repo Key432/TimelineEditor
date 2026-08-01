@@ -118,9 +118,10 @@ export function TimelineItemDetail({
       </section>
       <Separator />
       <RelationshipManager
+        basePath={internalLinkBasePath}
         entity={{ type: "timeline_item", id: currentItem.id }}
         projectId={projectId}
-        readOnly={readOnly}
+        readOnly
       />
       {currentItem.externalUrl ? (
         <p>

@@ -10,6 +10,7 @@ import { TimelineEventForm } from "@/features/timeline-events/timeline-event-for
 import type { TimelineEvent } from "@/features/timeline-events/types";
 import type { TimelineItemSummary } from "@/features/timeline-items/types";
 import { useDetailEditorActions } from "@/features/timeline-items/detail-editor-context";
+import { RelationshipManager } from "@/features/relationships/relationship-manager";
 
 export function TimelineEventDetailEditor({
   projectId,
@@ -29,13 +30,19 @@ export function TimelineEventDetailEditor({
     initialData: event,
   });
   return (
-    <TimelineEventForm
-      currentDate={{ year: currentYear, month: 1, day: 1 }}
-      event={currentEvent}
-      projectId={projectId}
-      rangeItems={rangeItems}
-      onDirtyChange={onDirtyChange}
-      onSaved={onSaved}
-    />
+    <div className="space-y-6">
+      <TimelineEventForm
+        currentDate={{ year: currentYear, month: 1, day: 1 }}
+        event={currentEvent}
+        projectId={projectId}
+        rangeItems={rangeItems}
+        onDirtyChange={onDirtyChange}
+        onSaved={onSaved}
+      />
+      <RelationshipManager
+        entity={{ type: "timeline_event", id: currentEvent.id }}
+        projectId={projectId}
+      />
+    </div>
   );
 }

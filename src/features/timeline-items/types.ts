@@ -1,6 +1,7 @@
 import type { TimelineItemType } from "@/features/item-types/types";
 import type { SourceCitation } from "@/features/sources/types";
 import type { CustomFieldEntry, Tag } from "@/features/classification/types";
+import type { RelationshipCreationFailure } from "@/features/relationships/types";
 
 export const TEMPORAL_TYPES = ["range", "point"] as const;
 export type TemporalType = (typeof TEMPORAL_TYPES)[number];
@@ -92,6 +93,7 @@ export type TimelineItemCreateResult = {
   item: TimelineItem;
   createdEventIds: string[];
   failedEvents: TimelineEventCreationFailure[];
+  failedRelationships?: RelationshipCreationFailure[];
 };
 
 export const TIMELINE_SORT_LABELS: Record<TimelineSortMode, string> = {

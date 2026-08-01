@@ -92,9 +92,10 @@ export function TimelineEventDetail({
       </section>
       <Separator />
       <RelationshipManager
+        basePath={internalLinkBasePath}
         entity={{ type: "timeline_event", id: currentEvent.id }}
         projectId={projectId}
-        readOnly={readOnly}
+        readOnly
       />
       {currentEvent.externalUrl ? (
         <p>

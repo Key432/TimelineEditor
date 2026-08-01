@@ -4,6 +4,7 @@ import type { TimelineItemType } from "@/features/item-types/types";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import {
   calculateCompactLaneLayout,
+  compactLaneGlyphCenterY,
   COMPACT_LANE_GAP_PX,
 } from "@/features/timeline-items/compact-lane-layout";
 import { historicalDateOrdinal } from "@/features/timeline-items/historical-date";
@@ -91,6 +92,11 @@ function layout(
 }
 
 describe("calculateCompactLaneLayout", () => {
+  it("aligns relationship anchors with the glyph region at the bottom of a lane", () => {
+    expect(compactLaneGlyphCenterY(56)).toBe(42);
+    expect(compactLaneGlyphCenterY(44)).toBe(30);
+  });
+
   it("reuses the highest available lane while preserving the fixed gap", () => {
     const first = rangeItem("first", 1, 3);
     const touching = rangeItem("touching", 4, 5);

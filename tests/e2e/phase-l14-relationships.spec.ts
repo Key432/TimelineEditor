@@ -118,6 +118,11 @@ test("creates, edits, renders across collapsible groups, and deletes a semantic 
     page,
     `/projects/${projectId}/items/${sourceId}`,
   );
+  const detailRelationships = page.getByTestId("relationship-manager");
+  await expect(
+    detailRelationships.getByRole("button", { name: "関係性を追加" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "編集", exact: true }).click();
   const manager = page.getByTestId("relationship-manager");
   await expect(manager).toBeVisible();
   await manager.getByLabel("終点", { exact: true }).selectOption(targetId);
@@ -133,12 +138,23 @@ test("creates, edits, renders across collapsible groups, and deletes a semantic 
   await expect(manager.getByText("継承", { exact: true })).toBeVisible();
 
   await navigateWithDocumentLoad(page, `/projects/${projectId}/timeline`);
+  await page.getByRole("button", { name: "アイテムを追加" }).click();
+  await page.getByRole("menuitem", { name: "タイムラインを追加" }).click();
+  await expect(page.getByText("同時に追加する関係性")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("同時に追加する関係性")).toBeHidden();
+  await page.getByRole("button", { name: "アイテムを追加" }).click();
+  await page.getByRole("menuitem", { name: "イベントを追加" }).click();
+  await expect(page.getByText("同時に追加する関係性")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("同時に追加する関係性")).toBeHidden();
+
   await page.getByRole("button", { name: "配置設定" }).click();
   await page
     .getByRole("menuitemcheckbox", { name: "タイムライン種別でグループ化" })
     .click();
-  await page.getByRole("button", { name: "タイムライン操作を開く" }).click();
-  await page.getByRole("button", { name: "関係: 選択項目" }).click();
+  await page.getByRole("button", { name: "関係線: 標準" }).click();
+  await page.getByRole("menuitemradio", { name: "すべて表示" }).click();
   const relationLine = page.getByRole("button", {
     name: /源流Aと後継Bの関係 継承/,
   });
@@ -147,6 +163,7 @@ test("creates, edits, renders across collapsible groups, and deletes a semantic 
   await expect(page.getByText("グループをまたぐ関係")).toBeVisible();
   await page.getByRole("button", { name: "閉じる", exact: true }).click();
   await page.getByRole("button", { name: `${itemTypes[1]!.name} 1件` }).click();
+  await page.getByRole("button", { name: "タイムライン操作を開く" }).click();
   await page.getByRole("button", { name: "全体に合わせる" }).click();
   await expect(page.getByTestId("relationship-layer")).toHaveAttribute(
     "data-visible-count",
@@ -155,11 +172,54 @@ test("creates, edits, renders across collapsible groups, and deletes a semantic 
   await expect(relationLine).toBeVisible();
   await relationLine.press("Enter");
   await expect(page.getByText("グループをまたぐ関係")).toBeVisible();
+  await page.getByRole("button", { name: "閉じる", exact: true }).click();
+
+  const viewport = page.getByTestId("timeline-viewport");
+  await viewport.evaluate((element) => {
+    element.scrollLeft = 120;
+    element.dispatchEvent(new Event("scroll"));
+  });
+  await expect
+    .poll(() =>
+      page
+        .getByTestId("relationship-layer")
+        .evaluate((element) => element.style.clipPath),
+    )
+    .toMatch(/ 120px\)$/);
+
+  await page
+    .getByTestId(`timeline-row-${sourceId}`)
+    .getByRole("button", { name: "源流A", exact: true })
+    .click();
+  const detailDialog = page.getByRole("dialog");
+  await expect(detailDialog).toBeVisible();
+  const overlayCoversAxis = await Promise.all([
+    detailDialog.boundingBox(),
+    page.getByTestId("timeline-axis-header").boundingBox(),
+  ]).then(([dialogBox, axisBox]) => {
+    if (!dialogBox || !axisBox) return false;
+    return page.evaluate(
+      ({ x, y }) =>
+        document.elementFromPoint(x, y)?.closest("[role='dialog']") !== null,
+      {
+        x: dialogBox.x + Math.min(40, dialogBox.width / 2),
+        y: axisBox.y + axisBox.height / 2,
+      },
+    );
+  });
+  expect(overlayCoversAxis).toBe(true);
 
   await navigateWithDocumentLoad(
     page,
     `/projects/${projectId}/items/${sourceId}`,
   );
+  await expect(
+    page.getByRole("link", { name: "源流A", exact: true }),
+  ).toHaveAttribute("href", `/projects/${projectId}/items/${sourceId}`);
+  await expect(
+    page.getByRole("link", { name: "後継B", exact: true }),
+  ).toHaveAttribute("href", `/projects/${projectId}/items/${targetId}`);
+  await page.getByRole("button", { name: "編集", exact: true }).click();
   const detailManager = page.getByTestId("relationship-manager");
   await detailManager.getByRole("button", { name: "削除" }).click();
   const deleteDialog = page.getByRole("alertdialog");

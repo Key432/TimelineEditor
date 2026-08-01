@@ -145,6 +145,7 @@ describe("TimelineItemForm", () => {
     expect(
       form.getByRole("group", { name: "同時追加するイベントアイテム" }),
     ).toBeVisible();
+    expect(form.getByText("同時に追加する関係性")).toBeVisible();
   });
 
   it("keeps visibility and color override controls in the shared checkbox style", async () => {

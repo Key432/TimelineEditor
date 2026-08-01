@@ -18,6 +18,10 @@ export type CompactLanePlacement = {
   endX: number;
 };
 
+export function compactLaneGlyphCenterY(laneHeight: number) {
+  return laneHeight - 14;
+}
+
 export type CompactLane = {
   index: number;
   itemIds: string[];
