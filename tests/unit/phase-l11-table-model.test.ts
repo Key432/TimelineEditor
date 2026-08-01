@@ -36,6 +36,12 @@ describe("Phase L11 table model", () => {
     expect(columns.find((column) => column.id === "start")?.label).toBe(
       "開始・時点日",
     );
+    expect(columns.slice(0, 4).map((column) => column.label)).toEqual([
+      "名称",
+      "形式",
+      "開始・時点日",
+      "終了日",
+    ]);
     expect(columns.at(-1)?.label).toBe("場所");
   });
 

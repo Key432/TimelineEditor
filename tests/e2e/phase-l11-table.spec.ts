@@ -59,9 +59,11 @@ test("edits and adds rows in the Notion-style table view", async ({ page }) => {
   const typesResponse = await page.request.get(
     `/api/projects/${projectId}/item-types`,
   );
-  const typeId = (
-    (await typesResponse.json()) as { itemTypes: { id: string }[] }
-  ).itemTypes[0]!.id;
+  const typePayload = (await typesResponse.json()) as {
+    itemTypes: { id: string; name: string }[];
+  };
+  const typeId = typePayload.itemTypes[0]!.id;
+  const typeName = typePayload.itemTypes[0]!.name;
   const itemResponse = await page.request.post(
     `/api/projects/${projectId}/items`,
     {
@@ -106,11 +108,28 @@ test("edits and adds rows in the Notion-style table view", async ({ page }) => {
     new RegExp(`/projects/${projectId}/timeline\\?layout=table$`),
   );
   await expect(page.getByRole("tab", { name: "タイムライン表" })).toBeVisible();
+  await expect
+    .poll(async () =>
+      page
+        .locator('[role="columnheader"] > span')
+        .evaluateAll((labels) =>
+          labels.slice(0, 4).map((label) => label.textContent),
+        ),
+    )
+    .toEqual(["名称", "形式", "開始・時点日", "終了日"]);
   await expect(
     page.getByRole("columnheader", { name: /開始・時点日/ }),
   ).toBeVisible();
+  await expect(page.getByRole("cell").getByText("時点")).toBeVisible();
   await expect(
-    page.getByRole("cell").getByText("選択不可").first(),
+    page.getByRole("cell").getByText("未選択").first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("cell").getByText(typeName, { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "列を追加" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "列の表示と順番" }),
   ).toBeVisible();
   await expect(
     page.getByText("long body is not rendered in the table"),
@@ -118,6 +137,40 @@ test("edits and adds rows in the Notion-style table view", async ({ page }) => {
   await expect(
     page.getByRole("link", { name: "外部URLを開く" }),
   ).toHaveAttribute("href", "https://example.com/resource");
+
+  const longTitle =
+    "This is a deliberately long timeline item name that must wrap across multiple lines when wrapping is enabled";
+  const titleCell = page.getByRole("cell").filter({ hasText: "Existing row" });
+  await titleCell.getByRole("button", { name: "Existing row" }).click();
+  const titleInput = page.locator('input[type="text"][value="Existing row"]');
+  await titleInput.fill(longTitle);
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "名称の設定" }).click();
+  await page
+    .getByRole("menuitemcheckbox", { name: "折り返して表示する" })
+    .click();
+  const wrappedTitleCell = page
+    .getByRole("cell")
+    .filter({ hasText: longTitle });
+  await expect(
+    wrappedTitleCell.getByRole("button", { name: longTitle }),
+  ).not.toHaveClass(/truncate/);
+  await expect
+    .poll(async () => (await wrappedTitleCell.boundingBox())?.height ?? 0)
+    .toBeGreaterThan(40);
+
+  await page.getByRole("button", { name: "列", exact: true }).click();
+  await page.getByRole("button", { name: "開始・時点日を左へ移動" }).click();
+  await page.keyboard.press("Escape");
+  await expect
+    .poll(async () =>
+      page
+        .locator('[role="columnheader"] > span')
+        .evaluateAll((labels) =>
+          labels.slice(0, 4).map((label) => label.textContent),
+        ),
+    )
+    .toEqual(["名称", "開始・時点日", "形式", "終了日"]);
 
   await page.getByRole("button", { name: "新しい行" }).click();
   await page.getByLabel("新しい項目の名称").fill("Draft row");

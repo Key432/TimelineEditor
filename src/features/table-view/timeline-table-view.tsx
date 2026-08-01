@@ -3,9 +3,12 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowDown,
+  ArrowUp,
   Check,
   ChevronDown,
   Download,
+  Ellipsis,
   ExternalLink,
   Eye,
   EyeOff,
@@ -128,29 +131,45 @@ function CellEditor({
   value,
   type = "text",
   disabled,
+  wrap = false,
   options,
   onCommit,
 }: {
   value: string;
   type?: "text" | "number" | "url" | "select";
   disabled?: boolean;
+  wrap?: boolean;
   options?: { value: string; label: string }[];
   onCommit: (value: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
-  if (disabled) return <span className="text-muted-foreground">選択不可</span>;
+  const displayValue =
+    type === "select"
+      ? (options?.find((option) => option.value === value)?.label ?? "未選択")
+      : value;
+  if (disabled)
+    return (
+      <span className="w-full px-2 text-muted-foreground">
+        {displayValue || "未選択"}
+      </span>
+    );
   if (!editing)
     return (
       <button
-        className="min-h-8 w-full truncate px-2 text-left hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-primary"
+        className={cn(
+          "min-h-8 w-full px-2 text-left hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-primary",
+          wrap
+            ? "py-2 break-words whitespace-normal"
+            : "truncate whitespace-nowrap",
+        )}
         type="button"
         onClick={() => {
           setDraft(value);
           setEditing(true);
         }}
       >
-        {value || <span className="text-muted-foreground">未入力</span>}
+        {displayValue || <span className="text-muted-foreground">未入力</span>}
       </button>
     );
   const commit = () => {
@@ -321,16 +340,25 @@ function tagText(row: { tags?: { name: string }[] }) {
 function TagCell({
   tags,
   selectedIds,
+  wrap,
   onCommit,
 }: {
   tags: { id: string; name: string; color: string }[];
   selectedIds: string[];
+  wrap: boolean;
   onCommit: (ids: string[]) => void;
 }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="min-h-8 w-full truncate px-2 text-left hover:bg-muted/70">
+        <button
+          className={cn(
+            "min-h-8 w-full px-2 text-left hover:bg-muted/70",
+            wrap
+              ? "py-2 break-words whitespace-normal"
+              : "truncate whitespace-nowrap",
+          )}
+        >
           {tags
             .filter((tag) => selectedIds.includes(tag.id))
             .map((tag) => tag.name)
@@ -602,6 +630,7 @@ function ItemRow({
             {column.id === "title" ? (
               <div className="flex min-w-0 flex-1 items-center">
                 <CellEditor
+                  wrap={wrapped.has(column.id)}
                   value={value}
                   onCommit={(next) => commit(column, next)}
                 />
@@ -660,13 +689,14 @@ function ItemRow({
                 options={[
                   { value: "specified", label: "終了日指定" },
                   { value: "ongoing", label: "継続中" },
-                  { value: "unknown", label: "終了時期不明" },
+                  { value: "unknown", label: "終了日不明" },
                 ]}
                 onCommit={(next) => commit(column, next)}
               />
             ) : column.id === "end" ? (
               <CellEditor
                 disabled={item?.temporalType === "point"}
+                wrap={wrapped.has(column.id)}
                 value={value}
                 onCommit={(next) => commit(column, next)}
               />
@@ -674,6 +704,7 @@ function ItemRow({
               <TagCell
                 selectedIds={item?.tags?.map((tag) => tag.id) ?? []}
                 tags={allTags}
+                wrap={wrapped.has(column.id)}
                 onCommit={(ids) => commit(column, ids.join(","))}
               />
             ) : column.id === "colorOverride" ? (
@@ -690,6 +721,7 @@ function ItemRow({
               <div className="flex min-w-0 flex-1 items-center">
                 <CellEditor
                   type="url"
+                  wrap={wrapped.has(column.id)}
                   value={value}
                   onCommit={(next) => commit(column, next)}
                 />
@@ -733,6 +765,7 @@ function ItemRow({
                       ? "url"
                       : "text"
                 }
+                wrap={wrapped.has(column.id)}
                 value={value}
                 onCommit={(next) => commit(column, next)}
               />
@@ -907,6 +940,7 @@ function EventRow({
             {column.id === "title" ? (
               <div className="flex min-w-0 flex-1 items-center">
                 <CellEditor
+                  wrap={wrapped.has(column.id)}
                   value={value}
                   onCommit={(next) => commit(column, next)}
                 />
@@ -933,12 +967,20 @@ function EventRow({
               <TagCell
                 selectedIds={event?.tags?.map((tag) => tag.id) ?? []}
                 tags={allTags}
+                wrap={wrapped.has(column.id)}
                 onCommit={(ids) => commit(column, ids.join(","))}
               />
             ) : column.id === "parents" ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="min-h-8 w-full truncate px-2 text-left hover:bg-muted/70">
+                  <button
+                    className={cn(
+                      "min-h-8 w-full px-2 text-left hover:bg-muted/70",
+                      wrapped.has(column.id)
+                        ? "py-2 break-words whitespace-normal"
+                        : "truncate whitespace-nowrap",
+                    )}
+                  >
                     {value || "未設定"}
                   </button>
                 </DropdownMenuTrigger>
@@ -974,6 +1016,7 @@ function EventRow({
               <div className="flex min-w-0 flex-1 items-center">
                 <CellEditor
                   type="url"
+                  wrap={wrapped.has(column.id)}
                   value={value}
                   onCommit={(next) => commit(column, next)}
                 />
@@ -1011,6 +1054,7 @@ function EventRow({
               />
             ) : (
               <CellEditor
+                wrap={wrapped.has(column.id)}
                 value={value}
                 onCommit={(next) => commit(column, next)}
               />
@@ -1096,7 +1140,9 @@ export function TimelineTableView({
   const visibleIds = localVisible[entityType].length
     ? localVisible[entityType]
     : allColumns.map((column) => column.id);
-  const columns = allColumns.filter((column) => visibleIds.includes(column.id));
+  const columns = visibleIds
+    .map((id) => allColumns.find((column) => column.id === id))
+    .filter((column): column is TableColumn => Boolean(column));
   const rows: RowSummary[] = entityType === "timeline_item" ? items : events;
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -1123,6 +1169,98 @@ export function TimelineTableView({
       }),
     );
   };
+  const setVisibleColumns = (next: string[]) => {
+    setLocalVisible((value) => ({ ...value, [entityType]: next }));
+    persist({ visibleColumns: next });
+  };
+  const moveVisibleColumn = (columnId: string, offset: -1 | 1) => {
+    const currentIndex = visibleIds.indexOf(columnId);
+    const nextIndex = currentIndex + offset;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= visibleIds.length)
+      return;
+    const next = [...visibleIds];
+    [next[currentIndex], next[nextIndex]] = [
+      next[nextIndex]!,
+      next[currentIndex]!,
+    ];
+    setVisibleColumns(next);
+  };
+  const orderedColumns = [
+    ...columns,
+    ...allColumns.filter((column) => !visibleIds.includes(column.id)),
+  ];
+  const renderColumnControls = () => (
+    <>
+      <DropdownMenuLabel>表示する列</DropdownMenuLabel>
+      {orderedColumns.map((column) => (
+        <DropdownMenuCheckboxItem
+          key={column.id}
+          checked={visibleIds.includes(column.id)}
+          disabled={column.id === "title"}
+          onCheckedChange={(checked) => {
+            const next = checked
+              ? [...visibleIds, column.id]
+              : visibleIds.filter((id) => id !== column.id);
+            setVisibleColumns(next);
+          }}
+        >
+          {column.label}
+        </DropdownMenuCheckboxItem>
+      ))}
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>列の順番</DropdownMenuLabel>
+      {columns.map((column, index) => (
+        <div
+          key={column.id}
+          className="flex items-center gap-1 px-2 py-1 text-sm"
+        >
+          <span className="min-w-0 flex-1 truncate">{column.label}</span>
+          <button
+            aria-label={`${column.label}を左へ移動`}
+            className="rounded p-1 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-30"
+            disabled={index === 0}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              moveVisibleColumn(column.id, -1);
+            }}
+          >
+            <ArrowUp className="size-4" aria-hidden="true" />
+          </button>
+          <button
+            aria-label={`${column.label}を右へ移動`}
+            className="rounded p-1 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-30"
+            disabled={index === columns.length - 1}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              moveVisibleColumn(column.id, 1);
+            }}
+          >
+            <ArrowDown className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+      ))}
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>左から固定する列数</DropdownMenuLabel>
+      {[1, 2, 3, 4].map((count) => (
+        <DropdownMenuItem
+          key={count}
+          onSelect={() => {
+            setFrozenCount(count);
+            persist({ frozenColumnCount: count });
+          }}
+        >
+          {frozenCount === count ? (
+            <Check className="size-4" />
+          ) : (
+            <span className="size-4" />
+          )}
+          {count}列
+        </DropdownMenuItem>
+      ))}
+    </>
+  );
   const addDraft = () => {
     if (entityType === "timeline_item") {
       setDraftItems((drafts) => [
@@ -1284,54 +1422,9 @@ export function TimelineTableView({
             align="start"
             className="max-h-96 w-72 overflow-y-auto"
           >
-            <DropdownMenuLabel>表示する列</DropdownMenuLabel>
-            {allColumns.map((column) => (
-              <DropdownMenuCheckboxItem
-                key={column.id}
-                checked={visibleIds.includes(column.id)}
-                disabled={column.id === "title"}
-                onCheckedChange={(checked) => {
-                  const next = checked
-                    ? [...visibleIds, column.id]
-                    : visibleIds.filter((id) => id !== column.id);
-                  setLocalVisible((value) => ({
-                    ...value,
-                    [entityType]: next,
-                  }));
-                  persist({ visibleColumns: next });
-                }}
-              >
-                {column.label}
-              </DropdownMenuCheckboxItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>左から固定する列数</DropdownMenuLabel>
-            {[1, 2, 3, 4].map((count) => (
-              <DropdownMenuItem
-                key={count}
-                onSelect={() => {
-                  setFrozenCount(count);
-                  persist({ frozenColumnCount: count });
-                }}
-              >
-                {frozenCount === count ? (
-                  <Check className="size-4" />
-                ) : (
-                  <span className="size-4" />
-                )}
-                {count}列
-              </DropdownMenuItem>
-            ))}
+            {renderColumnControls()}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setPropertyOpen(true)}
-        >
-          <Plus aria-hidden="true" />
-          列を追加
-        </Button>
         {selected.size ? (
           <>
             <span className="text-sm text-muted-foreground">
@@ -1701,6 +1794,37 @@ export function TimelineTableView({
               </div>
             );
           })}
+          <div
+            className="sticky right-0 z-40 flex h-10 w-20 shrink-0 items-center justify-center gap-1 border-l bg-muted"
+            role="columnheader"
+            aria-label="列の操作"
+          >
+            <button
+              aria-label="列を追加"
+              className="rounded p-1 hover:bg-background focus-visible:ring-2 focus-visible:ring-primary"
+              type="button"
+              onClick={() => setPropertyOpen(true)}
+            >
+              <Plus className="size-4" aria-hidden="true" />
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  aria-label="列の表示と順番"
+                  className="rounded p-1 hover:bg-background focus-visible:ring-2 focus-visible:ring-primary"
+                  type="button"
+                >
+                  <Ellipsis className="size-4" aria-hidden="true" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="max-h-96 w-72 overflow-y-auto"
+              >
+                {renderColumnControls()}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
         <div
           className="relative"
@@ -1711,6 +1835,7 @@ export function TimelineTableView({
             return (
               <div
                 key={row.id}
+                data-index={virtualRow.index}
                 className="absolute top-0 left-0"
                 ref={virtualizer.measureElement}
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
@@ -1867,7 +1992,7 @@ export function TimelineTableView({
                       <option value="">終了状態 *</option>
                       <option value="specified">終了日指定</option>
                       <option value="ongoing">継続中</option>
-                      <option value="unknown">終了時期不明</option>
+                      <option value="unknown">終了日不明</option>
                     </select>
                     <Input
                       aria-label="新しい項目の終了日"

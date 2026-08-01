@@ -33,16 +33,16 @@ export type TableColumn = {
 const ITEM_COLUMNS: TableColumn[] = [
   { id: "title", label: "名称", kind: "title", defaultWidth: 280 },
   {
-    id: "start",
-    label: "開始・時点日",
-    kind: "date",
-    defaultWidth: 150,
-  },
-  {
     id: "temporalType",
     label: "形式",
     kind: "temporalType",
     defaultWidth: 110,
+  },
+  {
+    id: "start",
+    label: "開始・時点日",
+    kind: "date",
+    defaultWidth: 150,
   },
   { id: "end", label: "終了日", kind: "date", defaultWidth: 150 },
   {
