@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,10 @@ export type RelationshipAnchor = RelationshipPoint & {
 };
 
 export type RelationshipDisplayMode = "standard" | "all" | "hidden";
+
+const POPOVER_OFFSET = 12;
+const POPOVER_ESTIMATED_WIDTH = 320;
+const POPOVER_ESTIMATED_HEIGHT = 160;
 
 export function RelationshipLayer({
   relationships,
@@ -44,6 +48,8 @@ export function RelationshipLayer({
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [popoverPosition, setPopoverPosition] = useState({ left: 0, top: 0 });
+  const popoverRef = useRef<HTMLDivElement>(null);
   const labels = useMemo(
     () =>
       new Map(
@@ -71,6 +77,17 @@ export function RelationshipLayer({
   const selected = relationships.find((item) => item.id === selectedId) ?? null;
   const label = (type: RelationshipEntityType, id: string) =>
     labels.get(relationshipEndpointKey(type, id)) ?? "削除済みの項目";
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const clearSelection = (event: PointerEvent) => {
+      if (popoverRef.current?.contains(event.target as Node)) return;
+      setSelectedId(null);
+      setHoveredId(null);
+    };
+    document.addEventListener("pointerdown", clearSelection);
+    return () => document.removeEventListener("pointerdown", clearSelection);
+  }, [selectedId]);
 
   return (
     <>
@@ -113,11 +130,14 @@ export function RelationshipLayer({
               relationship.targetId,
             ),
           )!;
-          const path = buildOrthogonalRelationshipPath(
+          const route = buildOrthogonalRelationshipPath(
             source,
             target,
             14 + (index % 6) * 6,
-          ).d;
+          );
+          const path = route.d;
+          const accessibleLabel = `${label(relationship.sourceType, relationship.sourceId)}と${label(relationship.targetType, relationship.targetId)}の関係 ${relationship.relationType}`;
+          const title = `${label(relationship.sourceType, relationship.sourceId)} — ${relationship.relationType} — ${label(relationship.targetType, relationship.targetId)}`;
           const active =
             hoveredId === relationship.id || selectedId === relationship.id;
           const color = active
@@ -160,7 +180,7 @@ export function RelationshipLayer({
                 />
               ) : null}
               <path
-                aria-label={`${label(relationship.sourceType, relationship.sourceId)}と${label(relationship.targetType, relationship.targetId)}の関係 ${relationship.relationType}`}
+                aria-label={accessibleLabel}
                 className="cursor-pointer focus-visible:outline-none"
                 d={path}
                 fill="none"
@@ -172,6 +192,24 @@ export function RelationshipLayer({
                 onBlur={() => setHoveredId(null)}
                 onClick={(event) => {
                   event.stopPropagation();
+                  const svgBounds =
+                    event.currentTarget.ownerSVGElement?.getBoundingClientRect();
+                  const localX = event.clientX - (svgBounds?.left ?? 0);
+                  const localY = event.clientY - (svgBounds?.top ?? 0);
+                  const horizontalOffset =
+                    event.clientX + POPOVER_OFFSET + POPOVER_ESTIMATED_WIDTH >
+                    window.innerWidth
+                      ? -POPOVER_ESTIMATED_WIDTH - POPOVER_OFFSET
+                      : POPOVER_OFFSET;
+                  const verticalOffset =
+                    event.clientY + POPOVER_OFFSET + POPOVER_ESTIMATED_HEIGHT >
+                    window.innerHeight
+                      ? -POPOVER_ESTIMATED_HEIGHT - POPOVER_OFFSET
+                      : POPOVER_OFFSET;
+                  setPopoverPosition({
+                    left: left + localX + horizontalOffset,
+                    top: localY + verticalOffset,
+                  });
                   setSelectedId(relationship.id);
                 }}
                 onFocus={() => setHoveredId(relationship.id)}
@@ -180,22 +218,32 @@ export function RelationshipLayer({
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
+                    const channelStart = route.points[1]!;
+                    const channelEnd = route.points[2]!;
+                    setPopoverPosition({
+                      left:
+                        left +
+                        (channelStart.x + channelEnd.x) / 2 +
+                        POPOVER_OFFSET,
+                      top: channelStart.y + POPOVER_OFFSET,
+                    });
                     setSelectedId(relationship.id);
                   }
                 }}
               >
-                <title>
-                  {label(relationship.sourceType, relationship.sourceId)} —{" "}
-                  {relationship.relationType} —{" "}
-                  {label(relationship.targetType, relationship.targetId)}
-                </title>
+                <title>{title}</title>
               </path>
             </g>
           );
         })}
       </svg>
       {selected ? (
-        <div className="pointer-events-auto absolute top-14 right-3 z-[80] max-w-sm rounded-lg border bg-card p-3 text-sm shadow-lg">
+        <div
+          ref={popoverRef}
+          className="pointer-events-auto absolute z-[80] max-w-sm rounded-lg border bg-card p-3 text-sm shadow-lg"
+          data-testid="relationship-popover"
+          style={popoverPosition}
+        >
           <p className="font-medium">{selected.relationType}</p>
           <p>
             {label(selected.sourceType, selected.sourceId)} →{" "}

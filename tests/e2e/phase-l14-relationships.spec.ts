@@ -67,6 +67,15 @@ async function createItem(
 test("creates, edits, renders across collapsible groups, and deletes a semantic relationship", async ({
   page,
 }) => {
+  const hydrationErrors: string[] = [];
+  page.on("console", (message) => {
+    if (
+      message.type() === "error" &&
+      message.text().includes("Hydration failed")
+    ) {
+      hydrationErrors.push(message.text());
+    }
+  });
   expect(
     (
       await page.request.post("/api/test-auth", {
@@ -158,10 +167,36 @@ test("creates, edits, renders across collapsible groups, and deletes a semantic 
   const relationLine = page.getByRole("button", {
     name: /源流Aと後継Bの関係 継承/,
   });
+  const relationshipStroke = page.locator(
+    '[data-testid^="relationship-stroke-"]',
+  );
   await expect(relationLine).toBeVisible();
-  await relationLine.press("Enter");
+  const relationClickPoint = await relationLine.evaluate((element) => {
+    if (!(element instanceof SVGPathElement)) return null;
+    const coordinates = element
+      .getAttribute("d")
+      ?.match(/-?\d+(?:\.\d+)?/g)
+      ?.map(Number);
+    const svgBounds = element.ownerSVGElement?.getBoundingClientRect();
+    if (!coordinates || coordinates.length < 8 || !svgBounds) return null;
+    return {
+      x: svgBounds.left + coordinates[6]!,
+      y: svgBounds.top + coordinates[7]! - 12,
+    };
+  });
+  if (!relationClickPoint) throw new Error("Relationship path is required.");
+  await page.mouse.click(relationClickPoint.x, relationClickPoint.y);
   await expect(page.getByText("グループをまたぐ関係")).toBeVisible();
-  await page.getByRole("button", { name: "閉じる", exact: true }).click();
+  await expect(relationshipStroke).toHaveAttribute("stroke", "#FF3399");
+  await expect(page.getByTestId("relationship-popover")).not.toHaveCSS(
+    "right",
+    "12px",
+  );
+  await page
+    .getByRole("heading", { name: "L14関係テスト", exact: true })
+    .click();
+  await expect(page.getByTestId("relationship-popover")).toBeHidden();
+  await expect(relationshipStroke).toHaveAttribute("stroke", "#007F7F");
   await page.getByRole("button", { name: `${itemTypes[1]!.name} 1件` }).click();
   await page.getByRole("button", { name: "タイムライン操作を開く" }).click();
   await page.getByRole("button", { name: "全体に合わせる" }).click();
@@ -228,4 +263,5 @@ test("creates, edits, renders across collapsible groups, and deletes a semantic 
   await expect(
     detailManager.getByText("登録済みの関係性はありません。"),
   ).toBeVisible();
+  expect(hydrationErrors).toEqual([]);
 });

@@ -89,8 +89,35 @@ describe("Phase L14 relationship timeline layer", () => {
     expect(visibleLine).toHaveAttribute("stroke", "rgba(107, 114, 128, 0.42)");
     fireEvent.mouseEnter(line);
     expect(visibleLine).toHaveAttribute("stroke", "#FF3399");
-    fireEvent.click(line);
+    fireEvent.click(line, { clientX: 150, clientY: 90 });
     expect(screen.getByText("注記")).toBeInTheDocument();
+    expect(screen.getByTestId("relationship-popover")).toHaveStyle({
+      left: "162px",
+      top: "102px",
+    });
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByText("注記")).toBeNull();
+    expect(visibleLine).toHaveAttribute("stroke", "rgba(107, 114, 128, 0.42)");
+  });
+
+  it("renders the SVG title as one deterministic text node for hydration", () => {
+    render(
+      <RelationshipLayer
+        anchors={anchors}
+        displayMode="standard"
+        entities={entities}
+        height={200}
+        relationships={[relationship]}
+        visibleEnd={400}
+        visibleStart={0}
+        width={400}
+      />,
+    );
+
+    const title = document.querySelector("title");
+    expect(title).not.toBeNull();
+    expect(title?.childNodes).toHaveLength(1);
+    expect(title).toHaveTextContent("人物A — 影響 — 事件B");
   });
 
   it("shows colored relationships in all mode only when an endpoint is visible", () => {
