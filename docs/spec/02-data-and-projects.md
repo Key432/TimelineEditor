@@ -160,8 +160,11 @@ source_type text not null -- timeline_item | timeline_event
 source_id uuid not null
 target_type text not null -- timeline_item | timeline_event
 target_id uuid not null
-relation_type text not null -- influence | reference | collaboration | teacher | opposition | succession | other
+relation_type text not null -- 影響 | 参照 | 協働 | 師弟 | 対立 | 継承 | その他 | 自由入力
 direction text not null -- directed | undirected
+line_style text not null -- single | double
+source_marker text not null -- none | arrow
+target_marker text not null -- none | arrow
 note text
 created_at timestamptz not null
 updated_at timestamptz not null
@@ -169,8 +172,9 @@ unique(project_id, source_type, source_id, target_type, target_id, relation_type
 ```
 
 - 代表的なユースケースとして、「ある本が他の著者の本に影響を与えた」「ある人物が別の人物を教えた」「ある人物がある他の人物の出来事に影響を与えた」「ある出来事がある人物に影響を与えた」を表現できるようにする。
-- 関連は表示時に線として描画し、対象間の関係性を視覚化する。
-- 通常タイムラインは選択対象の直接関係だけを既定表示し、全関係の探索はネットワークビューで行う。
+- 関係種別は日本語の既定候補を提示するが、1〜80文字の任意名称も保存できる。
+- 関連は単線／二重線と始点／終点の矢印を独立指定し、表示時に直角線として描画する。
+- 通常タイムラインは選択対象の直接関係だけを既定表示し、任意で表示範囲内の全関係へ切り替える。大規模な全関係探索はネットワークビューで行う。
 
 ### 8.8 search_documents
 

@@ -190,7 +190,11 @@ describe("Phase L13 analysis, merge, Undo and RLS", () => {
       source_id: merged.id,
       target_type: "timeline_item",
       target_id: referrer.id,
-      relation_type: "reference",
+      relation_type: "参照",
+      direction: "directed",
+      line_style: "double",
+      source_marker: "arrow",
+      target_marker: "arrow",
     });
 
     const ownerService = new ProjectAnalysisService(owner);
@@ -282,6 +286,24 @@ describe("Phase L13 analysis, merge, Undo and RLS", () => {
           .single()
       ).data?.reference_entity_id,
     ).toBe(survivor.id);
+    expect(
+      (
+        await owner
+          .from("entity_relationships")
+          .select(
+            "source_id, relation_type, direction, line_style, source_marker, target_marker",
+          )
+          .eq("project_id", projectId)
+          .single()
+      ).data,
+    ).toMatchObject({
+      source_id: survivor.id,
+      relation_type: "参照",
+      direction: "directed",
+      line_style: "double",
+      source_marker: "arrow",
+      target_marker: "arrow",
+    });
 
     await ownerService.undo(projectId, { operationId: result.operationId });
     expect(
@@ -335,5 +357,23 @@ describe("Phase L13 analysis, merge, Undo and RLS", () => {
           .single()
       ).data?.reference_entity_id,
     ).toBe(merged.id);
+    expect(
+      (
+        await owner
+          .from("entity_relationships")
+          .select(
+            "source_id, relation_type, direction, line_style, source_marker, target_marker",
+          )
+          .eq("project_id", projectId)
+          .single()
+      ).data,
+    ).toMatchObject({
+      source_id: merged.id,
+      relation_type: "参照",
+      direction: "directed",
+      line_style: "double",
+      source_marker: "arrow",
+      target_marker: "arrow",
+    });
   });
 });

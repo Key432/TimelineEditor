@@ -3,6 +3,10 @@ import type {
   CustomFieldEntry,
 } from "@/features/classification/types";
 import type { TimelineEvent } from "@/features/timeline-events/types";
+import type {
+  EntityRelationship,
+  RelationshipEntityType,
+} from "@/features/relationships/types";
 import type { TimelineEventInput } from "@/features/timeline-events/validation";
 import type {
   HistoricalDate,
@@ -197,4 +201,20 @@ export function setCustomFieldValue(
 export function escapeCsvCell(value: unknown) {
   const text = String(value ?? "");
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+export function relationshipsToCsvCell(
+  relationships: EntityRelationship[],
+  entityType: RelationshipEntityType,
+  entityId: string,
+) {
+  return JSON.stringify(
+    relationships.filter(
+      (relationship) =>
+        (relationship.sourceType === entityType &&
+          relationship.sourceId === entityId) ||
+        (relationship.targetType === entityType &&
+          relationship.targetId === entityId),
+    ),
+  );
 }

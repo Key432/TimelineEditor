@@ -941,7 +941,11 @@ export type Database = {
           source_id: string;
           target_type: "timeline_item" | "timeline_event";
           target_id: string;
-          relation_type: "influence" | "reference" | "collaboration" | "other";
+          relation_type: string;
+          direction: "directed" | "undirected";
+          line_style: "single" | "double";
+          source_marker: "none" | "arrow";
+          target_marker: "none" | "arrow";
           note: string | null;
           created_at: string;
           updated_at: string;
@@ -953,7 +957,11 @@ export type Database = {
           source_id: string;
           target_type: "timeline_item" | "timeline_event";
           target_id: string;
-          relation_type: "influence" | "reference" | "collaboration" | "other";
+          relation_type: string;
+          direction?: "directed" | "undirected";
+          line_style?: "single" | "double";
+          source_marker?: "none" | "arrow";
+          target_marker?: "none" | "arrow";
           note?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -965,7 +973,11 @@ export type Database = {
           source_id?: string;
           target_type?: "timeline_item" | "timeline_event";
           target_id?: string;
-          relation_type?: "influence" | "reference" | "collaboration" | "other";
+          relation_type?: string;
+          direction?: "directed" | "undirected";
+          line_style?: "single" | "double";
+          source_marker?: "none" | "arrow";
+          target_marker?: "none" | "arrow";
           note?: string | null;
           created_at?: string;
           updated_at?: string;

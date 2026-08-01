@@ -142,13 +142,11 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
 
   await page.setViewportSize({ width: 1024, height: 800 });
   await page.getByRole("button", { name: "管理メニュー" }).click();
-  await page
-    .getByRole("menuitem", { name: "種別・タグ・カスタムフィールド" })
-    .click();
+  await page.getByRole("menuitem", { name: "分類・関係" }).click();
   const desktopItemTypeDialog = page.getByRole("dialog");
   await expect(
     desktopItemTypeDialog.getByRole("heading", {
-      name: "種別・タグ・カスタムフィールド",
+      name: "分類・関係",
     }),
   ).toBeVisible();
   await expect(
@@ -252,9 +250,7 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   const typeGroup = page.getByRole("button", { name: /出来事 1件/ });
   await expect(typeGroup.locator("svg.lucide-image")).toBeVisible();
   await page.getByRole("button", { name: "管理メニュー" }).click();
-  await page
-    .getByRole("menuitem", { name: "種別・タグ・カスタムフィールド" })
-    .click();
+  await page.getByRole("menuitem", { name: "分類・関係" }).click();
   const classificationDialog = page.getByRole("dialog");
   await classificationDialog
     .getByRole("combobox", {

@@ -68,6 +68,7 @@ import type {
   CustomFieldType,
 } from "@/features/classification/types";
 import type { TimelineItemType } from "@/features/item-types/types";
+import type { EntityRelationship } from "@/features/relationships/types";
 import { ItemTypeIcon } from "@/features/item-types/item-type-icon";
 import {
   createTimelineEvent,
@@ -112,6 +113,7 @@ import {
   formatHistoricalDate,
   itemToInput,
   parseHistoricalDate,
+  relationshipsToCsvCell,
   setCustomFieldValue,
   type TableColumn,
   type TableEntityType,
@@ -1176,6 +1178,7 @@ export function TimelineTableView({
   items,
   itemGroups,
   events,
+  relationships,
   itemTypes,
   currentDate,
   dimmedItemIds,
@@ -1188,6 +1191,7 @@ export function TimelineTableView({
   items: TimelineItemSummary[];
   itemGroups: TimelineDisplayGroup[];
   events: TimelineEventSummary[];
+  relationships: EntityRelationship[];
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
   dimmedItemIds: ReadonlySet<string>;
@@ -1213,6 +1217,7 @@ export function TimelineTableView({
     types: true,
     tags: true,
     parents: true,
+    relationships: true,
   });
   const scrollRef = useRef<HTMLDivElement>(null);
   const classification = useQuery({
@@ -1511,6 +1516,7 @@ export function TimelineTableView({
             "end",
             "end_status",
             ...(exportOptions.tags ? ["tags"] : []),
+            ...(exportOptions.relationships ? ["relationships"] : []),
           ]
         : [
             "id",
@@ -1519,6 +1525,7 @@ export function TimelineTableView({
             ...(exportOptions.types ? ["event_type"] : []),
             ...(exportOptions.parents ? ["parent_ids"] : []),
             ...(exportOptions.tags ? ["tags"] : []),
+            ...(exportOptions.relationships ? ["relationships"] : []),
           ];
     const csvRows = selectedRows.map((summary) => {
       if (entityType === "timeline_item") {
@@ -1533,6 +1540,9 @@ export function TimelineTableView({
           formatHistoricalDate(item.end),
           item.endDateStatus ?? "",
           ...(exportOptions.tags ? [tagText(item)] : []),
+          ...(exportOptions.relationships
+            ? [relationshipsToCsvCell(relationships, "timeline_item", item.id)]
+            : []),
         ];
       }
       const event = summary as TimelineEventSummary;
@@ -1545,6 +1555,9 @@ export function TimelineTableView({
           ? [JSON.stringify(event.timelineItemIds)]
           : []),
         ...(exportOptions.tags ? [tagText(event)] : []),
+        ...(exportOptions.relationships
+          ? [relationshipsToCsvCell(relationships, "timeline_event", event.id)]
+          : []),
       ];
     });
     const content = [headers, ...csvRows]
@@ -1650,6 +1663,17 @@ export function TimelineTableView({
                     種別なし
                   </DropdownMenuItem>
                 ) : null}
+                <DropdownMenuCheckboxItem
+                  checked={exportOptions.relationships}
+                  onCheckedChange={(checked) =>
+                    setExportOptions((value) => ({
+                      ...value,
+                      relationships: checked === true,
+                    }))
+                  }
+                >
+                  関係性を含める
+                </DropdownMenuCheckboxItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>タグを追加</DropdownMenuLabel>
                 {(classification.data?.tags ?? []).map((tag) => (

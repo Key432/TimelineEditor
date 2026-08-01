@@ -221,6 +221,23 @@ export class ImportExportRepository {
     }));
   }
 
+  private async listRelationships(projectId: string) {
+    const rows: Database["public"]["Tables"]["entity_relationships"]["Row"][] =
+      [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await this.client
+        .from("entity_relationships")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at")
+        .order("id")
+        .range(from, from + 999);
+      if (error) throw error;
+      rows.push(...data);
+      if (data.length < 1000) return rows;
+    }
+  }
+
   async export(projectId: string): Promise<ProjectBackup | null> {
     const [
       projectResult,
@@ -236,6 +253,7 @@ export class ImportExportRepository {
       eventTagLinks,
       customValues,
       backgroundLayers,
+      relationships,
     ] = await Promise.all([
       this.client
         .from("projects")
@@ -258,6 +276,7 @@ export class ImportExportRepository {
       this.listEventTagLinks(projectId),
       this.listCustomValues(projectId),
       this.listBackgroundLayers(projectId),
+      this.listRelationships(projectId),
     ]);
     for (const result of [projectResult, settingsResult])
       if (result.error) throw result.error;
@@ -447,6 +466,19 @@ export class ImportExportRepository {
         externalUrl: event.external_url,
       })),
       backgroundLayers,
+      relationships: relationships.map((relationship) => ({
+        id: relationship.id,
+        sourceType: relationship.source_type,
+        sourceId: relationship.source_id,
+        targetType: relationship.target_type,
+        targetId: relationship.target_id,
+        relationType: relationship.relation_type,
+        direction: relationship.direction,
+        lineStyle: relationship.line_style,
+        sourceMarker: relationship.source_marker,
+        targetMarker: relationship.target_marker,
+        note: relationship.note,
+      })),
     };
   }
 

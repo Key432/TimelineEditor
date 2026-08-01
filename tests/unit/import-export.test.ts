@@ -110,6 +110,21 @@ function backup(): ProjectBackup {
       },
     ],
     backgroundLayers: [],
+    relationships: [
+      {
+        id: "55555555-5555-4555-8555-555555555555",
+        sourceType: "timeline_item",
+        sourceId: itemId,
+        targetType: "timeline_event",
+        targetId: eventId,
+        relationType: "影響",
+        direction: "directed",
+        lineStyle: "double",
+        sourceMarker: "none",
+        targetMarker: "arrow",
+        note: "作品への影響",
+      },
+    ],
   };
 }
 
@@ -124,6 +139,9 @@ describe("project import and export formats", () => {
       "44444444-4444-4444-8444-444444444444",
     ];
     expect(previewBackup(invalid).errors.join(" ")).toContain("親項目");
+    invalid.timelineEvents[0]!.timelineItemIds = [itemId];
+    invalid.relationships[0]!.targetId = "44444444-4444-4444-8444-444444444444";
+    expect(previewBackup(invalid).errors.join(" ")).toContain("始点または終点");
     expect(
       previewBackup({ ...backup(), schemaVersion: 99 }).errors.join(" "),
     ).toContain("対応していません");
@@ -142,7 +160,7 @@ describe("project import and export formats", () => {
 
     expect(preview.errors).toEqual([]);
     expect(preview.warnings).toContain(
-      "旧JSON形式をスキーマバージョン6へ移行しました。",
+      "旧JSON形式をスキーマバージョン7へ移行しました。",
     );
     expect(preview.payload?.schemaVersion).toBe(IMPORT_SCHEMA_VERSION);
   });
@@ -155,6 +173,7 @@ describe("project import and export formats", () => {
       "timeline-items.csv",
       "timeline-events.csv",
       "item-types.csv",
+      "relationships.csv",
       "classification.json",
       "background-layers.json",
       "README.md",
@@ -179,6 +198,11 @@ describe("project import and export formats", () => {
     expect(preview.payload?.timelineEvents[0]?.timelineItemIds).toEqual([
       itemId,
     ]);
+    expect(preview.payload?.relationships[0]).toMatchObject({
+      relationType: "影響",
+      lineStyle: "double",
+      targetMarker: "arrow",
+    });
 
     const deflated = createDeflatedZip(
       [...files].map(([name, content]) => ({ name, content })),
@@ -332,7 +356,7 @@ describe("project import and export formats", () => {
 
     expect(preview.errors).toEqual([]);
     expect(preview.warnings).toContain(
-      "旧CSV形式をスキーマバージョン6へ移行しました。",
+      "旧CSV形式をスキーマバージョン7へ移行しました。",
     );
     expect(preview.payload?.schemaVersion).toBe(IMPORT_SCHEMA_VERSION);
   });

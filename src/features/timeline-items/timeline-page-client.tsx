@@ -61,6 +61,7 @@ import { invalidateItemTypeDependents } from "@/features/item-types/cache";
 import { SourceManager } from "@/features/sources/source-manager";
 import { BackgroundLayerManager } from "@/features/background-layers/background-layer-manager";
 import type { TimelineBackgroundLayer } from "@/features/background-layers/types";
+import type { RelationshipDataset } from "@/features/relationships/types";
 
 const ProjectAnalysisManager = dynamic(
   () =>
@@ -93,6 +94,7 @@ export function TimelinePageClient({
   currentDate,
   layoutMode,
   initialBackgroundLayers,
+  initialRelationships,
 }: {
   project: Project;
   initialItems: TimelineItemSummary[];
@@ -101,6 +103,7 @@ export function TimelinePageClient({
   currentDate: HistoricalDate;
   layoutMode: TimelineLayoutMode;
   initialBackgroundLayers: TimelineBackgroundLayer[];
+  initialRelationships: RelationshipDataset;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -158,7 +161,7 @@ export function TimelinePageClient({
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setPanel("classification")}>
                 <Shapes aria-hidden="true" />
-                種別・タグ・カスタムフィールド
+                分類・関係
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setPanel("sources")}>
                 <BookOpen aria-hidden="true" />
@@ -191,6 +194,7 @@ export function TimelinePageClient({
         initialItems={initialItems}
         initialEvents={initialEvents}
         initialBackgroundLayers={initialBackgroundLayers}
+        initialRelationships={initialRelationships}
         itemTypes={itemTypes}
         layoutMode={layoutMode}
         filters={filters}
@@ -242,7 +246,7 @@ export function TimelinePageClient({
               {panel === "settings"
                 ? "プロジェクト設定"
                 : panel === "classification"
-                  ? "種別・タグ・カスタムフィールド"
+                  ? "分類・関係"
                   : panel === "backgrounds"
                     ? "年代背景レイヤー"
                     : panel === "sources"
@@ -255,7 +259,7 @@ export function TimelinePageClient({
               {panel === "settings"
                 ? "名前、説明、タイムラインの初期表示を変更します。"
                 : panel === "classification"
-                  ? "タイムライン種別、イベント種別、タグ、用途固有の型付きフィールドを管理します。"
+                  ? "タイムライン種別、イベント種別、タグ、カスタムフィールド、意味的関係を管理します。"
                   : panel === "backgrounds"
                     ? "時代区分、王朝、政権、文化潮流などを複数の背景として管理します。"
                     : panel === "sources"

@@ -16,6 +16,7 @@ const CSV_VERSION_PREFIX = "# timeline-editor-schema-version=";
 const CSV_MANIFEST_NAME = "manifest.json";
 const CLASSIFICATION_NAME = "classification.json";
 const BACKGROUND_LAYERS_NAME = "background-layers.json";
+const RELATIONSHIPS_NAME = "relationships.csv";
 const README = `# Timeline Editor CSV
 
 CSVスキーマバージョン: ${IMPORT_SCHEMA_VERSION}
@@ -77,6 +78,15 @@ CSVスキーマバージョン: ${IMPORT_SCHEMA_VERSION}
 ### background-layers.json
 
 年代背景レイヤーと背景期間を保持する。通常アイテムや描画結果は複製しない。
+
+### relationships.csv
+
+- source_type/source_id・target_type/target_id: 始点と終点。timeline_item または timeline_event とIDを指定する。
+- relation_type: 日本語の既定候補または自由に作成した関係名。
+- direction: directed または undirected。
+- line_style: single（直線）または double（二重線）。
+- source_marker/target_marker: none または arrow。
+- note: 注記。任意。
 
 ### item-types.csv
 
@@ -255,6 +265,34 @@ export function createCsvArchive(backup: ProjectBackup) {
       JSON.stringify(event.customFields),
     ]),
   );
+  const relationships = csv(
+    [
+      "id",
+      "source_type",
+      "source_id",
+      "target_type",
+      "target_id",
+      "relation_type",
+      "direction",
+      "line_style",
+      "source_marker",
+      "target_marker",
+      "note",
+    ],
+    backup.relationships.map((relationship) => [
+      relationship.id,
+      relationship.sourceType,
+      relationship.sourceId,
+      relationship.targetType,
+      relationship.targetId,
+      relationship.relationType,
+      relationship.direction,
+      relationship.lineStyle,
+      relationship.sourceMarker,
+      relationship.targetMarker,
+      relationship.note,
+    ]),
+  );
   return createStoredZip([
     {
       name: CSV_MANIFEST_NAME,
@@ -272,6 +310,7 @@ export function createCsvArchive(backup: ProjectBackup) {
     { name: "timeline-items.csv", content: items },
     { name: "timeline-events.csv", content: events },
     { name: "item-types.csv", content: types },
+    { name: RELATIONSHIPS_NAME, content: relationships },
     {
       name: CLASSIFICATION_NAME,
       content: JSON.stringify(
@@ -432,7 +471,10 @@ export function parseCsvImport(
     }
     for (const name of CSV_NAMES)
       if (!files.has(name)) errors.push(`${name} がありません。`);
-  } else if ((CSV_NAMES as readonly string[]).includes(normalizedFileName)) {
+  } else if (
+    (CSV_NAMES as readonly string[]).includes(normalizedFileName) ||
+    normalizedFileName === RELATIONSHIPS_NAME
+  ) {
     files = new Map([[normalizedFileName, new TextDecoder().decode(input)]]);
   } else {
     return {
@@ -442,7 +484,7 @@ export function parseCsvImport(
       timelineItemCount: 0,
       timelineEventCount: 0,
       errors: [
-        "ファイル名は item-types.csv、timeline-items.csv、timeline-events.csv のいずれかにしてください。",
+        "ファイル名は item-types.csv、timeline-items.csv、timeline-events.csv、relationships.csv のいずれかにしてください。",
       ],
       warnings: [],
     };
@@ -459,8 +501,11 @@ export function parseCsvImport(
     };
   try {
     const sections = CSV_NAMES.filter((name) => files.has(name));
+    const csvDocuments = files.has(RELATIONSHIPS_NAME)
+      ? [...sections, RELATIONSHIPS_NAME]
+      : sections;
     const documents = new Map(
-      sections.map((name) => [name, parseCsv(files.get(name)!)]),
+      csvDocuments.map((name) => [name, parseCsv(files.get(name)!)]),
     );
     let manifestVersion: number | null = null;
     if (files.has(CSV_MANIFEST_NAME)) {
@@ -498,17 +543,19 @@ export function parseCsvImport(
       throw new Error("CSVスキーマバージョンが不正です。");
     }
     if (schemaVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION) {
-      warnings.push("旧CSV形式をスキーマバージョン6へ移行しました。");
+      warnings.push("旧CSV形式をスキーマバージョン7へ移行しました。");
     } else if (schemaVersion === 1) {
-      warnings.push("CSVスキーマバージョン1をバージョン6へ移行しました。");
+      warnings.push("CSVスキーマバージョン1をバージョン7へ移行しました。");
     } else if (schemaVersion === 2) {
-      warnings.push("CSVスキーマバージョン2をバージョン6へ移行しました。");
+      warnings.push("CSVスキーマバージョン2をバージョン7へ移行しました。");
     } else if (schemaVersion === 3) {
-      warnings.push("CSVスキーマバージョン3をバージョン6へ移行しました。");
+      warnings.push("CSVスキーマバージョン3をバージョン7へ移行しました。");
     } else if (schemaVersion === 4) {
-      warnings.push("CSVスキーマバージョン4をバージョン6へ移行しました。");
+      warnings.push("CSVスキーマバージョン4をバージョン7へ移行しました。");
     } else if (schemaVersion === 5) {
-      warnings.push("CSVスキーマバージョン5をバージョン6へ移行しました。");
+      warnings.push("CSVスキーマバージョン5をバージョン7へ移行しました。");
+    } else if (schemaVersion === 6) {
+      warnings.push("CSVスキーマバージョン6をバージョン7へ移行しました。");
     } else if (schemaVersion !== IMPORT_SCHEMA_VERSION) {
       throw new Error(
         `CSVスキーマバージョン${schemaVersion}の移行処理がありません。`,
@@ -517,6 +564,7 @@ export function parseCsvImport(
     const rawTypes = documents.get("item-types.csv")?.rows ?? [];
     const rawItems = documents.get("timeline-items.csv")?.rows ?? [];
     const rawEvents = documents.get("timeline-events.csv")?.rows ?? [];
+    const rawRelationships = documents.get(RELATIONSHIPS_NAME)?.rows ?? [];
     const originalTypeIds = new Map<string, string>();
     const typeIdsByName = new Map(
       base.itemTypes.map((type) => [normalizedName(type.name), type.id]),
@@ -664,6 +712,22 @@ export function parseCsvImport(
         },
       ];
     });
+    const relationships = rawRelationships.map((row) => ({
+      id: row.id || crypto.randomUUID(),
+      sourceType: row.source_type as "timeline_item" | "timeline_event",
+      sourceId: row.source_id,
+      targetType: row.target_type as "timeline_item" | "timeline_event",
+      targetId: row.target_id,
+      relationType: row.relation_type,
+      direction: (row.direction ||
+        (row.source_marker === "arrow" || row.target_marker === "arrow"
+          ? "directed"
+          : "undirected")) as "directed" | "undirected",
+      lineStyle: (row.line_style || "single") as "single" | "double",
+      sourceMarker: (row.source_marker || "none") as "none" | "arrow",
+      targetMarker: (row.target_marker || "none") as "none" | "arrow",
+      note: nullable(row.note),
+    }));
     if (createdTimelineItemCount > 0)
       warnings.push(
         `${createdTimelineItemCount}件のタイムライン項目を新規作成しました。`,
@@ -683,6 +747,7 @@ export function parseCsvImport(
     if (files.has(CLASSIFICATION_NAME)) importSections.push("classification");
     if (files.has(BACKGROUND_LAYERS_NAME))
       importSections.push("backgroundLayers");
+    if (files.has(RELATIONSHIPS_NAME)) importSections.push("relationships");
     if (createdItemTypeCount > 0 && !importSections.includes("itemTypes"))
       importSections.unshift("itemTypes");
     const classification = files.has(CLASSIFICATION_NAME)
@@ -731,6 +796,7 @@ export function parseCsvImport(
       timelineItems,
       timelineEvents,
       backgroundLayers,
+      relationships,
       importSections,
     });
     return {

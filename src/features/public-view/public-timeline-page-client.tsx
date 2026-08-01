@@ -19,6 +19,7 @@ import type {
   TimelineItemSummary,
 } from "@/features/timeline-items/types";
 import type { TimelineBackgroundLayer } from "@/features/background-layers/types";
+import type { RelationshipDataset } from "@/features/relationships/types";
 
 export function PublicTimelinePageClient({
   publicId,
@@ -28,6 +29,7 @@ export function PublicTimelinePageClient({
   itemTypes,
   currentDate,
   initialBackgroundLayers,
+  initialRelationships,
 }: {
   publicId: string;
   project: Project;
@@ -36,6 +38,7 @@ export function PublicTimelinePageClient({
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
   initialBackgroundLayers: TimelineBackgroundLayer[];
+  initialRelationships: RelationshipDataset;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -68,6 +71,7 @@ export function PublicTimelinePageClient({
         filters={filters}
         initialEvents={initialEvents}
         initialBackgroundLayers={initialBackgroundLayers}
+        initialRelationships={initialRelationships}
         initialItems={initialItems}
         itemTypes={itemTypes}
         layoutMode={layoutMode}

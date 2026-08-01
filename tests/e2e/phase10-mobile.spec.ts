@@ -198,7 +198,7 @@ test("keeps mobile editing available while touch gestures never create an event 
     ),
   });
   await expect(
-    page.getByText("旧JSON形式をスキーマバージョン6へ移行しました。"),
+    page.getByText("旧JSON形式をスキーマバージョン7へ移行しました。"),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "現在のプロジェクトを上書き" }),

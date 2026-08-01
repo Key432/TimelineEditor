@@ -104,6 +104,11 @@ import {
   listBackgroundLayers,
 } from "@/features/background-layers/api";
 import type { TimelineBackgroundLayer } from "@/features/background-layers/types";
+import {
+  listRelationships,
+  relationshipKeys,
+} from "@/features/relationships/api";
+import type { RelationshipDataset } from "@/features/relationships/types";
 
 const HIDDEN_ITEMS_GROUP_ID = "hidden-items";
 
@@ -222,6 +227,7 @@ function TimelineWorkspaceContent({
   initialItems,
   initialEvents,
   initialBackgroundLayers,
+  initialRelationships,
   itemTypes,
   currentDate,
   onEditItemTypes,
@@ -237,6 +243,7 @@ function TimelineWorkspaceContent({
   initialItems: TimelineItemSummary[];
   initialEvents: TimelineEventSummary[];
   initialBackgroundLayers: TimelineBackgroundLayer[];
+  initialRelationships: RelationshipDataset;
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
   onEditItemTypes?: () => void;
@@ -304,6 +311,11 @@ function TimelineWorkspaceContent({
     queryKey: backgroundLayerKeys.list(project.id),
     queryFn: () => listBackgroundLayers(project.id),
     initialData: initialBackgroundLayers,
+  });
+  const { data: relationshipData = initialRelationships } = useQuery({
+    queryKey: relationshipKeys.all(project.id),
+    queryFn: () => listRelationships(project.id),
+    initialData: initialRelationships,
   });
   const backgroundVisibilityRef = useRef(
     new Map(
@@ -772,6 +784,7 @@ function TimelineWorkspaceContent({
                 )
               : events
           }
+          relationships={relationshipData.relationships}
           itemGroups={displayGroups}
           items={items}
           itemTypes={currentItemTypes}
@@ -841,6 +854,8 @@ function TimelineWorkspaceContent({
                 backgroundLayers={backgroundLayers.filter((layer) =>
                   visibleBackgroundIdSet.has(layer.id),
                 )}
+                relationships={relationshipData.relationships}
+                relationshipEntities={relationshipData.entities}
                 dimmedItemIds={dimmedItemIds}
                 highlightedEventIds={filterResult.matchingEventIds}
                 layoutMode={layoutMode}
@@ -1010,6 +1025,7 @@ export function TimelineWorkspace(props: {
   initialItems: TimelineItemSummary[];
   initialEvents?: TimelineEventSummary[];
   initialBackgroundLayers?: TimelineBackgroundLayer[];
+  initialRelationships?: RelationshipDataset;
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
   onEditItemTypes?: () => void;
@@ -1031,6 +1047,9 @@ export function TimelineWorkspace(props: {
         {...props}
         initialEvents={props.initialEvents ?? []}
         initialBackgroundLayers={props.initialBackgroundLayers ?? []}
+        initialRelationships={
+          props.initialRelationships ?? { relationships: [], entities: [] }
+        }
         filters={props.filters ?? DEFAULT_TIMELINE_FILTERS}
         layoutMode={layoutMode}
         onLayoutModeChange={(nextLayoutMode) => {

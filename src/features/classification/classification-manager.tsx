@@ -23,6 +23,7 @@ import {
 } from "@/features/classification/types";
 import type { TimelineItemType } from "@/features/item-types/types";
 import { TimelineItemTypeSelect } from "@/features/item-types/item-type-select";
+import { RelationshipManager } from "@/features/relationships/relationship-manager";
 
 const FIELD_LABELS: Record<CustomFieldType, string> = {
   text: "文字列",
@@ -300,6 +301,9 @@ export function ClassificationManager({
             </li>
           ))}
         </ul>
+      </section>
+      <section className="border-t pt-6">
+        <RelationshipManager projectId={projectId} />
       </section>
     </div>
   );

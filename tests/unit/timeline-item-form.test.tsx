@@ -82,7 +82,7 @@ describe("TimelineItemForm", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: "種別・タグ・カスタムフィールドを管理",
+        name: "分類・関係を管理",
       }),
     );
     expect(onEditItemTypes).toHaveBeenCalledOnce();

@@ -20,6 +20,7 @@ import {
 import type { TimelineItem } from "@/features/timeline-items/types";
 import { SourceDisplay } from "@/features/sources/source-display";
 import { EntityMetadataDisplay } from "@/features/classification/entity-metadata-display";
+import { RelationshipManager } from "@/features/relationships/relationship-manager";
 
 function dateLabel(item: TimelineItem) {
   if (item.temporalType === "point") {
@@ -115,6 +116,12 @@ export function TimelineItemDetail({
           sourceText={currentItem.sourceText}
         />
       </section>
+      <Separator />
+      <RelationshipManager
+        entity={{ type: "timeline_item", id: currentItem.id }}
+        projectId={projectId}
+        readOnly={readOnly}
+      />
       {currentItem.externalUrl ? (
         <p>
           <a

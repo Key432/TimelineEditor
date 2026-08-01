@@ -127,6 +127,21 @@ function payload(name = "取り込み元") {
       },
     ],
     backgroundLayers: [],
+    relationships: [
+      {
+        id: "55555555-5555-4555-8555-555555555555",
+        sourceType: "timeline_item",
+        sourceId: sourceItemId,
+        targetType: "timeline_event",
+        targetId: sourceEventId,
+        relationType: "影響",
+        direction: "directed",
+        lineStyle: "double",
+        sourceMarker: "none",
+        targetMarker: "arrow",
+        note: "ID再マップ確認",
+      },
+    ],
   };
 }
 
@@ -197,7 +212,7 @@ describe("transactional project import", () => {
     );
     expect(error).toBeNull();
     expect(duplicateId).not.toBe(targetId);
-    const [projects, types, items, events] = await Promise.all([
+    const [projects, types, items, events, relationships] = await Promise.all([
       owner
         .from("projects")
         .select("name, visibility")
@@ -217,6 +232,12 @@ describe("transactional project import", () => {
         .from("timeline_events")
         .select(
           "id, aliases, description, event_precision, event_original_text",
+        )
+        .eq("project_id", duplicateId!),
+      owner
+        .from("entity_relationships")
+        .select(
+          "source_id, target_id, relation_type, line_style, target_marker, note",
         )
         .eq("project_id", duplicateId!),
     ]);
@@ -244,6 +265,16 @@ describe("transactional project import", () => {
     expect(items.data?.[0]?.description).not.toContain(sourceEventId);
     expect(events.data?.[0]?.description).toContain(items.data?.[0]?.id);
     expect(events.data?.[0]?.description).not.toContain(sourceItemId);
+    expect(relationships.data).toEqual([
+      {
+        source_id: items.data?.[0]?.id,
+        target_id: events.data?.[0]?.id,
+        relation_type: "影響",
+        line_style: "double",
+        target_marker: "arrow",
+        note: "ID再マップ確認",
+      },
+    ]);
   });
 
   it("creates a new private project without a target project ID", async () => {

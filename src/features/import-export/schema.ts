@@ -20,6 +20,7 @@ export const importSectionSchema = z.enum([
   "timelineEvents",
   "classification",
   "backgroundLayers",
+  "relationships",
 ]);
 
 const nullableString = z.string().nullable();
@@ -105,6 +106,20 @@ const backgroundLayerBackupSchema = z.object({
   periods: z.array(backgroundPeriodBackupSchema).max(10000),
 });
 
+const relationshipBackupSchema = z.object({
+  id: z.uuid(),
+  sourceType: z.enum(["timeline_item", "timeline_event"]),
+  sourceId: z.uuid(),
+  targetType: z.enum(["timeline_item", "timeline_event"]),
+  targetId: z.uuid(),
+  relationType: z.string().trim().min(1).max(80),
+  direction: z.enum(["directed", "undirected"]),
+  lineStyle: z.enum(["single", "double"]),
+  sourceMarker: z.enum(["none", "arrow"]),
+  targetMarker: z.enum(["none", "arrow"]),
+  note: z.string().max(2000).nullable(),
+});
+
 export const projectBackupSchema = z
   .object({
     schemaVersion: z.literal(IMPORT_SCHEMA_VERSION),
@@ -171,6 +186,7 @@ export const projectBackupSchema = z
     timelineItems: z.array(itemSchema).max(5000),
     timelineEvents: z.array(eventSchema).max(50000),
     backgroundLayers: z.array(backgroundLayerBackupSchema).max(1000),
+    relationships: z.array(relationshipBackupSchema).max(50000).default([]),
     importSections: z.array(importSectionSchema).min(1).optional(),
   })
   .superRefine((backup, context) => {
@@ -196,6 +212,11 @@ export const projectBackupSchema = z
     const validatesClassification =
       !backup.importSections ||
       backup.importSections.includes("classification");
+    const validatesRelationshipItems =
+      !backup.importSections || backup.importSections.includes("timelineItems");
+    const validatesRelationshipEvents =
+      !backup.importSections ||
+      backup.importSections.includes("timelineEvents");
     for (const [index, field] of backup.customFields.entries())
       if (
         field.scope === "type" &&
@@ -312,6 +333,42 @@ export const projectBackupSchema = z
             message: "参照先が見つかりません。",
           });
       }
+    }
+    for (const [index, relationship] of backup.relationships.entries()) {
+      const sourceExists =
+        relationship.sourceType === "timeline_item"
+          ? !validatesRelationshipItems || itemIds.has(relationship.sourceId)
+          : !validatesRelationshipEvents || eventIds.has(relationship.sourceId);
+      const targetExists =
+        relationship.targetType === "timeline_item"
+          ? !validatesRelationshipItems || itemIds.has(relationship.targetId)
+          : !validatesRelationshipEvents || eventIds.has(relationship.targetId);
+      if (!sourceExists || !targetExists)
+        context.addIssue({
+          code: "custom",
+          path: ["relationships", index],
+          message: "関係性の始点または終点が見つかりません。",
+        });
+      if (
+        relationship.sourceType === relationship.targetType &&
+        relationship.sourceId === relationship.targetId
+      )
+        context.addIssue({
+          code: "custom",
+          path: ["relationships", index],
+          message: "同じ項目同士は関係付けできません。",
+        });
+      const expectedDirection =
+        relationship.sourceMarker === "none" &&
+        relationship.targetMarker === "none"
+          ? "undirected"
+          : "directed";
+      if (relationship.direction !== expectedDirection)
+        context.addIssue({
+          code: "custom",
+          path: ["relationships", index, "direction"],
+          message: "矢印と方向の指定が一致しません。",
+        });
     }
   });
 
@@ -441,6 +498,10 @@ function migrateVersionFive(input: Record<string, unknown>) {
   return { ...input, schemaVersion: 6, backgroundLayers: [] };
 }
 
+function migrateVersionSix(input: Record<string, unknown>) {
+  return { ...input, schemaVersion: 7, relationships: [] };
+}
+
 const importMigrations: Record<number, ImportMigration> = {
   [LEGACY_UNVERSIONED_SCHEMA_VERSION]: (input) => ({
     ...input,
@@ -451,6 +512,7 @@ const importMigrations: Record<number, ImportMigration> = {
   3: migrateVersionThree,
   4: migrateVersionFour,
   5: migrateVersionFive,
+  6: migrateVersionSix,
 };
 
 export type ImportMigrationResult = {
@@ -511,18 +573,20 @@ export function migrateProjectBackup(input: unknown): ImportMigrationResult {
     errors: [],
     warnings:
       inputVersion === LEGACY_UNVERSIONED_SCHEMA_VERSION
-        ? ["旧JSON形式をスキーマバージョン6へ移行しました。"]
+        ? ["旧JSON形式をスキーマバージョン7へ移行しました。"]
         : inputVersion === 1
-          ? ["JSONスキーマバージョン1をバージョン6へ移行しました。"]
+          ? ["JSONスキーマバージョン1をバージョン7へ移行しました。"]
           : inputVersion === 2
-            ? ["JSONスキーマバージョン2をバージョン6へ移行しました。"]
+            ? ["JSONスキーマバージョン2をバージョン7へ移行しました。"]
             : inputVersion === 3
-              ? ["JSONスキーマバージョン3をバージョン6へ移行しました。"]
+              ? ["JSONスキーマバージョン3をバージョン7へ移行しました。"]
               : inputVersion === 4
-                ? ["JSONスキーマバージョン4をバージョン6へ移行しました。"]
+                ? ["JSONスキーマバージョン4をバージョン7へ移行しました。"]
                 : inputVersion === 5
-                  ? ["JSONスキーマバージョン5をバージョン6へ移行しました。"]
-                  : [],
+                  ? ["JSONスキーマバージョン5をバージョン7へ移行しました。"]
+                  : inputVersion === 6
+                    ? ["JSONスキーマバージョン6をバージョン7へ移行しました。"]
+                    : [],
   };
 }
 

@@ -362,7 +362,7 @@ export function TimelineItemForm({
             onClick={onEditItemTypes}
           >
             <Tags aria-hidden="true" className="size-4" />
-            種別・タグ・カスタムフィールドを管理
+            分類・関係を管理
           </Button>
         ) : null}
       </div>

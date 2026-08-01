@@ -104,6 +104,7 @@ export class ImportExportService {
       timelineItems: [],
       timelineEvents: [],
       backgroundLayers: [],
+      relationships: [],
     });
   }
 
@@ -136,6 +137,7 @@ export class ImportExportService {
         timelineItems: parsed.data.payload.timelineItems.length,
         timelineEvents: parsed.data.payload.timelineEvents.length,
         backgroundLayers: parsed.data.payload.backgroundLayers.length,
+        relationships: parsed.data.payload.relationships.length,
       },
     };
   }
@@ -161,6 +163,7 @@ export class ImportExportService {
         timelineItems: parsed.data.payload.timelineItems.length,
         timelineEvents: parsed.data.payload.timelineEvents.length,
         backgroundLayers: parsed.data.payload.backgroundLayers.length,
+        relationships: parsed.data.payload.relationships.length,
       },
     };
   }

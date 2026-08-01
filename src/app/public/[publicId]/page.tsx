@@ -7,16 +7,18 @@ import { TimelineEventService } from "@/lib/services/timeline-event-service";
 import { TimelineItemService } from "@/lib/services/timeline-item-service";
 import { createPublicClient } from "@/lib/supabase/public";
 import { BackgroundLayerService } from "@/lib/services/background-layer-service";
+import { RelationshipService } from "@/lib/services/relationship-service";
 
 async function loadPublicTimeline(publicId: string) {
   const client = createPublicClient();
   const project = await new ProjectService(client).getPublic(publicId);
-  const [listing, events, backgroundLayers] = await Promise.all([
+  const [listing, events, backgroundLayers, relationships] = await Promise.all([
     new TimelineItemService(client).list(project.id),
     new TimelineEventService(client).list(project.id),
     new BackgroundLayerService(client).list(project.id),
+    new RelationshipService(client).list(project.id),
   ]);
-  return { project, listing, events, backgroundLayers };
+  return { project, listing, events, backgroundLayers, relationships };
 }
 
 export default async function PublicTimelinePage({
@@ -42,6 +44,7 @@ export default async function PublicTimelinePage({
       }}
       initialEvents={result.events}
       initialBackgroundLayers={result.backgroundLayers}
+      initialRelationships={result.relationships}
       initialItems={result.listing.items}
       itemTypes={result.listing.itemTypes}
       project={result.project}

@@ -235,7 +235,9 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   );
   const detailDialog = page.getByRole("dialog");
   await expect(detailDialog).toContainText("代表作刊行");
-  await expect(detailDialog.getByText("親人物", { exact: true })).toBeVisible();
+  await expect(
+    detailDialog.getByRole("definition").filter({ hasText: /^親人物$/ }),
+  ).toBeVisible();
   const eventId = page.url().split("/").at(-1)!;
   const initialDialogWidth = (await detailDialog.boundingBox())!.width;
   const [optionsBox, fullscreenBox] = await Promise.all([

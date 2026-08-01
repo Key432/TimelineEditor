@@ -11,10 +11,46 @@ import {
   buildTableColumns,
   formatHistoricalDate,
   parseHistoricalDate,
+  relationshipsToCsvCell,
   setCustomFieldValue,
 } from "@/features/table-view/table-model";
 
 describe("Phase L11 table model", () => {
+  it("includes only relationships connected to the selected CSV entity", () => {
+    const connected = {
+      id: "relationship-1",
+      projectId: "project",
+      sourceType: "timeline_item" as const,
+      sourceId: "item-1",
+      targetType: "timeline_event" as const,
+      targetId: "event-1",
+      relationType: "師弟",
+      direction: "directed" as const,
+      lineStyle: "double" as const,
+      sourceMarker: "none" as const,
+      targetMarker: "arrow" as const,
+      note: null,
+      createdAt: "2026-01-01",
+      updatedAt: "2026-01-01",
+    };
+    const unrelated = {
+      ...connected,
+      id: "relationship-2",
+      sourceId: "item-2",
+      targetId: "event-2",
+    };
+
+    expect(
+      JSON.parse(
+        relationshipsToCsvCell(
+          [connected, unrelated],
+          "timeline_item",
+          "item-1",
+        ),
+      ),
+    ).toEqual([connected]);
+  });
+
   it("uses the combined start/point label and adds custom properties", () => {
     const columns = buildTableColumns("timeline_item", [
       {

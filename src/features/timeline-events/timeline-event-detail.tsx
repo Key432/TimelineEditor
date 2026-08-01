@@ -15,6 +15,7 @@ import { formatApproximateHistoricalDate } from "@/features/timeline-items/histo
 import { EntityHistoryDialog } from "@/features/history/entity-history-dialog";
 import { SourceDisplay } from "@/features/sources/source-display";
 import { EntityMetadataDisplay } from "@/features/classification/entity-metadata-display";
+import { RelationshipManager } from "@/features/relationships/relationship-manager";
 
 export function TimelineEventDetail({
   projectId,
@@ -89,6 +90,12 @@ export function TimelineEventDetail({
           sourceText={currentEvent.sourceText}
         />
       </section>
+      <Separator />
+      <RelationshipManager
+        entity={{ type: "timeline_event", id: currentEvent.id }}
+        projectId={projectId}
+        readOnly={readOnly}
+      />
       {currentEvent.externalUrl ? (
         <p>
           <a

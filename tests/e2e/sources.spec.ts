@@ -65,7 +65,7 @@ test("keeps free-text sources while optionally attaching a reusable detailed sou
   const managementItems = await page.getByRole("menuitem").allTextContents();
   expect(managementItems.map((label) => label.trim())).toEqual([
     "データ品質・重複統合",
-    "種別・タグ・カスタムフィールド",
+    "分類・関係",
     "出典・参考文献",
     "年代背景",
     "プロジェクト設定・共有",
