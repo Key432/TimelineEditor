@@ -244,6 +244,7 @@ export function TimelinePageClient({
               <SourceManager projectId={project.id} />
             ) : panel === "import-export" ? (
               <ImportExportManager
+                itemTypes={itemTypes}
                 projectId={project.id}
                 onImported={() => {
                   void Promise.all([

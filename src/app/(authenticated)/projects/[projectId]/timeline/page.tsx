@@ -41,7 +41,9 @@ export default async function TimelinePage({
       initialItems={result.items}
       initialEvents={result.events}
       itemTypes={result.itemTypes}
-      layoutMode={layout === "compact" ? "compact" : "row"}
+      layoutMode={
+        layout === "compact" ? "compact" : layout === "table" ? "table" : "row"
+      }
       project={result.project}
     />
   );

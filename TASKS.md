@@ -22,7 +22,7 @@
 - [L8.1](docs/phases/l8-1.md)
 - [L9（完了・種別入力UI統合／タイムライン即時反映済み）](docs/phases/l9.md)
 - [L10（完了・イベントマーカー径／日付精度の回帰修正済み）](docs/phases/l10.md)
-- [L11](docs/phases/l11.md)
+- [L11（完了・テーブル／一括Undo／汎用CSV済み）](docs/phases/l11.md)
 - [L12](docs/phases/l12.md)
 - [L13](docs/phases/l13.md)
 - [L14](docs/phases/l14.md)

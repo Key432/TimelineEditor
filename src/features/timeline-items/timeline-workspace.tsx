@@ -24,6 +24,7 @@ import {
   Plus,
   Rows3,
   SlidersHorizontal,
+  Table2,
 } from "lucide-react";
 import {
   useEffect,
@@ -95,6 +96,7 @@ import {
 } from "@/features/timeline-items/types";
 import type { Project } from "@/features/projects/types";
 import { TimelineViewControls } from "@/features/timeline-views/timeline-view-controls";
+import { TimelineTableView } from "@/features/table-view/timeline-table-view";
 import { cn } from "@/lib/utils";
 
 const HIDDEN_ITEMS_GROUP_ID = "hidden-items";
@@ -533,6 +535,18 @@ function TimelineWorkspaceContent({
             <LayoutGrid aria-hidden="true" />
             コンパクト
           </Button>
+          {!readOnly ? (
+            <Button
+              aria-pressed={layoutMode === "table"}
+              className="h-6 rounded-md px-2"
+              size="sm"
+              variant={layoutMode === "table" ? "secondary" : "ghost"}
+              onClick={() => onLayoutModeChange?.("table")}
+            >
+              <Table2 aria-hidden="true" />
+              テーブル
+            </Button>
+          ) : null}
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -647,7 +661,17 @@ function TimelineWorkspaceContent({
         </Badge>
       </div>
 
-      {currentItemTypes.length === 0 ? (
+      {layoutMode === "table" && !readOnly ? (
+        <TimelineTableView
+          currentDate={currentDate}
+          events={events}
+          items={items}
+          itemTypes={currentItemTypes}
+          projectId={project.id}
+          onOpenEvent={onOpenEvent}
+          onOpenItem={onOpenItem}
+        />
+      ) : currentItemTypes.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-card px-6 py-12 text-center">
           <p className="font-medium">
             {readOnly

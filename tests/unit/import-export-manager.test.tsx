@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { QueryProvider } from "@/components/query-provider";
 import { ImportExportManager } from "@/features/import-export/import-export-manager";
 
 vi.mock("next/navigation", () => ({
@@ -10,7 +11,9 @@ vi.mock("next/navigation", () => ({
 describe("ImportExportManager", () => {
   it("exposes keyboard-accessible export links and labeled import controls", () => {
     render(
-      <ImportExportManager projectId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" />,
+      <QueryProvider>
+        <ImportExportManager projectId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" />
+      </QueryProvider>,
     );
     expect(screen.getByRole("link", { name: /JSONを保存/ })).toHaveAttribute(
       "href",

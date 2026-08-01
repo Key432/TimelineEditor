@@ -28,6 +28,8 @@ import type {
   ImportMode,
   ImportPreview,
 } from "@/features/import-export/schema";
+import type { TimelineItemType } from "@/features/item-types/types";
+import { GenericCsvImport } from "@/features/table-view/generic-csv-import";
 
 function Preview({ preview }: { preview: ImportPreview }) {
   return (
@@ -66,9 +68,11 @@ function Preview({ preview }: { preview: ImportPreview }) {
 
 export function ImportExportManager({
   projectId,
+  itemTypes = [],
   onImported,
 }: {
   projectId: string;
+  itemTypes?: TimelineItemType[];
   onImported?: () => void;
 }) {
   const router = useRouter();
@@ -182,6 +186,21 @@ export function ImportExportManager({
               <Download aria-hidden="true" />
             </a>
           </Button>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>任意CSVをマッピングしてインポート</CardTitle>
+          <CardDescription>
+            手元のCSV列を項目へ対応付け、固定値や日付形式を指定して正常行だけ取り込みます。元ファイルは保存しません。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <GenericCsvImport
+            itemTypes={itemTypes}
+            projectId={projectId}
+            onImported={onImported}
+          />
         </CardContent>
       </Card>
       <Card>

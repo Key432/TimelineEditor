@@ -140,6 +140,92 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["cloud_drafts"]["Insert"]>;
         Relationships: [];
       };
+      table_view_preferences: {
+        Row: {
+          id: string;
+          project_id: string;
+          owner_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          visible_columns: Json;
+          column_widths: Json;
+          wrapped_columns: Json;
+          frozen_column_count: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          owner_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          visible_columns?: Json;
+          column_widths?: Json;
+          wrapped_columns?: Json;
+          frozen_column_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["table_view_preferences"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      csv_mapping_profiles: {
+        Row: {
+          id: string;
+          project_id: string;
+          owner_id: string;
+          name: string;
+          entity_type: "timeline_item" | "timeline_event";
+          mapping: Json;
+          date_format: "separate" | "iso" | "japanese";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          owner_id: string;
+          name: string;
+          entity_type: "timeline_item" | "timeline_event";
+          mapping: Json;
+          date_format?: "separate" | "iso" | "japanese";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["csv_mapping_profiles"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      bulk_edit_operations: {
+        Row: {
+          id: string;
+          project_id: string;
+          owner_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          label: string;
+          inverse_patch: Json;
+          affected_count: number;
+          undone_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          owner_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          label: string;
+          inverse_patch: Json;
+          affected_count: number;
+          undone_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["bulk_edit_operations"]["Insert"]
+        >;
+        Relationships: [];
+      };
       timeline_item_types: {
         Row: {
           id: string;
