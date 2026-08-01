@@ -82,7 +82,8 @@ test("creates, edits, and permanently deletes a project", async ({ page }) => {
     page.getByRole("link", { name: "プロジェクト設定へ" }),
   ).toBeVisible();
   await page.goto(projectUrl);
-  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await page.getByRole("button", { name: "管理メニュー" }).click();
+  await page.getByRole("menuitem", { name: "プロジェクト設定・共有" }).click();
   const settingsPanel = page.getByRole("dialog", {
     name: "プロジェクト設定",
   });

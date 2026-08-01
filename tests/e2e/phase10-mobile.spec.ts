@@ -146,7 +146,10 @@ test("keeps mobile editing available while touch gestures never create an event 
     page.getByRole("heading", { name: "イベントアイテムを追加" }),
   ).toHaveCount(0);
 
-  await page.getByRole("button", { name: "インポート／エクスポート" }).click();
+  await page.getByRole("button", { name: "管理メニュー" }).click();
+  await page
+    .getByRole("menuitem", { name: "インポート／エクスポート" })
+    .click();
   await expect(
     page.getByRole("heading", { name: "インポート／エクスポート" }),
   ).toBeVisible();
@@ -195,7 +198,7 @@ test("keeps mobile editing available while touch gestures never create an event 
     ),
   });
   await expect(
-    page.getByText("旧JSON形式をスキーマバージョン5へ移行しました。"),
+    page.getByText("旧JSON形式をスキーマバージョン6へ移行しました。"),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "現在のプロジェクトを上書き" }),

@@ -58,16 +58,20 @@ test("keeps free-text sources while optionally attaching a reusable detailed sou
   };
 
   await page.goto(`/projects/${project.id}/timeline`);
-  const headerActions = (
-    await page.locator("header a, header button").allTextContents()
-  ).map((label) => label.trim());
-  expect(headerActions.indexOf("種別・タグ・カスタムフィールド")).toBeLessThan(
-    headerActions.indexOf("出典・参考文献"),
-  );
-  expect(headerActions.indexOf("出典・参考文献")).toBeLessThan(
-    headerActions.indexOf("設定"),
-  );
-  await page.getByRole("button", { name: "出典・参考文献" }).click();
+  await expect(
+    page.locator("header").getByRole("button", { name: "管理メニュー" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "管理メニュー" }).click();
+  const managementItems = await page.getByRole("menuitem").allTextContents();
+  expect(managementItems.map((label) => label.trim())).toEqual([
+    "データ品質・重複統合",
+    "種別・タグ・カスタムフィールド",
+    "出典・参考文献",
+    "年代背景",
+    "プロジェクト設定・共有",
+    "インポート／エクスポート",
+  ]);
+  await page.getByRole("menuitem", { name: "出典・参考文献" }).click();
   const sourcePanel = page.getByRole("dialog");
   await expect(
     sourcePanel.getByRole("heading", { name: "出典・参考文献" }),

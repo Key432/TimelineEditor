@@ -53,7 +53,8 @@ test("manages, draws, saves, and publicly shows historical background layers", a
     .click();
   await expect(page.getByText("近代", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "年代背景を管理" }).click();
+  await page.getByRole("button", { name: "管理メニュー" }).click();
+  await page.getByRole("menuitem", { name: "年代背景" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("新しいレイヤー名").fill("時代区分");
   await dialog.getByRole("button", { name: "レイヤーを追加" }).click();
@@ -87,7 +88,8 @@ test("manages, draws, saves, and publicly shows historical background layers", a
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByTestId("timeline-background-layers")).toBeVisible();
-  await page.getByRole("button", { name: "年代背景を管理" }).click();
+  await page.getByRole("button", { name: "管理メニュー" }).click();
+  await page.getByRole("menuitem", { name: "年代背景" }).click();
   await expect(page.getByRole("dialog").getByText("明治時代")).toBeVisible();
   await page
     .getByRole("dialog")

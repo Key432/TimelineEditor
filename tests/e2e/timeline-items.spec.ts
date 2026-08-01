@@ -128,7 +128,8 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     .click();
   await filterDialog.getByRole("button", { name: "閉じる" }).click();
 
-  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await page.getByRole("button", { name: "管理メニュー" }).click();
+  await page.getByRole("menuitem", { name: "プロジェクト設定・共有" }).click();
   await expect(
     page.getByRole("dialog").getByRole("heading", {
       name: "プロジェクト設定",
@@ -140,11 +141,9 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     .click();
 
   await page.setViewportSize({ width: 1024, height: 800 });
+  await page.getByRole("button", { name: "管理メニュー" }).click();
   await page
-    .getByRole("button", {
-      name: "種別・タグ・カスタムフィールド",
-      exact: true,
-    })
+    .getByRole("menuitem", { name: "種別・タグ・カスタムフィールド" })
     .click();
   const desktopItemTypeDialog = page.getByRole("dialog");
   await expect(
@@ -252,11 +251,9 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     .click();
   const typeGroup = page.getByRole("button", { name: /出来事 1件/ });
   await expect(typeGroup.locator("svg.lucide-image")).toBeVisible();
+  await page.getByRole("button", { name: "管理メニュー" }).click();
   await page
-    .getByRole("button", {
-      name: "種別・タグ・カスタムフィールド",
-      exact: true,
-    })
+    .getByRole("menuitem", { name: "種別・タグ・カスタムフィールド" })
     .click();
   const classificationDialog = page.getByRole("dialog");
   await classificationDialog
@@ -805,7 +802,8 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   );
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("夏目漱石", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await page.getByRole("button", { name: "管理メニュー" }).click();
+  await page.getByRole("menuitem", { name: "プロジェクト設定・共有" }).click();
   const trashSettings = page.getByRole("dialog", {
     name: "プロジェクト設定",
   });

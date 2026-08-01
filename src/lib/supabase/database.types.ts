@@ -314,6 +314,36 @@ export type Database = {
         >;
         Relationships: [];
       };
+      entity_merge_operations: {
+        Row: {
+          id: string;
+          project_id: string;
+          owner_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          survivor_id: string;
+          merged_id: string;
+          snapshot: Json;
+          merged_target_updated_at: string;
+          undone_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          owner_id: string;
+          entity_type: "timeline_item" | "timeline_event";
+          survivor_id: string;
+          merged_id: string;
+          snapshot: Json;
+          merged_target_updated_at: string;
+          undone_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["entity_merge_operations"]["Insert"]
+        >;
+        Relationships: [];
+      };
       timeline_item_types: {
         Row: {
           id: string;
@@ -1016,6 +1046,19 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      merge_timeline_entities: {
+        Args: {
+          p_project_id: string;
+          p_entity_type: "timeline_item" | "timeline_event";
+          p_survivor_id: string;
+          p_merged_id: string;
+        };
+        Returns: string;
+      };
+      undo_timeline_entity_merge: {
+        Args: { p_project_id: string; p_operation_id: string };
+        Returns: boolean;
+      };
       replace_timeline_event_parents: {
         Args: {
           p_project_id: string;

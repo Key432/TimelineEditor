@@ -46,7 +46,8 @@ test("publishes for anonymous viewing and unpublishes immediately", async ({
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+\/timeline$/);
   const projectId = page.url().match(/\/projects\/([^/]+)\/timeline/)?.[1];
   if (!projectId) throw new Error("Project ID is required.");
-  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await page.getByRole("button", { name: "管理メニュー" }).click();
+  await page.getByRole("menuitem", { name: "プロジェクト設定・共有" }).click();
   const { data: itemType, error: itemTypeError } = await admin
     .from("timeline_item_types")
     .select("id")

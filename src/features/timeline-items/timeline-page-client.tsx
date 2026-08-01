@@ -1,12 +1,30 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { BookOpen, FileArchive, Layers3, Settings, Shapes } from "lucide-react";
+import {
+  BookOpen,
+  Ellipsis,
+  FileArchive,
+  Layers3,
+  Settings,
+  Shapes,
+  ShieldCheck,
+} from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -44,11 +62,26 @@ import { SourceManager } from "@/features/sources/source-manager";
 import { BackgroundLayerManager } from "@/features/background-layers/background-layer-manager";
 import type { TimelineBackgroundLayer } from "@/features/background-layers/types";
 
+const ProjectAnalysisManager = dynamic(
+  () =>
+    import("@/features/project-analysis/project-analysis-manager").then(
+      (module) => module.ProjectAnalysisManager,
+    ),
+  {
+    loading: () => (
+      <p className="text-sm text-muted-foreground">
+        データ品質を準備しています…
+      </p>
+    ),
+  },
+);
+
 type Panel =
   | "settings"
   | "classification"
   | "backgrounds"
   | "sources"
+  | "analysis"
   | "import-export"
   | null;
 
@@ -109,48 +142,47 @@ export function TimelinePageClient({
             />
           ) : null}
         </div>
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setPanel("backgrounds")}
-          >
-            <Layers3 aria-hidden="true" className="size-4" />
-            年代背景を管理
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setPanel("classification")}
-          >
-            <Shapes aria-hidden="true" className="size-4" />
-            種別・タグ・カスタムフィールド
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setPanel("sources")}
-          >
-            <BookOpen aria-hidden="true" className="size-4" />
-            出典・参考文献
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setPanel("settings")}
-          >
-            <Settings aria-hidden="true" className="size-4" />
-            設定
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setPanel("import-export")}
-          >
-            <FileArchive aria-hidden="true" className="size-4" />
-            インポート／エクスポート
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline">
+              <Ellipsis aria-hidden="true" className="size-4" />
+              管理メニュー
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-72">
+            <DropdownMenuLabel>データを整える</DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuItem onSelect={() => setPanel("analysis")}>
+                <ShieldCheck aria-hidden="true" />
+                データ品質・重複統合
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPanel("classification")}>
+                <Shapes aria-hidden="true" />
+                種別・タグ・カスタムフィールド
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPanel("sources")}>
+                <BookOpen aria-hidden="true" />
+                出典・参考文献
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>表示とプロジェクト</DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuItem onSelect={() => setPanel("backgrounds")}>
+                <Layers3 aria-hidden="true" />
+                年代背景
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPanel("settings")}>
+                <Settings aria-hidden="true" />
+                プロジェクト設定・共有
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPanel("import-export")}>
+                <FileArchive aria-hidden="true" />
+                インポート／エクスポート
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
       <TimelineWorkspace
@@ -199,7 +231,8 @@ export function TimelinePageClient({
             "w-full overflow-y-auto",
             panel === "classification" ||
               panel === "backgrounds" ||
-              panel === "sources"
+              panel === "sources" ||
+              panel === "analysis"
               ? "sm:!w-[calc(100vw-4rem)] sm:!max-w-5xl"
               : "sm:max-w-3xl",
           )}
@@ -214,7 +247,9 @@ export function TimelinePageClient({
                     ? "年代背景レイヤー"
                     : panel === "sources"
                       ? "出典・参考文献"
-                      : "インポート／エクスポート"}
+                      : panel === "analysis"
+                        ? "データ品質・重複統合"
+                        : "インポート／エクスポート"}
             </SheetTitle>
             <SheetDescription>
               {panel === "settings"
@@ -225,7 +260,9 @@ export function TimelinePageClient({
                     ? "時代区分、王朝、政権、文化潮流などを複数の背景として管理します。"
                     : panel === "sources"
                       ? "資料の追加・編集・一覧確認と、出典未設定項目の確認を行います。"
-                      : "プロジェクトデータを保存または取り込みます。"}
+                      : panel === "analysis"
+                        ? "不整合を修正し、重複データを参照関係ごと安全に統合します。"
+                        : "プロジェクトデータを保存または取り込みます。"}
             </SheetDescription>
           </SheetHeader>
           <div className="space-y-8 px-4 pb-6">
@@ -272,6 +309,11 @@ export function TimelinePageClient({
               />
             ) : panel === "sources" ? (
               <SourceManager projectId={project.id} />
+            ) : panel === "analysis" ? (
+              <ProjectAnalysisManager
+                projectId={project.id}
+                onOpenClassification={() => setPanel("classification")}
+              />
             ) : panel === "import-export" ? (
               <ImportExportManager
                 itemTypes={itemTypes}
