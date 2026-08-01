@@ -112,6 +112,9 @@ test("edits and adds rows in the Notion-style table view", async ({ page }) => {
     },
   );
   expect(itemResponse.status()).toBe(201);
+  const existingItemId = (
+    (await itemResponse.json()) as { item: { id: string } }
+  ).item.id;
 
   await page.goto(`/projects/${projectId}/timeline`);
   await page.getByRole("button", { name: "テーブル" }).click();
@@ -264,6 +267,44 @@ test("edits and adds rows in the Notion-style table view", async ({ page }) => {
   await page.getByLabel("新しい項目の終了状態").selectOption("ongoing");
   await page.getByRole("button", { name: "作成" }).click();
   await expect(page.getByText("Draft row", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "配置設定" }).click();
+  await expect(page.getByRole("menuitemradio", { name: "名称" })).toBeVisible();
+  await page.getByRole("menuitemradio", { name: "名称" }).click();
+  const itemRows = page.getByTestId(/^table-item-row-/);
+  await expect(itemRows).toHaveCount(2);
+  await expect(itemRows.nth(0)).toContainText("Draft row");
+  await expect(itemRows.nth(1)).toContainText(longTitle);
+
+  await page.getByRole("button", { name: "配置設定" }).click();
+  await page
+    .getByRole("menuitemcheckbox", {
+      name: "タイムライン種別でグループ化",
+    })
+    .click();
+  await expect(
+    page.getByRole("button", { name: `${typeName} 2件` }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: /フィルター/ }).click();
+  await page.getByLabel("タイムライン内検索").fill("Draft row");
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: `${typeName} 1件` }),
+  ).toBeVisible();
+  await expect(itemRows).toHaveCount(1);
+  await expect(itemRows.first()).toContainText("Draft row");
+
+  await page.getByRole("button", { name: /フィルター/ }).click();
+  await page.getByRole("button", { name: "薄く表示" }).click();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: `${typeName} 2件` }),
+  ).toBeVisible();
+  await expect(itemRows).toHaveCount(2);
+  await expect(
+    page.getByTestId(`table-item-row-${existingItemId}`),
+  ).toHaveClass(/opacity-40/);
 
   await page.getByRole("tab", { name: "イベント表" }).click();
   await expect(

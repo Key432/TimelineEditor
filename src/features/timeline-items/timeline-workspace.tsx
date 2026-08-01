@@ -555,7 +555,7 @@ function TimelineWorkspaceContent({
               {layoutMode === "compact"
                 ? "自動配置"
                 : TIMELINE_SORT_LABELS[sortMode]}
-              {layoutMode === "row" ? (
+              {layoutMode !== "compact" ? (
                 <span className="text-muted-foreground">
                   {direction === "asc" ? "昇順" : "降順"}
                 </span>
@@ -570,7 +570,7 @@ function TimelineWorkspaceContent({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-56">
             <DropdownMenuLabel>配置</DropdownMenuLabel>
-            {layoutMode === "row" ? (
+            {layoutMode !== "compact" ? (
               <>
                 <DropdownMenuLabel>並び順</DropdownMenuLabel>
                 <DropdownMenuRadioGroup
@@ -664,10 +664,37 @@ function TimelineWorkspaceContent({
       {layoutMode === "table" && !readOnly ? (
         <TimelineTableView
           currentDate={currentDate}
-          events={events}
+          dimmedEventIds={
+            filters.mode === "dim" && activeFilters
+              ? new Set(
+                  events
+                    .filter(
+                      (event) => !filterResult.visibleEventIds.has(event.id),
+                    )
+                    .map((event) => event.id),
+                )
+              : new Set()
+          }
+          dimmedItemIds={dimmedItemIds}
+          events={
+            filters.mode === "hide" && activeFilters
+              ? events.filter((event) =>
+                  filterResult.visibleEventIds.has(event.id),
+                )
+              : events
+          }
+          itemGroups={displayGroups}
           items={items}
           itemTypes={currentItemTypes}
           projectId={project.id}
+          onToggleItemGroup={(groupId) =>
+            setCollapsed((current) => {
+              const next = new Set(current);
+              if (next.has(groupId)) next.delete(groupId);
+              else next.add(groupId);
+              return next;
+            })
+          }
           onOpenEvent={onOpenEvent}
           onOpenItem={onOpenItem}
         />

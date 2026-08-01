@@ -22,6 +22,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   ChevronDown,
+  ChevronRight,
   Download,
   Ellipsis,
   ExternalLink,
@@ -37,6 +38,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +68,7 @@ import type {
   CustomFieldType,
 } from "@/features/classification/types";
 import type { TimelineItemType } from "@/features/item-types/types";
+import { ItemTypeIcon } from "@/features/item-types/item-type-icon";
 import {
   createTimelineEvent,
   getTimelineEvent,
@@ -87,6 +90,7 @@ import type {
   HistoricalDate,
   TimelineItemSummary,
 } from "@/features/timeline-items/types";
+import type { TimelineDisplayGroup } from "@/features/timeline-items/timeline-viewport";
 import {
   emptyTimelineItemValues,
   type TimelineItemInput,
@@ -116,6 +120,9 @@ import type { TablePreferenceInput } from "@/features/table-view/validation";
 import { cn } from "@/lib/utils";
 
 type RowSummary = TimelineItemSummary | TimelineEventSummary;
+type TableDisplayEntry =
+  | { kind: "group"; group: TimelineDisplayGroup }
+  | { kind: "row"; row: RowSummary };
 type DraftItem = {
   key: string;
   values: TimelineItemInput;
@@ -516,6 +523,7 @@ function ItemRow({
   wrapped,
   frozenCount,
   selected,
+  dimmed,
   onSelectedChange,
   onOpen,
 }: {
@@ -528,6 +536,7 @@ function ItemRow({
   wrapped: Set<string>;
   frozenCount: number;
   selected: boolean;
+  dimmed: boolean;
   onSelectedChange: (checked: boolean) => void;
   onOpen: () => void;
 }) {
@@ -637,7 +646,14 @@ function ItemRow({
     update.mutate(values);
   };
   return (
-    <div className="flex min-w-max border-b bg-background text-sm" role="row">
+    <div
+      className={cn(
+        "flex min-w-max border-b bg-background text-sm",
+        dimmed && "opacity-40 grayscale",
+      )}
+      data-testid={`table-item-row-${row.id}`}
+      role="row"
+    >
       <label className="sticky left-0 z-20 flex w-10 shrink-0 items-center justify-center border-r bg-background">
         <input
           aria-label={`${row.title}を選択`}
@@ -876,6 +892,7 @@ function EventRow({
   wrapped,
   frozenCount,
   selected,
+  dimmed,
   onSelectedChange,
   onOpen,
 }: {
@@ -889,6 +906,7 @@ function EventRow({
   wrapped: Set<string>;
   frozenCount: number;
   selected: boolean;
+  dimmed: boolean;
   onSelectedChange: (checked: boolean) => void;
   onOpen: () => void;
 }) {
@@ -956,7 +974,14 @@ function EventRow({
     update.mutate(values);
   };
   return (
-    <div className="flex min-w-max border-b bg-background text-sm" role="row">
+    <div
+      className={cn(
+        "flex min-w-max border-b bg-background text-sm",
+        dimmed && "opacity-40 grayscale",
+      )}
+      data-testid={`table-event-row-${row.id}`}
+      role="row"
+    >
       <label className="sticky left-0 z-20 flex w-10 shrink-0 items-center justify-center border-r bg-background">
         <input
           aria-label={`${row.title}を選択`}
@@ -1149,17 +1174,25 @@ function EventRow({
 export function TimelineTableView({
   projectId,
   items,
+  itemGroups,
   events,
   itemTypes,
   currentDate,
+  dimmedItemIds,
+  dimmedEventIds,
+  onToggleItemGroup,
   onOpenItem,
   onOpenEvent,
 }: {
   projectId: string;
   items: TimelineItemSummary[];
+  itemGroups: TimelineDisplayGroup[];
   events: TimelineEventSummary[];
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
+  dimmedItemIds: ReadonlySet<string>;
+  dimmedEventIds: ReadonlySet<string>;
+  onToggleItemGroup: (groupId: string) => void;
   onOpenItem?: (itemId: string) => void;
   onOpenEvent?: (eventId: string, editing: boolean) => void;
 }) {
@@ -1246,9 +1279,34 @@ export function TimelineTableView({
     .filter((id) => visibleIds.includes(id))
     .map((id) => allColumns.find((column) => column.id === id))
     .filter((column): column is TableColumn => Boolean(column));
-  const rows: RowSummary[] = entityType === "timeline_item" ? items : events;
+  const displayedRows = useMemo<RowSummary[]>(
+    () =>
+      entityType === "timeline_item"
+        ? itemGroups.flatMap((group) => (group.collapsed ? [] : group.items))
+        : events,
+    [entityType, events, itemGroups],
+  );
+  const displayEntries = useMemo<TableDisplayEntry[]>(
+    () =>
+      entityType === "timeline_item"
+        ? itemGroups.flatMap((group) => [
+            ...(group.showHeader ? [{ kind: "group" as const, group }] : []),
+            ...(group.collapsed
+              ? []
+              : group.items.map((row) => ({ kind: "row" as const, row }))),
+          ])
+        : events.map((row) => ({ kind: "row" as const, row })),
+    [entityType, events, itemGroups],
+  );
+  useEffect(() => {
+    const displayedIds = new Set(displayedRows.map((row) => row.id));
+    setSelected((current) => {
+      const next = new Set([...current].filter((id) => displayedIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [displayedRows]);
   const virtualizer = useVirtualizer({
-    count: rows.length,
+    count: displayEntries.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 41,
     overscan: 8,
@@ -1442,7 +1500,7 @@ export function TimelineTableView({
     }
   };
   const exportSelected = () => {
-    const selectedRows = rows.filter((row) => selected.has(row.id));
+    const selectedRows = displayedRows.filter((row) => selected.has(row.id));
     const headers =
       entityType === "timeline_item"
         ? [
@@ -1783,13 +1841,14 @@ export function TimelineTableView({
             <input
               aria-label="表示中の行をすべて選択"
               checked={
-                rows.length > 0 && rows.every((row) => selected.has(row.id))
+                displayedRows.length > 0 &&
+                displayedRows.every((row) => selected.has(row.id))
               }
               type="checkbox"
               onChange={(event) =>
                 setSelected(
                   event.target.checked
-                    ? new Set(rows.map((row) => row.id))
+                    ? new Set(displayedRows.map((row) => row.id))
                     : new Set(),
                 )
               }
@@ -1942,33 +2001,77 @@ export function TimelineTableView({
           style={{ height: virtualizer.getTotalSize() }}
         >
           {virtualizer.getVirtualItems().map((virtualRow) => {
-            const row = rows[virtualRow.index]!;
+            const entry = displayEntries[virtualRow.index]!;
+            const tableWidth =
+              40 +
+              columns.reduce(
+                (sum, column) =>
+                  sum + (widths[column.id] ?? column.defaultWidth),
+                0,
+              ) +
+              80;
             return (
               <div
-                key={row.id}
+                key={
+                  entry.kind === "group"
+                    ? `group-${entry.group.id}`
+                    : entry.row.id
+                }
                 data-index={virtualRow.index}
                 className="absolute top-0 left-0"
                 ref={virtualizer.measureElement}
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
               >
-                {entityType === "timeline_item" ? (
+                {entry.kind === "group" ? (
+                  <div
+                    className="flex h-10 border-b bg-muted"
+                    role="row"
+                    style={{ width: tableWidth }}
+                  >
+                    <div className="h-10 w-full" role="cell">
+                      <button
+                        aria-expanded={!entry.group.collapsed}
+                        aria-label={`${entry.group.label} ${entry.group.items.length}件`}
+                        className="flex h-10 items-center gap-2 px-3 text-left text-sm font-medium"
+                        type="button"
+                        onClick={() => onToggleItemGroup(entry.group.id)}
+                      >
+                        {entry.group.collapsed ? (
+                          <ChevronRight className="size-4" aria-hidden="true" />
+                        ) : (
+                          <ChevronDown className="size-4" aria-hidden="true" />
+                        )}
+                        <ItemTypeIcon
+                          className="size-4"
+                          color={entry.group.color}
+                          icon={entry.group.icon}
+                        />
+                        {entry.group.label}
+                        <Badge variant="outline">
+                          {entry.group.items.length}
+                        </Badge>
+                      </button>
+                    </div>
+                  </div>
+                ) : entityType === "timeline_item" ? (
                   <ItemRow
                     allTags={classification.data?.tags ?? []}
                     columns={columns}
                     frozenCount={frozenCount}
                     itemTypes={itemTypes}
-                    onOpen={() => onOpenItem?.(row.id)}
+                    dimmed={dimmedItemIds.has(entry.row.id)}
+                    onOpen={() => onOpenItem?.(entry.row.id)}
                     onSelectedChange={(checked) =>
                       setSelected((current) => {
                         const next = new Set(current);
-                        if (checked) next.add(row.id);
-                        else next.delete(row.id);
+                        if (checked) next.add(entry.row.id);
+                        else next.delete(entry.row.id);
                         return next;
                       })
                     }
                     projectId={projectId}
-                    row={row as TimelineItemSummary}
-                    selected={selected.has(row.id)}
+                    row={entry.row as TimelineItemSummary}
+                    selected={selected.has(entry.row.id)}
                     widths={widths}
                     wrapped={wrapped}
                   />
@@ -1979,18 +2082,19 @@ export function TimelineTableView({
                     columns={columns}
                     eventTypes={classification.data?.eventTypes ?? []}
                     frozenCount={frozenCount}
-                    onOpen={() => onOpenEvent?.(row.id, false)}
+                    dimmed={dimmedEventIds.has(entry.row.id)}
+                    onOpen={() => onOpenEvent?.(entry.row.id, false)}
                     onSelectedChange={(checked) =>
                       setSelected((current) => {
                         const next = new Set(current);
-                        if (checked) next.add(row.id);
-                        else next.delete(row.id);
+                        if (checked) next.add(entry.row.id);
+                        else next.delete(entry.row.id);
                         return next;
                       })
                     }
                     projectId={projectId}
-                    row={row as TimelineEventSummary}
-                    selected={selected.has(row.id)}
+                    row={entry.row as TimelineEventSummary}
+                    selected={selected.has(entry.row.id)}
                     widths={widths}
                     wrapped={wrapped}
                   />
