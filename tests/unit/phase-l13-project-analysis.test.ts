@@ -87,7 +87,22 @@ function dataset(): ProjectAnalysisDataset {
 describe("Phase L13 project analysis", () => {
   it("detects actionable quality problems without a published-incomplete rule", () => {
     const result = analyzeProjectData(dataset());
-    const kinds = result.issues.map((issue) => issue.kind);
+    const kinds = result.issues.flatMap((issue) =>
+      issue.reasons.map((reason) => reason.kind),
+    );
+    const itemIssues = result.issues.filter(
+      (issue) => issue.entityId === itemA,
+    );
+
+    expect(itemIssues).toHaveLength(1);
+    expect(itemIssues[0]?.reasons.map((reason) => reason.kind)).toEqual(
+      expect.arrayContaining([
+        "broken_internal_link",
+        "missing_source",
+        "missing_required_custom_field",
+        "invalid_external_url",
+      ]),
+    );
 
     expect(kinds).toContain("broken_internal_link");
     expect(kinds).toContain("event_outside_all_parents");

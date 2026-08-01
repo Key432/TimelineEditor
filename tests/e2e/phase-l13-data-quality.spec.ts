@@ -75,6 +75,15 @@ test("Phase L13 diagnoses duplicates and merges them with keyboard-accessible Un
   await page.getByRole("menuitem", { name: "データ品質・重複統合" }).click();
   const panel = page.getByRole("dialog", { name: "データ品質・重複統合" });
   await expect(panel.getByText("重複候補")).toBeVisible();
+  const qualityResults = panel.getByRole("list", {
+    name: "品質チェック結果",
+  });
+  const qualityItem = qualityResults
+    .getByRole("listitem")
+    .filter({ has: page.getByText("徳川 家康", { exact: true }) });
+  await expect(qualityItem).toHaveCount(1);
+  await expect(qualityItem.getByText(/出典不足/)).toBeVisible();
+  await expect(qualityItem.getByText(/本文不足/)).toBeVisible();
   await expect(
     panel.getByText(/徳川 家康 \/ 徳川家康|徳川家康 \/ 徳川 家康/),
   ).toBeVisible();

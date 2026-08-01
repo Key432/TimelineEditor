@@ -261,7 +261,10 @@ export function ProjectAnalysisManager({
             修正が必要な問題はありません。
           </p>
         ) : (
-          <ul className="divide-y rounded-md border">
+          <ul
+            aria-label="品質チェック結果"
+            className="divide-y rounded-md border"
+          >
             {data.issues.map((issue) => {
               const path = entityPath(projectId, issue);
               return (
@@ -274,9 +277,14 @@ export function ProjectAnalysisManager({
                       <AlertTriangle className="size-4 text-secondary" />
                       {issue.title}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {ISSUE_LABELS[issue.kind]} · {issue.detail}
-                    </p>
+                    <ul className="mt-1 space-y-1 pl-6 text-xs text-muted-foreground">
+                      {issue.reasons.map((reason) => (
+                        <li key={`${reason.kind}:${reason.detail}`}>
+                          {ISSUE_LABELS[reason.kind]} · {reason.detail}
+                          {reason.count > 1 ? `（${reason.count}件）` : null}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                   {path ? (
                     <Button
@@ -287,7 +295,9 @@ export function ProjectAnalysisManager({
                       修正する
                       <ArrowRight className="size-4" />
                     </Button>
-                  ) : issue.kind === "unused_master" ? (
+                  ) : issue.reasons.some(
+                      (reason) => reason.kind === "unused_master",
+                    ) ? (
                     <Button
                       size="sm"
                       variant="outline"

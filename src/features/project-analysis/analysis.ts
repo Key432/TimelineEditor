@@ -54,13 +54,21 @@ export type QualityIssueKind =
 
 export type QualityIssue = {
   id: string;
-  kind: QualityIssueKind;
   title: string;
-  detail: string;
+  reasons: Array<{
+    kind: QualityIssueKind;
+    detail: string;
+    count: number;
+  }>;
   entityType?: AnalysisEntityType;
   entityId?: string;
   masterKind?: AnalysisMaster["kind"];
   masterId?: string;
+};
+
+type AtomicQualityIssue = Omit<QualityIssue, "reasons"> & {
+  kind: QualityIssueKind;
+  detail: string;
 };
 
 export type DuplicateCandidate = {
@@ -138,7 +146,7 @@ function issue(
   title: string,
   detail: string,
   entity?: AnalysisEntity,
-): QualityIssue {
+): AtomicQualityIssue {
   return {
     id: `${kind}:${entity?.entityType ?? "project"}:${entity?.id ?? title}`,
     kind,
@@ -147,6 +155,41 @@ function issue(
     entityType: entity?.entityType,
     entityId: entity?.id,
   };
+}
+
+function groupQualityIssues(issues: AtomicQualityIssue[]): QualityIssue[] {
+  const grouped = new Map<string, QualityIssue>();
+  for (const issue of issues) {
+    const groupId = issue.entityId
+      ? `entity:${issue.entityType}:${issue.entityId}`
+      : issue.masterId
+        ? `master:${issue.masterKind}:${issue.masterId}`
+        : issue.id;
+    const current = grouped.get(groupId);
+    if (!current) {
+      grouped.set(groupId, {
+        id: groupId,
+        title: issue.title,
+        reasons: [{ kind: issue.kind, detail: issue.detail, count: 1 }],
+        entityType: issue.entityType,
+        entityId: issue.entityId,
+        masterKind: issue.masterKind,
+        masterId: issue.masterId,
+      });
+      continue;
+    }
+    const matchingReason = current.reasons.find(
+      (reason) => reason.kind === issue.kind && reason.detail === issue.detail,
+    );
+    if (matchingReason) matchingReason.count += 1;
+    else
+      current.reasons.push({
+        kind: issue.kind,
+        detail: issue.detail,
+        count: 1,
+      });
+  }
+  return [...grouped.values()];
 }
 
 function duplicateCandidates(entities: AnalysisEntity[]) {
@@ -273,7 +316,7 @@ function duplicateCandidates(entities: AnalysisEntity[]) {
 }
 
 export function analyzeProjectData(dataset: ProjectAnalysisDataset) {
-  const issues: QualityIssue[] = [];
+  const issues: AtomicQualityIssue[] = [];
   const activeById = new Map(
     dataset.entities.map((entity) => [
       `${entity.entityType}:${entity.id}`,
@@ -421,5 +464,9 @@ export function analyzeProjectData(dataset: ProjectAnalysisDataset) {
     countsByType,
     countsByTag,
   };
-  return { issues, duplicates: duplicateCandidates(dataset.entities), summary };
+  return {
+    issues: groupQualityIssues(issues),
+    duplicates: duplicateCandidates(dataset.entities),
+    summary,
+  };
 }
