@@ -305,16 +305,16 @@ function timelineSvg(
     }
   }
 
+  parts.push(
+    `<rect x="${labelWidth + 24}" y="${axisTop}" width="${plotWidth}" height="48" fill="#F1F6F6" stroke="${BORDER}"/>`,
+  );
   const ticks = axisTicks(range.startOrdinal, range.endOrdinal, x);
   for (const tick of ticks) {
     const atRightEdge = tick.x > labelWidth + plotWidth - 70;
     parts.push(
-      `<line x1="${tick.x}" y1="${axisTop}" x2="${tick.x}" y2="${contentBottom}" stroke="#CCD9D9"/><text x="${tick.x + (atRightEdge ? -4 : 4)}" y="${axisTop + 18}" font-size="10" fill="#666666" text-anchor="${atRightEdge ? "end" : "start"}">${xml(tick.label)}</text>`,
+      `<line x1="${tick.x}" y1="${axisTop}" x2="${tick.x}" y2="${contentBottom}" stroke="#B8C7C7"/><text x="${tick.x + (atRightEdge ? -4 : 4)}" y="${axisTop + 18}" font-size="11" font-weight="600" fill="#334155" text-anchor="${atRightEdge ? "end" : "start"}">${xml(tick.label)}</text>`,
     );
   }
-  parts.push(
-    `<rect x="${labelWidth + 24}" y="${axisTop}" width="${plotWidth}" height="48" fill="#F1F6F6" fill-opacity="0.9" stroke="${BORDER}"/>`,
-  );
 
   const itemMap = new Map(snapshot.items.map((item) => [item.id, item]));
   const dimmed = new Set(snapshot.dimmedItemIds);

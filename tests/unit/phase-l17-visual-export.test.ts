@@ -156,6 +156,15 @@ describe("Phase L17 visual export", () => {
     },
   );
 
+  it("draws strong axis labels above the axis header background", () => {
+    const result = buildVisualExportSvg(snapshot(), options);
+    const headerBackground = result.svg.indexOf('fill="#F1F6F6"');
+    const axisLabel = result.svg.indexOf('fill="#334155"');
+    expect(headerBackground).toBeGreaterThan(-1);
+    expect(axisLabel).toBeGreaterThan(headerBackground);
+    expect(result.svg).toContain('font-weight="600"');
+  });
+
   it("calculates one-page, fit-height, and original-size PDF tiling", () => {
     const base = {
       pageSize: "a4" as const,

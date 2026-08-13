@@ -196,7 +196,7 @@ export function ImportExportManager({
         <CardHeader>
           <CardTitle>任意CSVをマッピングしてインポート</CardTitle>
           <CardDescription>
-            手元のCSV列を項目へ対応付け、固定値や日付形式を指定して正常行だけ取り込みます。元ファイルは保存しません。
+            手元のCSV列を項目へ対応付け、固定値や日付形式を指定して正常行だけ取り込みます。
           </CardDescription>
         </CardHeader>
         <CardContent>

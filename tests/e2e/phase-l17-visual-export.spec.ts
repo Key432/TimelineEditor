@@ -100,6 +100,10 @@ test("exports all or specified timeline data as SVG, PNG, and configured PDF", a
   await page
     .getByRole("menuitem", { name: "インポート／エクスポート" })
     .click();
+  const panelBox = await page
+    .getByRole("dialog", { name: "インポート／エクスポート" })
+    .boundingBox();
+  expect(panelBox?.width).toBeGreaterThan(800);
   await expect(page.getByText("タイムラインを画像・PDFで出力")).toBeVisible();
   const svgButton = page.getByRole("button", { name: "SVGを保存" });
   await expect(svgButton).toBeEnabled();

@@ -289,7 +289,8 @@ export function TimelinePageClient({
             panel === "classification" ||
               panel === "backgrounds" ||
               panel === "sources" ||
-              panel === "analysis"
+              panel === "analysis" ||
+              panel === "import-export"
               ? "sm:!w-[calc(100vw-4rem)] sm:!max-w-5xl"
               : "sm:max-w-3xl",
           )}

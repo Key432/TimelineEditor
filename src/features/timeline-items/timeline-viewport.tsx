@@ -1723,7 +1723,7 @@ export function TimelineViewport({
                 </div>
               ) : null}
               <div
-                className="sticky top-0 z-[70] flex h-12 border-b bg-muted/95 text-xs font-medium text-muted-foreground backdrop-blur-sm"
+                className="sticky top-0 z-[70] flex h-12 border-b bg-muted/95 text-xs font-semibold text-slate-700 backdrop-blur-sm"
                 data-testid="timeline-axis-header"
               >
                 {layoutMode === "row" ? (

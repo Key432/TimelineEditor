@@ -42,5 +42,19 @@ describe("ImportExportManager", () => {
       "全データを出力",
     );
     expect(screen.getByRole("button", { name: "PDFを保存" })).toBeDisabled();
+    expect(
+      screen
+        .getAllByRole("button", { name: /(?:PDF|SVG|PNG)を保存/ })
+        .map((button) => button.textContent),
+    ).toEqual(["PDFを保存", "SVGを保存", "PNGを保存"]);
+    expect(
+      screen.queryByText(/生成ファイルはサーバーへ保存しません/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/日本語はブラウザで描画してPDFへ埋め込みます/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/元ファイルは保存しません/),
+    ).not.toBeInTheDocument();
   });
 });

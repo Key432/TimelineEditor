@@ -86,7 +86,7 @@ export function VisualExportCard({
       <CardHeader>
         <CardTitle>タイムラインを画像・PDFで出力</CardTitle>
         <CardDescription>
-          行表示、コンパクト、関連ネットワークをSVG・PNG・PDFへ出力します。生成ファイルはサーバーへ保存しません。
+          行表示、コンパクト、関連ネットワークをSVG・PNG・PDFへ出力します。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -182,7 +182,7 @@ export function VisualExportCard({
 
         <fieldset className="space-y-3 rounded-md border p-3">
           <legend className="px-1 text-sm font-medium">PDF設定</legend>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <label className="space-y-1 text-sm">
               <span>用紙サイズ</span>
               <select
@@ -258,7 +258,7 @@ export function VisualExportCard({
             </label>
           </div>
           <p className="text-xs text-muted-foreground">
-            用紙を超える方向は複数ページへ分割します。日本語はブラウザで描画してPDFへ埋め込みます。
+            用紙を超える方向は複数ページへ分割します。
           </p>
         </fieldset>
 
@@ -266,6 +266,19 @@ export function VisualExportCard({
           <Button
             disabled={!snapshot || busy !== null}
             type="button"
+            onClick={() => void exportFile("pdf")}
+          >
+            {busy === "pdf" ? (
+              <LoaderCircle className="animate-spin" aria-hidden="true" />
+            ) : (
+              <Download aria-hidden="true" />
+            )}
+            PDFを保存
+          </Button>
+          <Button
+            disabled={!snapshot || busy !== null}
+            type="button"
+            variant="outline"
             onClick={() => void exportFile("svg")}
           >
             {busy === "svg" ? (
@@ -287,19 +300,6 @@ export function VisualExportCard({
               <FileImage aria-hidden="true" />
             )}
             PNGを保存
-          </Button>
-          <Button
-            disabled={!snapshot || busy !== null}
-            type="button"
-            variant="outline"
-            onClick={() => void exportFile("pdf")}
-          >
-            {busy === "pdf" ? (
-              <LoaderCircle className="animate-spin" aria-hidden="true" />
-            ) : (
-              <Download aria-hidden="true" />
-            )}
-            PDFを保存
           </Button>
         </div>
         {!snapshot ? (
