@@ -33,6 +33,8 @@ import {
   layoutBounds,
   layoutNetwork,
   networkEdgePath,
+  truncateNetworkSubtitle,
+  wrapNetworkTitle,
 } from "@/features/relationship-network/network-layout";
 import {
   buildNetworkEdges,
@@ -557,9 +559,17 @@ export function RelationshipNetwork({
                 const subtitle =
                   node.kind === "cluster"
                     ? `${node.count}件を段階展開`
-                    : node.entityType === "timeline_item"
-                      ? `タイムライン · ${node.typeLabel}`
-                      : `イベント · ${node.typeLabel}`;
+                    : node.typeLabel;
+                const titleLines = wrapNetworkTitle(node.title, node.width);
+                const visibleSubtitle = truncateNetworkSubtitle(
+                  subtitle,
+                  node.width,
+                );
+                const cornerRadius =
+                  node.kind === "cluster" ||
+                  node.entityType === "timeline_event"
+                    ? 12
+                    : 0;
                 return (
                   <g
                     key={node.id}
@@ -569,6 +579,7 @@ export function RelationshipNetwork({
                       isFaded && "opacity-20",
                     )}
                     data-node-id={node.id}
+                    data-node-height={node.height}
                     data-testid={`network-node-${node.id}`}
                     role="button"
                     tabIndex={0}
@@ -626,7 +637,7 @@ export function RelationshipNetwork({
                     <rect
                       fill="white"
                       height={node.height}
-                      rx="12"
+                      rx={cornerRadius}
                       stroke={
                         isSelected
                           ? "#FF3399"
@@ -642,7 +653,7 @@ export function RelationshipNetwork({
                     <rect
                       fill={node.color}
                       height={node.height - 4}
-                      rx="4"
+                      rx={cornerRadius === 0 ? 0 : 4}
                       width="6"
                       x="4"
                       y="2"
@@ -652,16 +663,28 @@ export function RelationshipNetwork({
                       fontSize="14"
                       fontWeight="600"
                       x="18"
-                      y="25"
+                      y={titleLines.length === 1 ? 32 : 23}
+                      data-testid={`network-node-title-${node.id}`}
                     >
-                      {node.title.length > 20
-                        ? `${node.title.slice(0, 19)}…`
-                        : node.title}
+                      {titleLines.map((line, index) => (
+                        <tspan
+                          key={`${node.id}-title-${index}`}
+                          data-title-line={index + 1}
+                          x="18"
+                          dy={index === 0 ? 0 : 18}
+                        >
+                          {line}
+                        </tspan>
+                      ))}
                     </text>
-                    <text fill="#64748B" fontSize="10.5" x="18" y="43">
-                      {subtitle.length > 27
-                        ? `${subtitle.slice(0, 26)}…`
-                        : subtitle}
+                    <text
+                      data-testid={`network-node-subtitle-${node.id}`}
+                      fill="#64748B"
+                      fontSize="10.5"
+                      x="18"
+                      y={node.height - 11}
+                    >
+                      {visibleSubtitle}
                     </text>
                   </g>
                 );

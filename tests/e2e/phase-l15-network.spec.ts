@@ -144,6 +144,8 @@ test("explores semantic relations with filters, highlighting, zoom, pan, and det
   const targetNode = page.getByRole("button", { name: /後継ノード/ });
   await expect(sourceNode).toBeVisible();
   await expect(targetNode).toBeVisible();
+  await expect(sourceNode.locator("rect").first()).toHaveAttribute("rx", "0");
+  await expect(sourceNode).not.toContainText("タイムライン");
   const edge = page.getByTestId(`network-edge-${relationshipId}`);
   await expect(edge.locator("path")).toHaveCount(2);
   await expect(edge.locator("path").first()).toHaveAttribute(

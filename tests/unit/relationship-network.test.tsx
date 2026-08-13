@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RelationshipNetwork } from "@/features/relationship-network/relationship-network";
 import type { RelationshipDataset } from "@/features/relationships/types";
+import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import { DEFAULT_TIMELINE_FILTERS } from "@/features/timeline-items/timeline-filters";
 import type { TimelineItemSummary } from "@/features/timeline-items/types";
 
@@ -43,6 +44,37 @@ function item(id: string, title: string): TimelineItemSummary {
     lastConfirmed: null,
     point: { year: 1900, month: null, day: null },
     isPointApproximate: false,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  };
+}
+
+function event(
+  id: string,
+  title: string,
+  typeName = "分類名が一行では収まりきらないほど非常に長いイベント分類名",
+): TimelineEventSummary {
+  return {
+    id,
+    projectId,
+    timelineItemIds: [],
+    eventTypeId: "event-type-1",
+    eventType: {
+      id: "event-type-1",
+      projectId,
+      name: typeName,
+      color: "#FF3399",
+      markerShape: "circle",
+      description: null,
+      sortOrder: 0,
+      usageCount: 1,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    },
+    tags: [],
+    title,
+    date: { year: 1901, month: 1, day: 1 },
+    isApproximate: false,
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   };
@@ -94,7 +126,7 @@ describe("Phase L15 relationship network", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders rounded nodes and configured double-arrow edges, then opens details", async () => {
+  it("distinguishes item and event shapes and keeps entity labels out of the nodes", async () => {
     const user = userEvent.setup();
     const onOpenItem = vi.fn();
     render(
@@ -108,7 +140,7 @@ describe("Phase L15 relationship network", () => {
     );
 
     const source = screen.getByRole("button", { name: /源流A/ });
-    expect(source.querySelector("rect")?.getAttribute("rx")).toBe("12");
+    expect(source.querySelector("rect")?.getAttribute("rx")).toBe("0");
     const edge = screen.getByTestId("network-edge-relationship-1");
     const paths = edge.querySelectorAll("path");
     expect(paths).toHaveLength(2);
@@ -120,6 +152,35 @@ describe("Phase L15 relationship network", () => {
     expect(screen.getByText("2段階 0")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "詳細を開く" }));
     expect(onOpenItem).toHaveBeenCalledWith("a");
+  });
+
+  it("wraps long titles to two fixed-height lines and truncates the classification", () => {
+    const title =
+      "最大幅を超えて二行でも収まりきらない非常に長いイベントタイトルの残りを省略する";
+    render(
+      <RelationshipNetwork
+        dataset={{ entities: [], relationships: [] }}
+        events={[event("long-event", title)]}
+        initialTimelineFilters={DEFAULT_TIMELINE_FILTERS}
+        items={[]}
+      />,
+    );
+
+    const node = screen.getByRole("button", { name: new RegExp(title) });
+    const rect = node.querySelector("rect");
+    const titleText = screen.getByTestId(
+      "network-node-title-timeline_event:long-event",
+    );
+    const subtitleText = screen.getByTestId(
+      "network-node-subtitle-timeline_event:long-event",
+    );
+    expect(rect).toHaveAttribute("rx", "12");
+    expect(rect).toHaveAttribute("width", "250");
+    expect(node.querySelectorAll("[data-title-line]")).toHaveLength(2);
+    expect(titleText.textContent).toMatch(/…$/);
+    expect(subtitleText).not.toHaveTextContent("イベント");
+    expect(subtitleText.textContent).toMatch(/…$/);
+    expect(node).toHaveAttribute("data-node-height", "76");
   });
 
   it("filters nodes and supports wheel zoom plus canvas panning", async () => {

@@ -11,6 +11,8 @@ import {
 } from "@/features/relationship-network/network-model";
 import {
   layoutNetwork,
+  NETWORK_NODE_MAX_WIDTH,
+  NETWORK_NODE_MIN_WIDTH,
   networkEdgePath,
 } from "@/features/relationship-network/network-layout";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
@@ -218,5 +220,38 @@ describe("Phase L15 network model", () => {
       }
     }
     expect(networkEdgePath(first[0]!, first[1]!)).toMatch(/^M .* Q .*$/);
+  });
+
+  it("sizes entity nodes from their titles between 172px and 250px", () => {
+    const nodes = buildNetworkNodes(
+      [
+        item("short", "短い題名", 1900),
+        item("medium", "横幅に応じて少し長くなるタイトル", 1901),
+        item(
+          "long",
+          "最大幅を超えて二行でも収まりきらない非常に長いタイトルの残りは省略する",
+          1902,
+        ),
+      ],
+      [],
+    );
+    const positioned = layoutNetwork(nodes, []);
+
+    expect(
+      positioned.find(
+        (node) => node.kind === "entity" && node.entityId === "short",
+      )?.width,
+    ).toBe(NETWORK_NODE_MIN_WIDTH);
+    expect(
+      positioned.find(
+        (node) => node.kind === "entity" && node.entityId === "medium",
+      )?.width,
+    ).toBeGreaterThan(NETWORK_NODE_MIN_WIDTH);
+    expect(
+      positioned.find(
+        (node) => node.kind === "entity" && node.entityId === "long",
+      )?.width,
+    ).toBe(NETWORK_NODE_MAX_WIDTH);
+    expect(new Set(positioned.map((node) => node.height)).size).toBe(1);
   });
 });
