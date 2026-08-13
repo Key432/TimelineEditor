@@ -2,6 +2,13 @@ import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { waitUntilAccessTokenIsCurrent } from "./auth-helpers";
+import {
+  buildNetworkEdges,
+  buildNetworkNodes,
+} from "@/features/relationship-network/network-model";
+import { RelationshipService } from "@/lib/services/relationship-service";
+import { TimelineEventService } from "@/lib/services/timeline-event-service";
+import { TimelineItemService } from "@/lib/services/timeline-item-service";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -263,5 +270,46 @@ describe("Phase L14 semantic relationship RLS and constraints", () => {
           .eq("project_id", projectId)
       ).data,
     ).toEqual([{ relation_type: "影響" }]);
+  });
+
+  it("feeds the L15 network model from the owner-scoped services without stored positions", async () => {
+    const projectId = await createProject("関連ネットワーク");
+    const { itemId, eventId } = await createEndpoints(projectId);
+    const inserted = await owner.from("entity_relationships").insert({
+      project_id: projectId,
+      source_type: "timeline_item",
+      source_id: itemId,
+      target_type: "timeline_event",
+      target_id: eventId,
+      relation_type: "影響",
+      direction: "directed",
+      line_style: "double",
+      target_marker: "arrow",
+    });
+    if (inserted.error) throw inserted.error;
+
+    const [listing, events, dataset] = await Promise.all([
+      new TimelineItemService(owner).list(projectId),
+      new TimelineEventService(owner).list(projectId),
+      new RelationshipService(owner).list(projectId),
+    ]);
+    const nodes = buildNetworkNodes(listing.items, events);
+    const edges = buildNetworkEdges(dataset.relationships);
+
+    expect(nodes.map((node) => node.id)).toEqual(
+      expect.arrayContaining([
+        `timeline_item:${itemId}`,
+        `timeline_event:${eventId}`,
+      ]),
+    );
+    expect(edges).toEqual([
+      expect.objectContaining({
+        source: `timeline_item:${itemId}`,
+        target: `timeline_event:${eventId}`,
+        lineStyle: "double",
+        targetMarker: "arrow",
+      }),
+    ]);
+    expect(nodes.every((node) => !("x" in node) && !("y" in node))).toBe(true);
   });
 });

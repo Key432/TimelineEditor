@@ -26,7 +26,7 @@
 - [L12（完了・年代背景レイヤー／公開・保存済みビュー・入出力v6対応済み）](docs/phases/l12.md)
 - [L13（完了・オンデマンド品質診断／参照維持統合／Undo／管理メニュー整理済み）](docs/phases/l13.md)
 - [L14（完了・意味的関係／3段階表示／直角線・二重線・両端矢印／詳細・新規パネル対応／入出力v7対応済み）](docs/phases/l14.md)
-- [L15](docs/phases/l15.md)
+- [L15（完了・Force配置／段階クラスタ／探索フィルター／ズーム・パン対応済み）](docs/phases/l15.md)
 - [L16](docs/phases/l16.md)
 - [L17](docs/phases/l17.md)
 - [L18](docs/phases/l18.md)
