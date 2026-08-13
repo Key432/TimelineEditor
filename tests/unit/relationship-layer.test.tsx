@@ -154,7 +154,7 @@ describe("Phase L14 relationship timeline layer", () => {
     expect(screen.queryByRole("button", { name: /人物Aと事件B/ })).toBeNull();
   });
 
-  it("clips relationship strokes to the currently visible timeline canvas", () => {
+  it("leaves viewport clipping to the scroll container", () => {
     render(
       <RelationshipLayer
         anchors={anchors}
@@ -168,8 +168,45 @@ describe("Phase L14 relationship timeline layer", () => {
       />,
     );
 
-    expect(screen.getByTestId("relationship-layer")).toHaveStyle({
-      clipPath: "inset(0px 100px 0px 50px)",
-    });
+    expect(screen.getByTestId("relationship-layer").style.clipPath).toBe("");
+  });
+
+  it("keeps a relationship visible when both endpoints are outside but its route crosses the viewport", () => {
+    const crossingAnchors = new Map([
+      [
+        relationshipEndpointKey("timeline_item", relationship.sourceId),
+        {
+          entityType: "timeline_item" as const,
+          entityId: relationship.sourceId,
+          x: -120,
+          y: 30,
+        },
+      ],
+      [
+        relationshipEndpointKey("timeline_event", relationship.targetId),
+        {
+          entityType: "timeline_event" as const,
+          entityId: relationship.targetId,
+          x: 620,
+          y: 140,
+        },
+      ],
+    ]);
+    render(
+      <RelationshipLayer
+        anchors={crossingAnchors}
+        displayMode="standard"
+        entities={entities}
+        height={200}
+        relationships={[relationship]}
+        visibleEnd={400}
+        visibleStart={0}
+        width={700}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /人物Aと事件B.*影響/ }),
+    ).toBeInTheDocument();
   });
 });

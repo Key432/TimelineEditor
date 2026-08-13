@@ -646,8 +646,12 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await viewport.hover({ position: { x: 620, y: 100 } });
   await expect(page.getByTestId("timeline-pointer-guide")).toBeVisible();
 
-  await page.getByRole("button", { name: "最大化", exact: true }).click();
-  await expect(page.getByRole("button", { name: "元の大きさ" })).toBeVisible();
+  await page.getByRole("button", { name: "画面", exact: true }).click();
+  await page.getByRole("menuitem", { name: "最大化", exact: true }).click();
+  await expect(page.getByTestId("timeline-workspace")).toHaveAttribute(
+    "data-maximized",
+    "true",
+  );
   await page.getByRole("button", { name: "アイテムを追加" }).click();
   await page.getByRole("menuitem", { name: "タイムラインを追加" }).click();
   await expect(
@@ -660,13 +664,15 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
-  await expect(
-    page.getByRole("button", { name: "最大化", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByTestId("timeline-workspace")).toHaveAttribute(
+    "data-maximized",
+    "false",
+  );
 
-  const fullscreenButton = page.getByRole("button", { name: "全画面" });
-  if ((await fullscreenButton.count()) > 0) {
-    await fullscreenButton.click();
+  await page.getByRole("button", { name: "画面", exact: true }).click();
+  const fullscreenItem = page.getByRole("menuitem", { name: "全画面" });
+  if ((await fullscreenItem.count()) > 0) {
+    await fullscreenItem.click();
     await expect
       .poll(() => page.evaluate(() => document.fullscreenElement !== null))
       .toBe(true);
@@ -682,12 +688,14 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     ).toBeVisible();
     await page.getByRole("button", { name: "閉じる" }).click();
     await page.evaluate(() => document.exitFullscreen());
+  } else {
+    await page.keyboard.press("Escape");
   }
 
-  await page.getByRole("button", { name: "保存済みビュー" }).click();
+  await page.getByRole("button", { name: "移動・ビュー", exact: true }).click();
   await page.getByLabel("保存済みビュー名").fill("明治期ビュー");
   await page.getByRole("button", { name: "保存", exact: true }).click();
-  await page.getByRole("button", { name: "保存済みビュー" }).click();
+  await page.getByRole("button", { name: "移動・ビュー", exact: true }).click();
   await expect(
     page.getByRole("menuitem", { name: "明治期ビュー" }),
   ).toBeVisible();

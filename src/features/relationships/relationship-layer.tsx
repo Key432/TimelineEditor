@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Ref } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +35,7 @@ export function RelationshipLayer({
   left = 0,
   width,
   height,
+  layerRef,
 }: {
   relationships: EntityRelationship[];
   entities: RelationshipEntityOption[];
@@ -45,6 +46,7 @@ export function RelationshipLayer({
   left?: number;
   width: number;
   height: number;
+  layerRef?: Ref<SVGSVGElement>;
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -70,8 +72,8 @@ export function RelationshipLayer({
     if (!source || !target) return false;
     if (displayMode === "hidden") return false;
     return (
-      (source.x >= visibleStart && source.x <= visibleEnd) ||
-      (target.x >= visibleStart && target.x <= visibleEnd)
+      Math.min(source.x, target.x) <= visibleEnd &&
+      Math.max(source.x, target.x) >= visibleStart
     );
   });
   const selected = relationships.find((item) => item.id === selectedId) ?? null;
@@ -92,15 +94,13 @@ export function RelationshipLayer({
   return (
     <>
       <svg
+        ref={layerRef}
         aria-label="関係線"
         className="pointer-events-none absolute top-0 z-50 overflow-hidden"
         data-visible-count={visible.length}
         data-testid="relationship-layer"
         height={height}
-        style={{
-          left,
-          clipPath: `inset(0px ${Math.max(0, width - visibleEnd)}px 0px ${Math.max(0, visibleStart)}px)`,
-        }}
+        style={{ left }}
         width={width}
       >
         <defs>

@@ -193,22 +193,31 @@ describe("TimelineWorkspace", () => {
     expect(screen.getByTestId("relationship-layer")).toHaveClass(
       "overflow-hidden",
     );
+    expect(screen.getByRole("button", { name: "表示" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "画面" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "移動・ビュー" }),
+    ).toBeInTheDocument();
     const stroke = screen.getByTestId("relationship-stroke-relationship-1");
     expect(stroke).toHaveAttribute("stroke", "rgba(107, 114, 128, 0.42)");
 
-    await user.click(screen.getByRole("button", { name: "関係線: 標準" }));
+    await user.click(screen.getByRole("button", { name: "表示" }));
     await user.click(screen.getByRole("menuitemradio", { name: "すべて表示" }));
     expect(stroke).toHaveAttribute("stroke", "#007F7F");
 
-    await user.click(
-      screen.getByRole("button", { name: "関係線: すべて表示" }),
-    );
+    await user.click(screen.getByRole("button", { name: "表示" }));
     await user.click(
       screen.getByRole("menuitemradio", { name: "すべて非表示" }),
     );
     expect(screen.getByTestId("relationship-layer")).toHaveAttribute(
       "data-visible-count",
       "0",
+    );
+    const viewport = screen.getByTestId("timeline-viewport");
+    viewport.scrollLeft = 120;
+    fireEvent.scroll(viewport);
+    expect(screen.getByTestId("relationship-layer").style.clipPath).toMatch(
+      /inset\(0px .* 0px 120px\)/,
     );
   });
 
@@ -1088,12 +1097,12 @@ describe("TimelineWorkspace", () => {
     expect(screen.getByTestId("timeline-background-layers")).toHaveTextContent(
       "日本の時代区分 · 明治時代",
     );
-    await user.click(screen.getByRole("button", { name: /年代背景/ }));
+    await user.click(screen.getByRole("button", { name: "表示" }));
     await user.click(
       screen.getByRole("menuitemcheckbox", { name: "日本の時代区分" }),
     );
     expect(screen.queryByTestId("timeline-background-layers")).toBeNull();
-    await user.click(screen.getByRole("button", { name: /年代背景/ }));
+    await user.click(screen.getByRole("button", { name: "表示" }));
     await user.click(
       screen.getByRole("menuitemcheckbox", { name: "日本の時代区分" }),
     );

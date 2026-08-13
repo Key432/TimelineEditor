@@ -72,17 +72,17 @@ test("manages, draws, saves, and publicly shows historical background layers", a
 
   await expect(page.getByTestId("timeline-background-layers")).toBeVisible();
   await expect(page.getByText("時代区分 · 明治時代")).toBeVisible();
-  await page.getByRole("button", { name: "保存済みビュー" }).click();
+  await page.getByRole("button", { name: "移動・ビュー", exact: true }).click();
   await page.getByLabel("保存済みビュー名").fill("明治背景");
   await page.getByRole("button", { name: "保存", exact: true }).click();
 
   await page
     .getByTestId("timeline-workspace")
-    .getByRole("button", { name: /年代背景/ })
+    .getByRole("button", { name: "表示", exact: true })
     .click();
   await page.getByRole("menuitemcheckbox", { name: "時代区分" }).click();
   await expect(page.getByTestId("timeline-background-layers")).toHaveCount(0);
-  await page.getByRole("button", { name: "保存済みビュー" }).click();
+  await page.getByRole("button", { name: "移動・ビュー", exact: true }).click();
   await page.getByRole("menuitem", { name: "明治背景" }).click();
   await expect(page.getByTestId("timeline-background-layers")).toBeVisible();
 

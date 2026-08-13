@@ -162,7 +162,7 @@ test("creates, edits, renders across collapsible groups, and deletes a semantic 
   await page
     .getByRole("menuitemcheckbox", { name: "タイムライン種別でグループ化" })
     .click();
-  await page.getByRole("button", { name: "関係線: 標準" }).click();
+  await page.getByRole("button", { name: "表示", exact: true }).click();
   await page.getByRole("menuitemradio", { name: "すべて表示" }).click();
   const relationLine = page.getByRole("button", {
     name: /源流Aと後継Bの関係 継承/,

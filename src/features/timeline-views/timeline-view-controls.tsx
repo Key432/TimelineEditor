@@ -167,37 +167,51 @@ export function TimelineViewControls(props: Props) {
 
   return (
     <>
-      <Button
-        aria-pressed={props.isMaximized}
-        size="sm"
-        variant="outline"
-        onClick={props.onToggleMaximized}
-      >
-        <Expand aria-hidden="true" className="size-4" />
-        {props.isMaximized ? "元の大きさ" : "最大化"}
-      </Button>
-      {props.fullscreenSupported ? (
-        <Button size="sm" variant="outline" onClick={props.onToggleFullscreen}>
-          <Maximize aria-hidden="true" className="size-4" />
-          全画面
-        </Button>
-      ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" variant="outline">
-            <CalendarSearch aria-hidden="true" className="size-4" />
-            年代へ移動
+            <Expand aria-hidden="true" className="size-4" />
+            画面
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-64 p-2" align="start">
-          <DropdownMenuLabel>西暦年へ移動</DropdownMenuLabel>
+        <DropdownMenuContent align="start">
+          <DropdownMenuLabel>画面表示</DropdownMenuLabel>
+          <DropdownMenuItem onSelect={props.onToggleMaximized}>
+            <Expand aria-hidden="true" className="size-4" />
+            {props.isMaximized ? "元の大きさ" : "最大化"}
+          </DropdownMenuItem>
+          {props.fullscreenSupported ? (
+            <DropdownMenuItem onSelect={props.onToggleFullscreen}>
+              <Maximize aria-hidden="true" className="size-4" />
+              全画面
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DropdownMenu open={viewMenuOpen} onOpenChange={setViewMenuOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="outline">
+            <Bookmark aria-hidden="true" className="size-4" />
+            移動・ビュー
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="start"
+          className="max-h-[min(32rem,var(--radix-dropdown-menu-content-available-height))] w-80 overflow-y-auto p-2"
+        >
+          <DropdownMenuLabel className="flex items-center gap-2">
+            <CalendarSearch aria-hidden="true" className="size-4" />
+            西暦年へ移動
+          </DropdownMenuLabel>
           <form
-            className="flex gap-2"
+            className="flex gap-2 px-1"
             onSubmit={(event) => {
               event.preventDefault();
               const year = Number(jumpYear);
-              if (Number.isInteger(year) && year >= 1)
+              if (Number.isInteger(year) && year >= 1) {
                 navigateTo(historicalDateOrdinal({ year, month: 1, day: 1 }));
+                setViewMenuOpen(false);
+              }
             }}
           >
             <Input
@@ -213,16 +227,8 @@ export function TimelineViewControls(props: Props) {
               移動
             </Button>
           </form>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="outline">
-            <Bookmark aria-hidden="true" className="size-4" />
-            位置
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="min-w-64" align="start">
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>位置ブックマーク</DropdownMenuLabel>
           <DropdownMenuItem
             disabled={!viewport}
             onSelect={() => {
@@ -256,90 +262,89 @@ export function TimelineViewControls(props: Props) {
               </DropdownMenuItem>
             ))
           )}
+          {props.canSaveViews ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="flex items-center gap-2">
+                <Save aria-hidden="true" className="size-4" />
+                保存済みビュー
+              </DropdownMenuLabel>
+              <p className="px-2 pb-1 text-xs text-muted-foreground">
+                現在の表示を保存
+              </p>
+              <form
+                className="flex gap-2 px-1"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  saveMutation.mutate({});
+                }}
+              >
+                <Input
+                  aria-label="保存済みビュー名"
+                  className="h-8"
+                  maxLength={80}
+                  placeholder="ビュー名"
+                  value={viewName}
+                  onChange={(event) => setViewName(event.target.value)}
+                />
+                <Button
+                  disabled={saveMutation.isPending || !configuration}
+                  size="sm"
+                  type="submit"
+                >
+                  保存
+                </Button>
+              </form>
+              {error ? (
+                <p className="px-2 pt-2 text-xs text-destructive" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <DropdownMenuSeparator />
+              {views.isLoading ? (
+                <DropdownMenuItem disabled>読み込み中...</DropdownMenuItem>
+              ) : views.data?.length ? (
+                views.data.map((view) => (
+                  <div
+                    key={view.id}
+                    className="flex items-center gap-1 rounded-sm hover:bg-accent"
+                  >
+                    <DropdownMenuItem
+                      className="flex-1"
+                      onSelect={() => applyView(view)}
+                    >
+                      {view.name}
+                    </DropdownMenuItem>
+                    <Button
+                      aria-label={`${view.name}を上書き`}
+                      size="icon-sm"
+                      variant="ghost"
+                      onClick={() => saveMutation.mutate({ existing: view })}
+                    >
+                      <Save aria-hidden="true" className="size-3.5" />
+                    </Button>
+                    <Button
+                      aria-label={`${view.name}を削除`}
+                      size="icon-sm"
+                      variant="ghost"
+                      onClick={() => {
+                        if (window.confirm(`「${view.name}」を削除しますか？`))
+                          deleteMutation.mutate(view);
+                      }}
+                    >
+                      <Trash2 aria-hidden="true" className="size-3.5" />
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <DropdownMenuItem disabled>
+                  保存済みビューはありません
+                </DropdownMenuItem>
+              )}
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
-      {props.canSaveViews ? (
-        <DropdownMenu open={viewMenuOpen} onOpenChange={setViewMenuOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline">
-              <Save aria-hidden="true" className="size-4" />
-              保存済みビュー
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-80 p-2" align="start">
-            <DropdownMenuLabel>現在の表示を保存</DropdownMenuLabel>
-            <form
-              className="flex gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                saveMutation.mutate({});
-              }}
-            >
-              <Input
-                aria-label="保存済みビュー名"
-                className="h-8"
-                maxLength={80}
-                placeholder="ビュー名"
-                value={viewName}
-                onChange={(event) => setViewName(event.target.value)}
-              />
-              <Button
-                disabled={saveMutation.isPending || !configuration}
-                size="sm"
-                type="submit"
-              >
-                保存
-              </Button>
-            </form>
-            {error ? (
-              <p className="px-2 pt-2 text-xs text-destructive" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <DropdownMenuSeparator />
-            {views.isLoading ? (
-              <DropdownMenuItem disabled>読み込み中...</DropdownMenuItem>
-            ) : views.data?.length ? (
-              views.data.map((view) => (
-                <div
-                  key={view.id}
-                  className="flex items-center gap-1 rounded-sm hover:bg-accent"
-                >
-                  <DropdownMenuItem
-                    className="flex-1"
-                    onSelect={() => applyView(view)}
-                  >
-                    {view.name}
-                  </DropdownMenuItem>
-                  <Button
-                    aria-label={`${view.name}を上書き`}
-                    size="icon-sm"
-                    variant="ghost"
-                    onClick={() => saveMutation.mutate({ existing: view })}
-                  >
-                    <Save aria-hidden="true" className="size-3.5" />
-                  </Button>
-                  <Button
-                    aria-label={`${view.name}を削除`}
-                    size="icon-sm"
-                    variant="ghost"
-                    onClick={() => {
-                      if (window.confirm(`「${view.name}」を削除しますか？`))
-                        deleteMutation.mutate(view);
-                    }}
-                  >
-                    <Trash2 aria-hidden="true" className="size-3.5" />
-                  </Button>
-                </div>
-              ))
-            ) : (
-              <DropdownMenuItem disabled>
-                保存済みビューはありません
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ) : null}
     </>
   );
 }

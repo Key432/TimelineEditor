@@ -872,6 +872,7 @@ export function TimelineViewport({
     time: number;
   } | null>(null);
   const scrollFrameRef = useRef<number | null>(null);
+  const relationshipLayerRef = useRef<SVGSVGElement>(null);
   const pendingScrollLeftRef = useRef(0);
   const lastScrollSyncRef = useRef(Number.NEGATIVE_INFINITY);
   const pendingZoomRef = useRef<
@@ -1176,6 +1177,16 @@ export function TimelineViewport({
   const canvasWidth = Math.max(
     baseCanvasWidth,
     HORIZONTAL_PADDING * 2 + compactContentEnd,
+  );
+  const syncRelationshipClip = useCallback(
+    (nextScrollLeft: number) => {
+      if (!relationshipLayerRef.current) return;
+      relationshipLayerRef.current.style.clipPath = `inset(0px ${Math.max(
+        0,
+        canvasWidth - nextScrollLeft - timelineViewportWidth,
+      )}px 0px ${Math.max(0, nextScrollLeft)}px)`;
+    },
+    [canvasWidth, timelineViewportWidth],
   );
   const timeSliceStart = Math.max(
     bounds.domainStart,
@@ -1511,6 +1522,9 @@ export function TimelineViewport({
 
   const visibleStart = scrollLeft;
   const visibleEnd = scrollLeft + timelineViewportWidth;
+  useLayoutEffect(() => {
+    syncRelationshipClip(viewportRef.current?.scrollLeft ?? 0);
+  }, [syncRelationshipClip]);
   const visibleStartOrdinal = Math.max(
     bounds.domainStart,
     bounds.domainStart + (visibleStart - HORIZONTAL_PADDING) / pixelsPerDay,
@@ -1667,9 +1681,10 @@ export function TimelineViewport({
             )}
             data-testid="timeline-viewport"
             tabIndex={0}
-            onScroll={(event) =>
-              scheduleScrollSync(event.currentTarget.scrollLeft)
-            }
+            onScroll={(event) => {
+              syncRelationshipClip(event.currentTarget.scrollLeft);
+              scheduleScrollSync(event.currentTarget.scrollLeft);
+            }}
             onMouseMove={updatePointerGuide}
             onMouseLeave={clearPointerGuide}
             onWheel={handleWheel}
@@ -1763,6 +1778,7 @@ export function TimelineViewport({
                   displayMode={relationshipDisplayMode}
                   entities={relationshipEntities}
                   height={virtualizer.getTotalSize()}
+                  layerRef={relationshipLayerRef}
                   left={layoutMode === "row" ? handleWidth + infoWidth : 0}
                   relationships={relationships}
                   visibleEnd={visibleEnd}

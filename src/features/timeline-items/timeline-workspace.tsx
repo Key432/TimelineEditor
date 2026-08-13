@@ -20,7 +20,6 @@ import {
   ArrowUpDown,
   CalendarPlus,
   ChevronDown,
-  GitBranch,
   LayoutGrid,
   Layers3,
   Network,
@@ -758,16 +757,11 @@ function TimelineWorkspaceContent({
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline">
                 <Layers3 aria-hidden="true" className="size-4" />
-                年代背景
-                {visibleBackgroundLayerIds.length > 0 ? (
-                  <Badge className="h-5 px-1.5" variant="secondary">
-                    {visibleBackgroundLayerIds.length}
-                  </Badge>
-                ) : null}
+                表示
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-56">
-              <DropdownMenuLabel>表示する背景レイヤー</DropdownMenuLabel>
+              <DropdownMenuLabel>年代背景</DropdownMenuLabel>
               {backgroundLayers.length === 0 ? (
                 <DropdownMenuItem disabled>
                   背景レイヤーはありません
@@ -789,23 +783,7 @@ function TimelineWorkspaceContent({
                   </DropdownMenuCheckboxItem>
                 ))
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-        {workspaceView === "timeline" ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline">
-                <GitBranch aria-hidden="true" className="size-4" />
-                関係線:{" "}
-                {relationshipDisplayMode === "standard"
-                  ? "標準"
-                  : relationshipDisplayMode === "all"
-                    ? "すべて表示"
-                    : "すべて非表示"}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+              <DropdownMenuSeparator />
               <DropdownMenuLabel>関係線の表示</DropdownMenuLabel>
               <DropdownMenuRadioGroup
                 value={relationshipDisplayMode}
