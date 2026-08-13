@@ -74,7 +74,7 @@ function relationshipValues(
   };
 }
 
-export function relationshipDisplaySymbol(relationship: EntityRelationship) {
+function relationshipDisplaySymbol(relationship: EntityRelationship) {
   if (
     relationship.sourceMarker === "arrow" &&
     relationship.targetMarker === "arrow"

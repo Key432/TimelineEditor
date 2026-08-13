@@ -48,5 +48,4 @@ export const backgroundPeriodSchema = z
     }
   });
 
-export const updateBackgroundPeriodSchema = backgroundPeriodSchema;
 export type BackgroundPeriodInput = z.input<typeof backgroundPeriodSchema>;

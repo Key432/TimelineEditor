@@ -5,7 +5,7 @@ import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import type { TimelineItemSummary } from "@/features/timeline-items/types";
 import type { TimelineFilters } from "@/features/timeline-items/timeline-filters";
 
-export const NETWORK_INITIAL_NODE_LIMIT = 160;
+const NETWORK_INITIAL_NODE_LIMIT = 160;
 
 export type NetworkEntityNode = {
   id: string;
@@ -64,7 +64,7 @@ function signedYear(date: { era?: "ce" | "bce"; year: number } | null) {
   return date ? astronomicalYear(date.era ?? "ce", date.year) : 1;
 }
 
-export function networkTypeKey(kind: "item" | "event", id: string | null) {
+function networkTypeKey(kind: "item" | "event", id: string | null) {
   return `${kind}:${id ?? "none"}`;
 }
 

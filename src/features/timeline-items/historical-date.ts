@@ -6,22 +6,6 @@ import type {
 
 export const DEFAULT_CALENDAR = "proleptic_gregorian";
 
-export function historicalDate(
-  year: number,
-  month: number | null = null,
-  day: number | null = null,
-): HistoricalDate {
-  return {
-    era: "ce",
-    precision: day !== null ? "day" : month !== null ? "month" : "year",
-    year,
-    month,
-    day,
-    originalText: null,
-    calendar: DEFAULT_CALENDAR,
-  };
-}
-
 export function astronomicalYear(era: HistoricalEra, year: number) {
   return era === "ce" ? year : 1 - year;
 }
@@ -202,7 +186,7 @@ export function formatApproximateHistoricalDate(
   return isApproximate && date ? `${formatted} 頃` : formatted;
 }
 
-export function historicalDatePrecision(
+function historicalDatePrecision(
   date: Pick<HistoricalDate, "precision" | "month" | "day">,
 ): HistoricalDatePrecision {
   return (
@@ -221,13 +205,3 @@ export const HISTORICAL_PRECISION_LABELS: Record<
   decade: "年代",
   century: "世紀",
 };
-
-export function effectiveItemYear(item: {
-  temporalType: "range" | "point";
-  start: HistoricalDate | null;
-  point: HistoricalDate | null;
-}) {
-  return item.temporalType === "point"
-    ? (item.point?.year ?? 1)
-    : (item.start?.year ?? 1);
-}

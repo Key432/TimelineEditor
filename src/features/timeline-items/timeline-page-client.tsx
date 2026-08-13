@@ -33,13 +33,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { itemTypeKeys } from "@/features/item-types/api";
-import { ImportExportManager } from "@/features/import-export/import-export-manager";
 import type { TimelineItemType } from "@/features/item-types/types";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
 import { timelineEventKeys } from "@/features/timeline-events/api";
-import { DeleteProjectDialog } from "@/features/projects/delete-project-dialog";
-import { ProjectForm } from "@/features/projects/project-form";
-import { ProjectSharing } from "@/features/projects/project-sharing";
 import { CollapsibleProjectDescription } from "@/features/projects/collapsible-project-description";
 import type { Project } from "@/features/projects/types";
 import type {
@@ -54,14 +50,70 @@ import {
 import { TimelineWorkspace } from "@/features/timeline-items/timeline-workspace";
 import { timelineItemKeys } from "@/features/timeline-items/api";
 import { cn } from "@/lib/utils";
-import { TrashManager } from "@/features/history/trash-manager";
-import { ClassificationManager } from "@/features/classification/classification-manager";
 import { invalidateEventTypeDependents } from "@/features/classification/cache";
 import { invalidateItemTypeDependents } from "@/features/item-types/cache";
-import { SourceManager } from "@/features/sources/source-manager";
-import { BackgroundLayerManager } from "@/features/background-layers/background-layer-manager";
 import type { TimelineBackgroundLayer } from "@/features/background-layers/types";
 import type { RelationshipDataset } from "@/features/relationships/types";
+import { TimelinePanelSkeleton } from "@/features/timeline-items/timeline-loading-skeleton";
+
+const panelLoading = () => <TimelinePanelSkeleton />;
+
+const ImportExportManager = dynamic(
+  () =>
+    import("@/features/import-export/import-export-manager").then(
+      (module) => module.ImportExportManager,
+    ),
+  { loading: panelLoading },
+);
+const DeleteProjectDialog = dynamic(
+  () =>
+    import("@/features/projects/delete-project-dialog").then(
+      (module) => module.DeleteProjectDialog,
+    ),
+  { loading: panelLoading },
+);
+const ProjectForm = dynamic(
+  () =>
+    import("@/features/projects/project-form").then(
+      (module) => module.ProjectForm,
+    ),
+  { loading: panelLoading },
+);
+const ProjectSharing = dynamic(
+  () =>
+    import("@/features/projects/project-sharing").then(
+      (module) => module.ProjectSharing,
+    ),
+  { loading: panelLoading },
+);
+const TrashManager = dynamic(
+  () =>
+    import("@/features/history/trash-manager").then(
+      (module) => module.TrashManager,
+    ),
+  { loading: panelLoading },
+);
+const ClassificationManager = dynamic(
+  () =>
+    import("@/features/classification/classification-manager").then(
+      (module) => module.ClassificationManager,
+    ),
+  { loading: panelLoading },
+);
+const SourceManager = dynamic(
+  () =>
+    import("@/features/sources/source-manager").then(
+      (module) => module.SourceManager,
+    ),
+  { loading: panelLoading },
+);
+const BackgroundLayerManager = dynamic(
+  () =>
+    import("@/features/background-layers/background-layer-manager").then(
+      (module) => module.BackgroundLayerManager,
+    ),
+  { loading: panelLoading },
+);
 
 const ProjectAnalysisManager = dynamic(
   () =>
@@ -89,7 +141,7 @@ type Panel =
 export function TimelinePageClient({
   project,
   initialItems,
-  initialEvents = [],
+  initialEvents,
   itemTypes,
   currentDate,
   layoutMode,
@@ -102,8 +154,8 @@ export function TimelinePageClient({
   itemTypes: TimelineItemType[];
   currentDate: HistoricalDate;
   layoutMode: TimelineLayoutMode;
-  initialBackgroundLayers: TimelineBackgroundLayer[];
-  initialRelationships: RelationshipDataset;
+  initialBackgroundLayers?: TimelineBackgroundLayer[];
+  initialRelationships?: RelationshipDataset;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -199,6 +251,7 @@ export function TimelinePageClient({
         layoutMode={layoutMode}
         filters={filters}
         project={activeProject}
+        lazyLoadSupplementalData
         onFiltersChange={(nextFilters) => {
           const next = writeTimelineFilters(
             new URLSearchParams(searchParams.toString()),
@@ -308,7 +361,7 @@ export function TimelinePageClient({
               />
             ) : panel === "backgrounds" ? (
               <BackgroundLayerManager
-                initialLayers={initialBackgroundLayers}
+                initialLayers={initialBackgroundLayers ?? []}
                 projectId={project.id}
               />
             ) : panel === "sources" ? (

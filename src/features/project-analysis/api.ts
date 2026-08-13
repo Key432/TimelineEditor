@@ -3,25 +3,22 @@ import type {
   ProjectAnalysisSummary,
   QualityIssue,
 } from "@/features/project-analysis/analysis";
+import { requestJson } from "@/lib/api-client";
 
 export const projectAnalysisKeys = {
   detail: (projectId: string) => ["projects", projectId, "analysis"] as const,
 };
 
-async function responseJson(response: Response) {
-  const body = await response.json();
-  if (!response.ok)
-    throw new Error(body.error?.message ?? "データ品質の処理に失敗しました。");
-  return body;
-}
-
 export async function getProjectAnalysis(projectId: string) {
-  const response = await fetch(`/api/projects/${projectId}/analysis`);
-  return (await responseJson(response)) as {
+  return requestJson<{
     issues: QualityIssue[];
     duplicates: DuplicateCandidate[];
     summary: ProjectAnalysisSummary;
-  };
+  }>(
+    `/api/projects/${projectId}/analysis`,
+    undefined,
+    "データ品質の処理に失敗しました。",
+  );
 }
 
 export async function previewEntityMerge(
@@ -32,12 +29,7 @@ export async function previewEntityMerge(
     mergedId: string;
   },
 ) {
-  const response = await fetch(`/api/projects/${projectId}/analysis`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ ...input, preview: true }),
-  });
-  return (await responseJson(response)) as {
+  return requestJson<{
     preview: true;
     survivor: { id: string; title: string };
     merged: { id: string; title: string };
@@ -50,7 +42,15 @@ export async function previewEntityMerge(
       internalLinks: number;
       relationships: number;
     };
-  };
+  }>(
+    `/api/projects/${projectId}/analysis`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...input, preview: true }),
+    },
+    "データ品質の処理に失敗しました。",
+  );
 }
 
 export async function mergeEntities(
@@ -61,22 +61,28 @@ export async function mergeEntities(
     mergedId: string;
   },
 ) {
-  const response = await fetch(`/api/projects/${projectId}/analysis`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ ...input, preview: false }),
-  });
-  return (await responseJson(response)) as {
+  return requestJson<{
     operationId: string;
     survivorId: string;
-  };
+  }>(
+    `/api/projects/${projectId}/analysis`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...input, preview: false }),
+    },
+    "データ品質の処理に失敗しました。",
+  );
 }
 
 export async function undoEntityMerge(projectId: string, operationId: string) {
-  const response = await fetch(`/api/projects/${projectId}/analysis`, {
-    method: "DELETE",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ operationId }),
-  });
-  return responseJson(response);
+  return requestJson<Record<string, unknown>>(
+    `/api/projects/${projectId}/analysis`,
+    {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ operationId }),
+    },
+    "データ品質の処理に失敗しました。",
+  );
 }

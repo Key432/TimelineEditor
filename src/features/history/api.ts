@@ -3,19 +3,7 @@ import type {
   HistoryEntityType,
   TrashEntry,
 } from "@/features/history/types";
-
-type ApiErrorPayload = { error?: { message?: string } };
-
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-  if (!response.ok) {
-    const payload = (await response
-      .json()
-      .catch(() => ({}))) as ApiErrorPayload;
-    throw new Error(payload.error?.message ?? "処理に失敗しました。");
-  }
-  return (await response.json()) as T;
-}
+import { requestJson } from "@/lib/api-client";
 
 export async function listEntityHistory(
   projectId: string,
@@ -75,16 +63,11 @@ export async function purgeTrashEntry(
   entityType: HistoryEntityType,
   entityId: string,
 ) {
-  const response = await fetch(
+  await requestJson<void>(
     `/api/projects/${projectId}/trash/${entityType}/${entityId}`,
     { method: "DELETE" },
+    "完全削除に失敗しました。",
   );
-  if (!response.ok) {
-    const payload = (await response
-      .json()
-      .catch(() => ({}))) as ApiErrorPayload;
-    throw new Error(payload.error?.message ?? "完全削除に失敗しました。");
-  }
 }
 
 export const historyKeys = {

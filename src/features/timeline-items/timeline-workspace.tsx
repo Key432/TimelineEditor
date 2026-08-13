@@ -57,11 +57,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { itemTypeKeys, listItemTypes } from "@/features/item-types/api";
-import {
-  listTimelineEvents,
-  timelineEventKeys,
-} from "@/features/timeline-events/api";
 import { TimelineEventForm } from "@/features/timeline-events/timeline-event-form";
 import { TimelineEventSection } from "@/features/timeline-events/timeline-event-section";
 import type { TimelineEventSummary } from "@/features/timeline-events/types";
@@ -69,14 +64,13 @@ import type { TimelineItemType } from "@/features/item-types/types";
 import { searchTimeline } from "@/features/search/api";
 import {
   getTimelineItem,
-  listTimelineItems,
   moveTimelineItem,
   timelineItemKeys,
 } from "@/features/timeline-items/api";
 import { DeleteTimelineItemDialog } from "@/features/timeline-items/delete-timeline-item-dialog";
 import { historicalDateOrdinal } from "@/features/timeline-items/historical-date";
-import { TimelineItemForm } from "@/features/timeline-items/timeline-item-form";
 import { TimelineFilterPanel } from "@/features/timeline-items/timeline-filter-panel";
+import { TimelineItemForm } from "@/features/timeline-items/timeline-item-form";
 import {
   DEFAULT_TIMELINE_FILTERS,
   filterTimelineItems,
@@ -98,24 +92,18 @@ import {
   type TimelineSortMode,
 } from "@/features/timeline-items/types";
 import type { Project } from "@/features/projects/types";
-import { TimelineViewControls } from "@/features/timeline-views/timeline-view-controls";
 import { TimelineTableView } from "@/features/table-view/timeline-table-view";
+import { TimelineViewControls } from "@/features/timeline-views/timeline-view-controls";
 import { cn } from "@/lib/utils";
-import {
-  backgroundLayerKeys,
-  listBackgroundLayers,
-} from "@/features/background-layers/api";
 import type { TimelineBackgroundLayer } from "@/features/background-layers/types";
-import {
-  listRelationships,
-  relationshipKeys,
-} from "@/features/relationships/api";
 import type {
   RelationshipCreationFailure,
   RelationshipDataset,
 } from "@/features/relationships/types";
 import type { RelationshipDisplayMode } from "@/features/relationships/relationship-layer";
 import { RelationshipNetworkSkeleton } from "@/features/relationship-network/relationship-network-skeleton";
+import { TimelineWorkspaceSkeleton } from "@/features/timeline-items/timeline-loading-skeleton";
+import { useTimelineWorkspaceData } from "@/features/timeline-items/use-timeline-workspace-data";
 
 const RelationshipNetwork = dynamic(
   () =>
@@ -314,31 +302,11 @@ function TimelineWorkspaceContent({
   const [collapsed, setCollapsed] = useState<Set<string>>(
     () => new Set([HIDDEN_ITEMS_GROUP_ID]),
   );
-  const { data: items = initialItems } = useQuery({
-    queryKey: timelineItemKeys.list(project.id),
-    queryFn: () => listTimelineItems(project.id),
-    initialData: initialItems,
-  });
-  const { data: events = initialEvents } = useQuery({
-    queryKey: timelineEventKeys.list(project.id),
-    queryFn: () => listTimelineEvents(project.id),
-    initialData: initialEvents,
-  });
-  const { data: currentItemTypes = itemTypes } = useQuery({
-    queryKey: itemTypeKeys.list(project.id),
-    queryFn: () => listItemTypes(project.id),
-    initialData: itemTypes,
-  });
-  const { data: backgroundLayers = initialBackgroundLayers } = useQuery({
-    queryKey: backgroundLayerKeys.list(project.id),
-    queryFn: () => listBackgroundLayers(project.id),
-    initialData: initialBackgroundLayers,
-  });
-  const { data: relationshipData = initialRelationships } = useQuery({
-    queryKey: relationshipKeys.all(project.id),
-    queryFn: () => listRelationships(project.id),
-    initialData: initialRelationships,
-  });
+  const items = initialItems;
+  const events = initialEvents;
+  const currentItemTypes = itemTypes;
+  const backgroundLayers = initialBackgroundLayers;
+  const relationshipData = initialRelationships;
   const backgroundVisibilityRef = useRef(
     new Map(
       initialBackgroundLayers.map((layer) => [layer.id, layer.isVisible]),
@@ -1150,20 +1118,47 @@ export function TimelineWorkspace(props: {
   filters?: TimelineFilters;
   onFiltersChange?: (filters: TimelineFilters) => void;
   readOnly?: boolean;
+  lazyLoadSupplementalData?: boolean;
 }) {
   const [uncontrolledLayoutMode, setUncontrolledLayoutMode] =
     useState<TimelineLayoutMode>(props.layoutMode ?? "row");
   const layoutMode = props.layoutMode ?? uncontrolledLayoutMode;
+  const data = useTimelineWorkspaceData({
+    projectId: props.project.id,
+    initialItems: props.initialItems,
+    initialItemTypes: props.itemTypes,
+    initialEvents: props.lazyLoadSupplementalData
+      ? props.initialEvents
+      : (props.initialEvents ?? []),
+    initialBackgroundLayers: props.lazyLoadSupplementalData
+      ? props.initialBackgroundLayers
+      : (props.initialBackgroundLayers ?? []),
+    initialRelationships: props.lazyLoadSupplementalData
+      ? props.initialRelationships
+      : (props.initialRelationships ?? { relationships: [], entities: [] }),
+  });
+
+  if (data.isSupplementalLoading) return <TimelineWorkspaceSkeleton />;
+  if (data.supplementalError) {
+    return (
+      <div
+        className="flex min-h-[32rem] flex-1 items-center justify-center rounded-xl border bg-card p-6 text-sm text-destructive"
+        role="alert"
+      >
+        タイムラインの関連データを読み込めませんでした。
+      </div>
+    );
+  }
 
   return (
     <TimelineStoreProvider settings={props.project.settings}>
       <TimelineWorkspaceContent
         {...props}
-        initialEvents={props.initialEvents ?? []}
-        initialBackgroundLayers={props.initialBackgroundLayers ?? []}
-        initialRelationships={
-          props.initialRelationships ?? { relationships: [], entities: [] }
-        }
+        initialItems={data.items}
+        itemTypes={data.itemTypes}
+        initialEvents={data.events}
+        initialBackgroundLayers={data.backgroundLayers}
+        initialRelationships={data.relationships}
         filters={props.filters ?? DEFAULT_TIMELINE_FILTERS}
         layoutMode={layoutMode}
         onLayoutModeChange={(nextLayoutMode) => {

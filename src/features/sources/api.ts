@@ -1,26 +1,16 @@
-import type {
-  MissingSourceEntity,
-  Source,
-  SourceCitation,
-} from "@/features/sources/types";
+import type { MissingSourceEntity, Source } from "@/features/sources/types";
 import type { SourceInput } from "@/features/sources/validation";
-
-type ErrorPayload = { error?: { message?: string } };
-
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as ErrorPayload;
-    throw new Error(payload.error?.message ?? "出典の処理に失敗しました。");
-  }
-  return (await response.json()) as T;
-}
+import { requestJson } from "@/lib/api-client";
 
 export async function listSources(projectId: string) {
   return requestJson<{
     sources: Source[];
     missingEntities: MissingSourceEntity[];
-  }>(`/api/projects/${projectId}/sources`);
+  }>(
+    `/api/projects/${projectId}/sources`,
+    undefined,
+    "出典の処理に失敗しました。",
+  );
 }
 
 export async function createSource(projectId: string, input: SourceInput) {
@@ -31,6 +21,7 @@ export async function createSource(projectId: string, input: SourceInput) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     },
+    "出典の処理に失敗しました。",
   );
   return result.source;
 }
@@ -47,6 +38,7 @@ export async function updateSource(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     },
+    "出典の処理に失敗しました。",
   );
   return result.source;
 }
@@ -55,17 +47,8 @@ export async function deleteSource(projectId: string, sourceId: string) {
   await requestJson<Record<string, never>>(
     `/api/projects/${projectId}/sources/${sourceId}`,
     { method: "DELETE" },
+    "出典の処理に失敗しました。",
   );
-}
-
-export function citationInputs(citations: SourceCitation[]) {
-  return citations.map(({ sourceId, pages, chapter, quote, notes }) => ({
-    sourceId,
-    pages,
-    chapter,
-    quote,
-    notes,
-  }));
 }
 
 export const sourceKeys = {

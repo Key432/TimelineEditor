@@ -17,11 +17,11 @@ import type {
 
 export const NETWORK_NODE_MIN_WIDTH = 172;
 export const NETWORK_NODE_MAX_WIDTH = 250;
-export const NETWORK_NODE_HEIGHT = 76;
-export const NETWORK_CLUSTER_WIDTH = 188;
-export const NETWORK_CLUSTER_HEIGHT = 64;
-export const NETWORK_NODE_TEXT_INSET = 18;
-export const NETWORK_NODE_TEXT_RIGHT_PADDING = 12;
+const NETWORK_NODE_HEIGHT = 76;
+const NETWORK_CLUSTER_WIDTH = 188;
+const NETWORK_CLUSTER_HEIGHT = 64;
+const NETWORK_NODE_TEXT_INSET = 18;
+const NETWORK_NODE_TEXT_RIGHT_PADDING = 12;
 const NETWORK_TITLE_FONT_SIZE = 14;
 const NETWORK_SUBTITLE_FONT_SIZE = 10.5;
 const ELLIPSIS = "…";
@@ -73,14 +73,14 @@ function glyphWidth(character: string, fontSize: number) {
   return fontSize * 0.54;
 }
 
-export function measureNetworkText(text: string, fontSize: number) {
+function measureNetworkText(text: string, fontSize: number) {
   return Array.from(text).reduce(
     (width, character) => width + glyphWidth(character, fontSize),
     0,
   );
 }
 
-export function networkNodeWidth(node: NetworkNode) {
+function networkNodeWidth(node: NetworkNode) {
   if (node.kind === "cluster") return NETWORK_CLUSTER_WIDTH;
   const desired =
     measureNetworkText(node.title, NETWORK_TITLE_FONT_SIZE) +

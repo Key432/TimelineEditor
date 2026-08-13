@@ -20,7 +20,10 @@ import type { TimelineItemSummary } from "@/features/timeline-items/types";
 import { TimelineWorkspace } from "@/features/timeline-items/timeline-workspace";
 import type { Project } from "@/features/projects/types";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 const type: TimelineItemType = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -142,6 +145,52 @@ async function openFloatingControls(user: TestUser) {
 }
 
 describe("TimelineWorkspace", () => {
+  it("keeps a stable skeleton while supplemental timeline data loads in parallel", async () => {
+    const pending = {
+      events: Promise.withResolvers<Response>(),
+      backgrounds: Promise.withResolvers<Response>(),
+      relationships: Promise.withResolvers<Response>(),
+    };
+    const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith("/events")) return pending.events.promise;
+      if (url.endsWith("/background-layers"))
+        return pending.backgrounds.promise;
+      if (url.endsWith("/relationships")) return pending.relationships.promise;
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 8, day: 14 }}
+          initialItems={[
+            item("33333333-3333-4333-8333-333333333333", "夏目漱石", "range"),
+          ]}
+          itemTypes={[type]}
+          lazyLoadSupplementalData
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    expect(
+      screen.getByRole("status", { name: "タイムラインを読み込み中" }),
+    ).toBeVisible();
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+
+    pending.events.resolve(Response.json({ events: [] }));
+    pending.backgrounds.resolve(Response.json({ layers: [] }));
+    pending.relationships.resolve(
+      Response.json({ dataset: { relationships: [], entities: [] } }),
+    );
+
+    expect(await screen.findByTestId("timeline-workspace")).toBeVisible();
+    expect(
+      screen.queryByRole("status", { name: "タイムラインを読み込み中" }),
+    ).toBeNull();
+  });
+
   it("keeps timeline chrome isolated and switches relationship display modes from the toolbar", async () => {
     const user = userEvent.setup();
     const source = item(

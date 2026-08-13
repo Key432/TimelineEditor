@@ -3,32 +3,7 @@ import type {
   CreateItemTypeInput,
   UpdateItemTypeInput,
 } from "@/features/item-types/validation";
-
-type ApiErrorPayload = { error?: { message?: string } };
-
-export class ItemTypeApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-    this.name = "ItemTypeApiError";
-  }
-}
-
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-  if (!response.ok) {
-    const payload = (await response
-      .json()
-      .catch(() => ({}))) as ApiErrorPayload;
-    throw new ItemTypeApiError(
-      payload.error?.message ?? "処理に失敗しました。",
-      response.status,
-    );
-  }
-  return (await response.json()) as T;
-}
+import { requestJson } from "@/lib/api-client";
 
 export async function listItemTypes(projectId: string) {
   const data = await requestJson<{ itemTypes: TimelineItemType[] }>(
@@ -69,19 +44,11 @@ export async function updateItemType(
 }
 
 export async function deleteItemType(projectId: string, typeId: string) {
-  const response = await fetch(
+  await requestJson<void>(
     `/api/projects/${projectId}/item-types/${typeId}`,
     { method: "DELETE" },
+    "削除に失敗しました。",
   );
-  if (!response.ok) {
-    const payload = (await response
-      .json()
-      .catch(() => ({}))) as ApiErrorPayload;
-    throw new ItemTypeApiError(
-      payload.error?.message ?? "削除に失敗しました。",
-      response.status,
-    );
-  }
 }
 
 export const itemTypeKeys = {

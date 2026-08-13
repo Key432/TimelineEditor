@@ -3,19 +3,7 @@ import type {
   TimelineEventSummary,
 } from "@/features/timeline-events/types";
 import type { TimelineEventInput } from "@/features/timeline-events/validation";
-
-type ApiErrorPayload = { error?: { message?: string } };
-
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-  if (!response.ok) {
-    const payload = (await response
-      .json()
-      .catch(() => ({}))) as ApiErrorPayload;
-    throw new Error(payload.error?.message ?? "処理に失敗しました。");
-  }
-  return (await response.json()) as T;
-}
+import { requestJson } from "@/lib/api-client";
 
 export async function listTimelineEvents(projectId: string) {
   const data = await requestJson<{ events: TimelineEventSummary[] }>(
@@ -64,10 +52,11 @@ export async function updateTimelineEvent(
 }
 
 export async function deleteTimelineEvent(projectId: string, eventId: string) {
-  const response = await fetch(`/api/projects/${projectId}/events/${eventId}`, {
-    method: "DELETE",
-  });
-  if (!response.ok) throw new Error("イベントアイテムを削除できませんでした。");
+  await requestJson<void>(
+    `/api/projects/${projectId}/events/${eventId}`,
+    { method: "DELETE" },
+    "イベントアイテムを削除できませんでした。",
+  );
 }
 
 export const timelineEventKeys = {

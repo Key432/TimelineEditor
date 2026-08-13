@@ -7,36 +7,35 @@ import type {
 } from "@/features/relationships/types";
 import type { relationshipInputSchema } from "@/features/relationships/validation";
 import type { z } from "zod";
+import { requestJson } from "@/lib/api-client";
 
 export const relationshipKeys = {
   all: (projectId: string) => ["relationships", projectId] as const,
 };
 
-async function payload<T>(response: Response): Promise<T> {
-  const body = (await response.json()) as {
-    error?: { message?: string };
-  } & T;
-  if (!response.ok)
-    throw new Error(body.error?.message ?? "関係性を更新できませんでした。");
-  return body;
-}
-
 export async function listRelationships(projectId: string) {
-  const response = await fetch(`/api/projects/${projectId}/relationships`);
-  return (await payload<{ dataset: RelationshipDataset }>(response)).dataset;
+  const result = await requestJson<{ dataset: RelationshipDataset }>(
+    `/api/projects/${projectId}/relationships`,
+    undefined,
+    "関係性を更新できませんでした。",
+  );
+  return result.dataset;
 }
 
 export async function createRelationship(
   projectId: string,
   input: z.input<typeof relationshipInputSchema>,
 ) {
-  const response = await fetch(`/api/projects/${projectId}/relationships`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  return (await payload<{ relationship: EntityRelationship }>(response))
-    .relationship;
+  const result = await requestJson<{ relationship: EntityRelationship }>(
+    `/api/projects/${projectId}/relationships`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+    "関係性を更新できませんでした。",
+  );
+  return result.relationship;
 }
 
 export async function updateRelationship(
@@ -44,27 +43,27 @@ export async function updateRelationship(
   relationshipId: string,
   input: z.input<typeof relationshipInputSchema>,
 ) {
-  const response = await fetch(
+  const result = await requestJson<{ relationship: EntityRelationship }>(
     `/api/projects/${projectId}/relationships/${relationshipId}`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     },
+    "関係性を更新できませんでした。",
   );
-  return (await payload<{ relationship: EntityRelationship }>(response))
-    .relationship;
+  return result.relationship;
 }
 
 export async function deleteRelationship(
   projectId: string,
   relationshipId: string,
 ) {
-  const response = await fetch(
+  await requestJson<void>(
     `/api/projects/${projectId}/relationships/${relationshipId}`,
     { method: "DELETE" },
+    "関係性を更新できませんでした。",
   );
-  if (!response.ok) await payload<Record<string, never>>(response);
 }
 
 export async function createDraftRelationships(

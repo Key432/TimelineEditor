@@ -8,6 +8,7 @@ import type {
   EventTypeInput,
   TagInput,
 } from "@/features/classification/validation";
+import { requestJson } from "@/lib/api-client";
 
 export type ClassificationData = {
   tags: Tag[];
@@ -15,18 +16,8 @@ export type ClassificationData = {
   customFields: CustomFieldDefinition[];
 };
 
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as {
-      error?: { message?: string };
-    };
-    throw new Error(payload.error?.message ?? "分類を更新できませんでした。");
-  }
-  return response.status === 204
-    ? (undefined as T)
-    : ((await response.json()) as T);
-}
+const request = <T>(url: string, init?: RequestInit) =>
+  requestJson<T>(url, init, "分類を更新できませんでした。");
 
 export const classificationKeys = {
   all: (projectId: string) =>
@@ -92,16 +83,6 @@ export const createCustomField = (
       body: JSON.stringify({ kind: "customField", values }),
     },
   ).then((data) => data.customField);
-export const updateCustomField = (
-  projectId: string,
-  id: string,
-  values: CustomFieldDefinitionInput,
-) =>
-  request(`/api/projects/${projectId}/classification/custom-fields/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ values }),
-  });
 export const deleteCustomField = (projectId: string, id: string) =>
   request<void>(
     `/api/projects/${projectId}/classification/custom-fields/${id}`,

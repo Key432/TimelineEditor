@@ -1,21 +1,19 @@
 import type { TimelineBackgroundLayer } from "@/features/background-layers/types";
 import type { BackgroundPeriodInput } from "@/features/background-layers/validation";
+import { requestJson } from "@/lib/api-client";
 
 export const backgroundLayerKeys = {
   list: (projectId: string) =>
     ["projects", projectId, "background-layers"] as const,
 };
 
-async function responseJson(response: Response) {
-  const body = await response.json();
-  if (!response.ok)
-    throw new Error(body.error?.message ?? "年代背景の処理に失敗しました。");
-  return body;
-}
-
 export async function listBackgroundLayers(projectId: string) {
-  const response = await fetch(`/api/projects/${projectId}/background-layers`);
-  return (await responseJson(response)).layers as TimelineBackgroundLayer[];
+  const result = await requestJson<{ layers: TimelineBackgroundLayer[] }>(
+    `/api/projects/${projectId}/background-layers`,
+    undefined,
+    "年代背景の処理に失敗しました。",
+  );
+  return result.layers;
 }
 
 export async function createBackgroundLayer(
@@ -26,12 +24,16 @@ export async function createBackgroundLayer(
     isVisible?: boolean;
   },
 ) {
-  const response = await fetch(`/api/projects/${projectId}/background-layers`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  return (await responseJson(response)).layer as TimelineBackgroundLayer;
+  const result = await requestJson<{ layer: TimelineBackgroundLayer }>(
+    `/api/projects/${projectId}/background-layers`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    },
+    "年代背景の処理に失敗しました。",
+  );
+  return result.layer;
 }
 
 export async function updateBackgroundLayer(
@@ -44,26 +46,27 @@ export async function updateBackgroundLayer(
     sortOrder?: number;
   },
 ) {
-  const response = await fetch(
+  const result = await requestJson<{ layer: TimelineBackgroundLayer }>(
     `/api/projects/${projectId}/background-layers/${layerId}`,
     {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(input),
     },
+    "年代背景の処理に失敗しました。",
   );
-  return (await responseJson(response)).layer as TimelineBackgroundLayer;
+  return result.layer;
 }
 
 export async function deleteBackgroundLayer(
   projectId: string,
   layerId: string,
 ) {
-  const response = await fetch(
+  await requestJson<void>(
     `/api/projects/${projectId}/background-layers/${layerId}`,
     { method: "DELETE" },
+    "年代背景の処理に失敗しました。",
   );
-  await responseJson(response);
 }
 
 export async function saveBackgroundPeriod(
@@ -75,12 +78,15 @@ export async function saveBackgroundPeriod(
   const path = periodId
     ? `/api/projects/${projectId}/background-layers/${layerId}/periods/${periodId}`
     : `/api/projects/${projectId}/background-layers/${layerId}/periods`;
-  const response = await fetch(path, {
-    method: periodId ? "PUT" : "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  return responseJson(response);
+  return requestJson<Record<string, unknown>>(
+    path,
+    {
+      method: periodId ? "PUT" : "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    },
+    "年代背景の処理に失敗しました。",
+  );
 }
 
 export async function deleteBackgroundPeriod(
@@ -88,9 +94,9 @@ export async function deleteBackgroundPeriod(
   layerId: string,
   periodId: string,
 ) {
-  const response = await fetch(
+  await requestJson<void>(
     `/api/projects/${projectId}/background-layers/${layerId}/periods/${periodId}`,
     { method: "DELETE" },
+    "年代背景の処理に失敗しました。",
   );
-  await responseJson(response);
 }

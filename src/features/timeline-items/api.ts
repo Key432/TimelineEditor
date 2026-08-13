@@ -8,32 +8,7 @@ import type {
   TimelineItemInput,
 } from "@/features/timeline-items/validation";
 import type { TimelineEventDraftInput } from "@/features/timeline-events/validation";
-
-type ApiErrorPayload = { error?: { message?: string } };
-
-export class TimelineItemApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-    this.name = "TimelineItemApiError";
-  }
-}
-
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-  if (!response.ok) {
-    const payload = (await response
-      .json()
-      .catch(() => ({}))) as ApiErrorPayload;
-    throw new TimelineItemApiError(
-      payload.error?.message ?? "処理に失敗しました。",
-      response.status,
-    );
-  }
-  return (await response.json()) as T;
-}
+import { requestJson } from "@/lib/api-client";
 
 export async function listTimelineItems(projectId: string) {
   const data = await requestJson<{ items: TimelineItemSummary[] }>(
@@ -98,18 +73,11 @@ export async function moveTimelineItem(
 }
 
 export async function deleteTimelineItem(projectId: string, itemId: string) {
-  const response = await fetch(`/api/projects/${projectId}/items/${itemId}`, {
-    method: "DELETE",
-  });
-  if (!response.ok) {
-    const payload = (await response
-      .json()
-      .catch(() => ({}))) as ApiErrorPayload;
-    throw new TimelineItemApiError(
-      payload.error?.message ?? "削除に失敗しました。",
-      response.status,
-    );
-  }
+  await requestJson<void>(
+    `/api/projects/${projectId}/items/${itemId}`,
+    { method: "DELETE" },
+    "削除に失敗しました。",
+  );
 }
 
 export const timelineItemKeys = {
