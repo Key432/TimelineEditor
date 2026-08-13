@@ -32,5 +32,15 @@ describe("ImportExportManager", () => {
       "file",
     );
     expect(screen.queryByText(/既定は別プロジェクト/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText("タイムラインを画像・PDFで出力"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("出力する表示")).toHaveTextContent(
+      "関連ネットワーク",
+    );
+    expect(screen.getByLabelText("出力範囲")).toHaveTextContent(
+      "全データを出力",
+    );
+    expect(screen.getByRole("button", { name: "PDFを保存" })).toBeDisabled();
   });
 });

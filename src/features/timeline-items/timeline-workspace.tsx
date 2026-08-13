@@ -77,7 +77,10 @@ import {
   hasActiveTimelineFilters,
   type TimelineFilters,
 } from "@/features/timeline-items/timeline-filters";
-import { TimelineStoreProvider } from "@/features/timeline-items/timeline-store";
+import {
+  TimelineStoreProvider,
+  useTimelineStore,
+} from "@/features/timeline-items/timeline-store";
 import {
   TimelineViewport,
   type TimelineDisplayGroup,
@@ -104,6 +107,7 @@ import type { RelationshipDisplayMode } from "@/features/relationships/relations
 import { RelationshipNetworkSkeleton } from "@/features/relationship-network/relationship-network-skeleton";
 import { TimelineWorkspaceSkeleton } from "@/features/timeline-items/timeline-loading-skeleton";
 import { useTimelineWorkspaceData } from "@/features/timeline-items/use-timeline-workspace-data";
+import { publishVisualExportSnapshot } from "@/features/visual-export/snapshot-store";
 
 const RelationshipNetwork = dynamic(
   () =>
@@ -307,6 +311,10 @@ function TimelineWorkspaceContent({
   const currentItemTypes = itemTypes;
   const backgroundLayers = initialBackgroundLayers;
   const relationshipData = initialRelationships;
+  const exportViewport = useTimelineStore((state) => state.viewport);
+  const exportHighlightRange = useTimelineStore(
+    (state) => state.highlightRange,
+  );
   const backgroundVisibilityRef = useRef(
     new Map(
       initialBackgroundLayers.map((layer) => [layer.id, layer.isVisible]),
@@ -473,6 +481,73 @@ function TimelineWorkspaceContent({
       })),
     [collapsed, groups],
   );
+  const exportEvents = useMemo(
+    () =>
+      filters.mode === "hide" && activeFilters
+        ? events.filter((event) => filterResult.visibleEventIds.has(event.id))
+        : events,
+    [activeFilters, events, filterResult.visibleEventIds, filters.mode],
+  );
+  const exportBackgroundLayers = useMemo(
+    () =>
+      backgroundLayers.filter((layer) => visibleBackgroundIdSet.has(layer.id)),
+    [backgroundLayers, visibleBackgroundIdSet],
+  );
+  useEffect(() => {
+    publishVisualExportSnapshot(project.id, {
+      project: {
+        name: project.name,
+        description: project.description,
+        settings: project.settings,
+      },
+      currentDate,
+      groups: displayGroups,
+      items: filtered,
+      events: exportEvents,
+      networkItems: activeFilters
+        ? sorted.filter((item) => filterResult.matchedIds.has(item.id))
+        : sorted,
+      networkEvents: activeFilters
+        ? events.filter((event) => filterResult.visibleEventIds.has(event.id))
+        : events,
+      dimmedItemIds: [...dimmedItemIds],
+      backgroundLayers: exportBackgroundLayers,
+      relationships: {
+        ...relationshipData,
+        relationships:
+          relationshipDisplayMode === "hidden"
+            ? []
+            : relationshipData.relationships,
+      },
+      viewport: exportViewport
+        ? {
+            startOrdinal: exportViewport.visibleStartOrdinal,
+            endOrdinal: exportViewport.visibleEndOrdinal,
+          }
+        : null,
+      highlightRange: exportHighlightRange,
+    });
+  }, [
+    currentDate,
+    activeFilters,
+    displayGroups,
+    exportBackgroundLayers,
+    exportEvents,
+    exportHighlightRange,
+    exportViewport,
+    events,
+    filterResult.matchedIds,
+    filterResult.visibleEventIds,
+    filtered,
+    project.description,
+    project.id,
+    project.name,
+    project.settings,
+    relationshipData,
+    relationshipDisplayMode,
+    sorted,
+    dimmedItemIds,
+  ]);
 
   function closeEditor(nextOpen: boolean) {
     if (nextOpen) return;
@@ -899,16 +974,8 @@ function TimelineWorkspaceContent({
                 allItems={items}
                 currentDate={currentDate}
                 groups={displayGroups}
-                events={
-                  filters.mode === "hide" && activeFilters
-                    ? events.filter((event) =>
-                        filterResult.visibleEventIds.has(event.id),
-                      )
-                    : events
-                }
-                backgroundLayers={backgroundLayers.filter((layer) =>
-                  visibleBackgroundIdSet.has(layer.id),
-                )}
+                events={exportEvents}
+                backgroundLayers={exportBackgroundLayers}
                 relationships={relationshipData.relationships}
                 relationshipEntities={relationshipData.entities}
                 relationshipDisplayMode={relationshipDisplayMode}

@@ -43,6 +43,7 @@
 - ページ遷移後もlocalStorageで保持する左ナビゲーションの開閉状態
 - 5日保持のゴミ箱、アイテムと子イベントの一括復元、明示完全削除、Supabase Cronによる期限切れ削除
 - PCとスマートフォンでの閲覧・編集、キーボード操作。スマートフォンの行表示は固定情報列と操作列をコンパクトにして時間軸の可視幅を確保
+- 既存のインポート／エクスポートパネルから、行表示・コンパクト・関連ネットワークをSVG／単一PNG／印刷用PDFへブラウザ内出力。全データ・指定期間・現在範囲・期間強調、タイトル・説明・凡例、PDF用紙・向き・余白・縮尺・複数ページ分割を指定可能
 
 ## 今後追加する機能
 
@@ -50,14 +51,14 @@
 
 - 調査情報：BibTeX／CSL JSON入出力、Zotero連携
 - 探索・分析：プロジェクト横断比較、統計情報
-- 公開・出力：下書きと公開版の分離、SVG／PNG／PDF出力
+- 公開：保留中の下書きと公開版の分離
 - ローカル利用：ログイン前ローカルモード、IndexedDB、PWA、オフライン編集、クラウド取込
 - Windows版：ローカルDB、画像、長期履歴を扱う独立製品系列
 
 ## 技術構成
 
 - Next.js App Router / React / TypeScript / pnpm
-- Tailwind CSS / shadcn/ui / Radix UI / D3 force
+- Tailwind CSS / shadcn/ui / Radix UI / D3 force / jsPDF
 - TanStack Query / Zustand / React Hook Form / Zod
 - Supabase PostgreSQL / Auth / RLS / PGroonga
 - Vercel

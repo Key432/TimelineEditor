@@ -911,6 +911,9 @@ export function TimelineViewport({
   const isPanning = useTimelineStore((state) => state.isPanning);
   const setPanning = useTimelineStore((state) => state.setPanning);
   const setViewport = useTimelineStore((state) => state.setViewport);
+  const setHighlightRange = useTimelineStore(
+    (state) => state.setHighlightRange,
+  );
   const navigationRequest = useTimelineStore(
     (state) => state.navigationRequest,
   );
@@ -1547,6 +1550,14 @@ export function TimelineViewport({
     visibleEndOrdinal,
     visibleStartOrdinal,
   ]);
+
+  useEffect(() => {
+    setHighlightRange(
+      timeSlicerVisible
+        ? { startOrdinal: timeSliceStart, endOrdinal: timeSliceEnd }
+        : null,
+    );
+  }, [setHighlightRange, timeSliceEnd, timeSliceStart, timeSlicerVisible]);
 
   useEffect(() => {
     const element = viewportRef.current;

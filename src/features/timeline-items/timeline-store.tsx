@@ -17,12 +17,14 @@ type TimelineState = {
     domainStartOrdinal: number;
     domainEndOrdinal: number;
   } | null;
+  highlightRange: { startOrdinal: number; endOrdinal: number } | null;
   navigationRequest: { ordinal: number; nonce: number } | null;
   setZoomLevel: (zoomLevel: number) => void;
   setScrollLeft: (scrollLeft: number) => void;
   setDensity: (density: ProjectSettings["timelineDensity"]) => void;
   setPanning: (isPanning: boolean) => void;
   setViewport: (viewport: NonNullable<TimelineState["viewport"]>) => void;
+  setHighlightRange: (highlightRange: TimelineState["highlightRange"]) => void;
   navigateTo: (ordinal: number) => void;
 };
 
@@ -46,6 +48,7 @@ function createTimelineStore(settings: ProjectSettings) {
     density: settings.timelineDensity,
     isPanning: false,
     viewport: null,
+    highlightRange: null,
     navigationRequest: null,
     setZoomLevel: (zoomLevel) => set({ zoomLevel }),
     setScrollLeft: (scrollLeft) =>
@@ -55,6 +58,7 @@ function createTimelineStore(settings: ProjectSettings) {
     setDensity: (density) => set({ density }),
     setPanning: (isPanning) => set({ isPanning }),
     setViewport: (viewport) => set({ viewport }),
+    setHighlightRange: (highlightRange) => set({ highlightRange }),
     navigateTo: (ordinal) =>
       set((state) => ({
         navigationRequest: {

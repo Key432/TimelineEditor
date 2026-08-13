@@ -30,6 +30,8 @@ import type {
 } from "@/features/import-export/schema";
 import type { TimelineItemType } from "@/features/item-types/types";
 import { GenericCsvImport } from "@/features/table-view/generic-csv-import";
+import { useVisualExportSnapshot } from "@/features/visual-export/snapshot-store";
+import { VisualExportCard } from "@/features/visual-export/visual-export-card";
 
 function Preview({ preview }: { preview: ImportPreview }) {
   return (
@@ -76,6 +78,7 @@ export function ImportExportManager({
   onImported?: () => void;
 }) {
   const router = useRouter();
+  const visualExportSnapshot = useVisualExportSnapshot(projectId);
   const [jsonPreview, setJsonPreview] = useState<ImportPreview | null>(null);
   const [csvPreview, setCsvPreview] = useState<ImportPreview | null>(null);
   const [busy, setBusy] = useState(false);
@@ -188,6 +191,7 @@ export function ImportExportManager({
           </Button>
         </CardContent>
       </Card>
+      <VisualExportCard snapshot={visualExportSnapshot} />
       <Card>
         <CardHeader>
           <CardTitle>任意CSVをマッピングしてインポート</CardTitle>
