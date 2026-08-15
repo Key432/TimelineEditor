@@ -7,8 +7,27 @@ import {
   searchLocalProject,
   updateLocalProject,
 } from "@/features/local-projects/model";
+import {
+  localEventCreateSchema,
+  localItemCreateSchema,
+} from "@/features/local-projects/validation";
 
 describe("Phase L20 local projects", () => {
+  const date = (year: number, month: number | null, day: number | null) => ({
+    era: "ce" as const,
+    precision:
+      day !== null
+        ? ("day" as const)
+        : month !== null
+          ? ("month" as const)
+          : ("year" as const),
+    year,
+    month,
+    day,
+    originalText: null,
+    calendar: "proleptic_gregorian",
+  });
+
   it("creates a schema-valid local project with local UUIDs and template types", () => {
     const project = createLocalProject({
       name: "  ローカル文学史  ",
@@ -188,5 +207,39 @@ describe("Phase L20 local projects", () => {
     const bytes = localProjectBytes(project);
     expect(bytes).toBeLessThan(25 * 1024 * 1024);
     expect(searchLocalProject(project, "検索対象語")).toHaveLength(1);
+  });
+
+  it("validates year, month, and day precision without JavaScript Date conversion", () => {
+    const typeId = crypto.randomUUID();
+    expect(
+      localItemCreateSchema.safeParse({
+        title: "年月日項目",
+        typeId,
+        temporalType: "range",
+        start: date(2026, 4, 5),
+        endDateStatus: "specified",
+        end: date(2026, 6, null),
+        description: "",
+      }).success,
+    ).toBe(true);
+    expect(
+      localEventCreateSchema.safeParse({
+        title: "不正日付",
+        timelineItemIds: [crypto.randomUUID()],
+        date: date(2026, 2, 30),
+        description: "",
+      }).success,
+    ).toBe(false);
+    expect(
+      localItemCreateSchema.safeParse({
+        title: "逆転期間",
+        typeId,
+        temporalType: "range",
+        start: date(2026, 6, 1),
+        endDateStatus: "specified",
+        end: date(2026, 5, 31),
+        description: "",
+      }).success,
+    ).toBe(false);
   });
 });

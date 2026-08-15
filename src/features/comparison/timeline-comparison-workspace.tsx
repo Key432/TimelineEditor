@@ -478,7 +478,7 @@ export function TimelineComparisonWorkspace(
             </DialogClose>
             <Button
               onClick={() => {
-                writeProjectIds(draftIdsRef.current);
+                writeProjectIds(draftIds);
                 setDialogOpen(false);
               }}
             >

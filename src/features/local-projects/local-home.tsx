@@ -10,9 +10,16 @@ import {
   Search,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +94,30 @@ const yearDate = (year: number, era: "ce" | "bce") => ({
   originalText: null,
   calendar: "proleptic_gregorian",
 });
+
+const editableDate = (
+  date: ProjectBackup["timelineEvents"][number]["date"] | null | undefined,
+) => date ?? yearDate(new Date().getUTCFullYear(), "ce");
+
+const LOGIN_CALLOUT_KEY = "timeline-editor:hide-login-callout:v1";
+const LOGIN_CALLOUT_EVENT = "timeline-editor:login-callout";
+
+function subscribeLoginCallout(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener(LOGIN_CALLOUT_EVENT, callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener(LOGIN_CALLOUT_EVENT, callback);
+  };
+}
+
+function loginCalloutSnapshot() {
+  try {
+    return window.localStorage.getItem(LOGIN_CALLOUT_KEY) !== "true";
+  } catch {
+    return true;
+  }
+}
 
 function download(name: string, contents: BlobPart, type: string) {
   const url = URL.createObjectURL(new Blob([contents], { type }));
@@ -190,10 +221,9 @@ function ItemDialog({
       title: item?.title ?? "",
       typeId: item?.typeId ?? record.backup.itemTypes[0]!.id,
       temporalType: item?.temporalType ?? "range",
-      era: date?.era ?? "ce",
-      startYear: date?.year ?? new Date().getUTCFullYear(),
+      start: editableDate(date),
       endDateStatus: item?.endDateStatus ?? "specified",
-      endYear: item?.end?.year ?? date?.year ?? new Date().getUTCFullYear(),
+      end: editableDate(item?.end ?? item?.lastConfirmed ?? date),
       description: item?.description ?? "",
     },
   });
@@ -204,6 +234,14 @@ function ItemDialog({
   const endDateStatus = useWatch({
     control: form.control,
     name: "endDateStatus",
+  });
+  const startPrecision = useWatch({
+    control: form.control,
+    name: "start.precision",
+  });
+  const endPrecision = useWatch({
+    control: form.control,
+    name: "end.precision",
   });
 
   function remove() {
@@ -258,16 +296,12 @@ function ItemDialog({
           <DialogTitle>
             {item ? "タイムラインアイテムを編集" : "タイムラインアイテムを追加"}
           </DialogTitle>
-          <DialogDescription>
-            入力内容は保存操作時にIndexedDBへ保存されます。
-          </DialogDescription>
         </DialogHeader>
         <form
           className="grid gap-4 sm:grid-cols-2"
           onSubmit={form.handleSubmit((value) => {
             const parsed = localItemCreateSchema.parse(value);
             const nowId = item?.id ?? crypto.randomUUID();
-            const primary = yearDate(parsed.startYear, parsed.era);
             const next = {
               id: nowId,
               typeId: parsed.typeId,
@@ -283,7 +317,7 @@ function ItemDialog({
               manualOrder:
                 item?.manualOrder ?? record.backup.timelineItems.length,
               isVisible: item?.isVisible ?? true,
-              start: parsed.temporalType === "range" ? primary : null,
+              start: parsed.temporalType === "range" ? parsed.start : null,
               isStartApproximate: item?.isStartApproximate ?? false,
               startUncertaintyYears: item?.startUncertaintyYears ?? null,
               endDateStatus:
@@ -291,16 +325,16 @@ function ItemDialog({
               end:
                 parsed.temporalType === "range" &&
                 parsed.endDateStatus === "specified"
-                  ? yearDate(parsed.endYear!, parsed.era)
+                  ? parsed.end!
                   : null,
               isEndApproximate: item?.isEndApproximate ?? false,
               endUncertaintyYears: item?.endUncertaintyYears ?? null,
               lastConfirmed:
                 parsed.temporalType === "range" &&
                 parsed.endDateStatus === "unknown"
-                  ? yearDate(parsed.endYear ?? parsed.startYear, parsed.era)
+                  ? (parsed.end ?? parsed.start)
                   : null,
-              point: parsed.temporalType === "point" ? primary : null,
+              point: parsed.temporalType === "point" ? parsed.start : null,
               isPointApproximate: item?.isPointApproximate ?? false,
             };
             onSave({
@@ -343,26 +377,71 @@ function ItemDialog({
               <option value="point">時点</option>
             </select>
           </div>
-          <div className="space-y-2">
-            <Label>紀元</Label>
-            <select
-              className="h-9 w-full rounded-md border px-3"
-              aria-label="紀元"
-              {...form.register("era")}
-            >
-              <option value="ce">西暦</option>
-              <option value="bce">紀元前</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label>{temporalType === "point" ? "年" : "開始年"}</Label>
-            <Input
-              type="number"
-              min={1}
-              aria-label={temporalType === "point" ? "年" : "開始年"}
-              {...form.register("startYear", { valueAsNumber: true })}
-            />
-          </div>
+          <fieldset className="grid gap-3 rounded-lg border p-3 sm:col-span-2 sm:grid-cols-4">
+            <legend className="px-1 text-sm font-medium">
+              {temporalType === "point" ? "時点日" : "開始日"}
+            </legend>
+            <div className="space-y-2">
+              <Label>紀元</Label>
+              <select
+                className="h-9 w-full rounded-md border px-3"
+                aria-label={
+                  temporalType === "point" ? "日付の紀元" : "開始日の紀元"
+                }
+                {...form.register("start.era")}
+              >
+                <option value="ce">西暦</option>
+                <option value="bce">紀元前</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>精度</Label>
+              <select
+                className="h-9 w-full rounded-md border px-3"
+                aria-label={
+                  temporalType === "point" ? "日付の精度" : "開始日の精度"
+                }
+                {...form.register("start.precision")}
+              >
+                <option value="year">年</option>
+                <option value="month">年月</option>
+                <option value="day">年月日</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>年</Label>
+              <Input
+                type="number"
+                min={1}
+                aria-label={temporalType === "point" ? "年" : "開始年"}
+                {...form.register("start.year", { valueAsNumber: true })}
+              />
+            </div>
+            {startPrecision === "month" || startPrecision === "day" ? (
+              <div className="space-y-2">
+                <Label>月</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={12}
+                  aria-label={temporalType === "point" ? "月" : "開始月"}
+                  {...form.register("start.month", { valueAsNumber: true })}
+                />
+              </div>
+            ) : null}
+            {startPrecision === "day" ? (
+              <div className="space-y-2">
+                <Label>日</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  aria-label={temporalType === "point" ? "日" : "開始日"}
+                  {...form.register("start.day", { valueAsNumber: true })}
+                />
+              </div>
+            ) : null}
+          </fieldset>
           {temporalType === "range" ? (
             <>
               <div className="space-y-2">
@@ -378,19 +457,69 @@ function ItemDialog({
                 </select>
               </div>
               {endDateStatus !== "ongoing" ? (
-                <div className="space-y-2">
-                  <Label>
-                    {endDateStatus === "unknown" ? "最終確認年" : "終了年"}
-                  </Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    aria-label={
-                      endDateStatus === "unknown" ? "最終確認年" : "終了年"
-                    }
-                    {...form.register("endYear", { valueAsNumber: true })}
-                  />
-                </div>
+                <fieldset className="grid gap-3 rounded-lg border p-3 sm:col-span-2 sm:grid-cols-4">
+                  <legend className="px-1 text-sm font-medium">
+                    {endDateStatus === "unknown" ? "最終確認日" : "終了日"}
+                  </legend>
+                  <div className="space-y-2">
+                    <Label>紀元</Label>
+                    <select
+                      className="h-9 w-full rounded-md border px-3"
+                      aria-label="終了日の紀元"
+                      {...form.register("end.era")}
+                    >
+                      <option value="ce">西暦</option>
+                      <option value="bce">紀元前</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>精度</Label>
+                    <select
+                      className="h-9 w-full rounded-md border px-3"
+                      aria-label="終了日の精度"
+                      {...form.register("end.precision")}
+                    >
+                      <option value="year">年</option>
+                      <option value="month">年月</option>
+                      <option value="day">年月日</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>年</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      aria-label={
+                        endDateStatus === "unknown" ? "最終確認年" : "終了年"
+                      }
+                      {...form.register("end.year", { valueAsNumber: true })}
+                    />
+                  </div>
+                  {endPrecision === "month" || endPrecision === "day" ? (
+                    <div className="space-y-2">
+                      <Label>月</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={12}
+                        aria-label="終了月"
+                        {...form.register("end.month", { valueAsNumber: true })}
+                      />
+                    </div>
+                  ) : null}
+                  {endPrecision === "day" ? (
+                    <div className="space-y-2">
+                      <Label>日</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={31}
+                        aria-label="終了日"
+                        {...form.register("end.day", { valueAsNumber: true })}
+                      />
+                    </div>
+                  ) : null}
+                </fieldset>
               ) : null}
             </>
           ) : null}
@@ -442,10 +571,13 @@ function EventDialog({
     values: {
       title: event?.title ?? "",
       timelineItemIds: event?.timelineItemIds ?? ([] as string[]),
-      era: event?.date.era ?? ("ce" as const),
-      year: event?.date.year ?? new Date().getUTCFullYear(),
+      date: editableDate(event?.date),
       description: event?.description ?? "",
     },
+  });
+  const datePrecision = useWatch({
+    control: form.control,
+    name: "date.precision",
   });
 
   function remove() {
@@ -492,7 +624,7 @@ function EventDialog({
               eventTypeId: event?.eventTypeId ?? null,
               tagIds: event?.tagIds ?? [],
               customFields: event?.customFields ?? [],
-              date: yearDate(parsed.year, parsed.era),
+              date: parsed.date,
               isApproximate: event?.isApproximate ?? false,
               description: parsed.description?.trim() || null,
               sourceText: event?.sourceText ?? null,
@@ -511,7 +643,11 @@ function EventDialog({
         >
           <div className="space-y-2">
             <Label>イベント名</Label>
-            <Input autoFocus {...form.register("title")} />
+            <Input
+              aria-label="イベント名"
+              autoFocus
+              {...form.register("title")}
+            />
           </div>
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">親タイムライン</legend>
@@ -533,16 +669,29 @@ function EventDialog({
               </p>
             ) : null}
           </fieldset>
-          <div className="grid grid-cols-2 gap-3">
+          <fieldset className="grid gap-3 rounded-lg border p-3 sm:grid-cols-4">
+            <legend className="px-1 text-sm font-medium">日付</legend>
             <div className="space-y-2">
               <Label>紀元</Label>
               <select
                 className="h-9 w-full rounded-md border px-3"
-                aria-label="紀元"
-                {...form.register("era")}
+                aria-label="日付の紀元"
+                {...form.register("date.era")}
               >
                 <option value="ce">西暦</option>
                 <option value="bce">紀元前</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>精度</Label>
+              <select
+                className="h-9 w-full rounded-md border px-3"
+                aria-label="日付の精度"
+                {...form.register("date.precision")}
+              >
+                <option value="year">年</option>
+                <option value="month">年月</option>
+                <option value="day">年月日</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -551,10 +700,34 @@ function EventDialog({
                 type="number"
                 min={1}
                 aria-label="年"
-                {...form.register("year", { valueAsNumber: true })}
+                {...form.register("date.year", { valueAsNumber: true })}
               />
             </div>
-          </div>
+            {datePrecision === "month" || datePrecision === "day" ? (
+              <div className="space-y-2">
+                <Label>月</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={12}
+                  aria-label="月"
+                  {...form.register("date.month", { valueAsNumber: true })}
+                />
+              </div>
+            ) : null}
+            {datePrecision === "day" ? (
+              <div className="space-y-2">
+                <Label>日</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  aria-label="日"
+                  {...form.register("date.day", { valueAsNumber: true })}
+                />
+              </div>
+            ) : null}
+          </fieldset>
           <div className="space-y-2">
             <Label>本文（任意）</Label>
             <Textarea {...form.register("description")} />
@@ -591,6 +764,13 @@ export function LocalHome() {
   const [filters, setFilters] = useState<TimelineFilters>(
     DEFAULT_TIMELINE_FILTERS,
   );
+  const storedLoginCalloutVisible = useSyncExternalStore(
+    subscribeLoginCallout,
+    loginCalloutSnapshot,
+    () => true,
+  );
+  const [loginCalloutDismissed, setLoginCalloutDismissed] = useState(false);
+  const showLoginCallout = storedLoginCalloutVisible && !loginCalloutDismissed;
   const fileRef = useRef<HTMLInputElement>(null);
   const selected =
     projects.find((project) => project.id === selectedId) ??
@@ -700,6 +880,16 @@ export function LocalHome() {
     setSelectedId(remaining[0]?.id ?? null);
   }
 
+  function dismissLoginCallout() {
+    setLoginCalloutDismissed(true);
+    try {
+      window.localStorage.setItem(LOGIN_CALLOUT_KEY, "true");
+    } catch {
+      // The in-memory dismissal still applies in restricted browser contexts.
+    }
+    window.dispatchEvent(new Event(LOGIN_CALLOUT_EVENT));
+  }
+
   const searchResults = useMemo(
     () => (selected ? searchLocalProject(selected, query) : []),
     [selected, query],
@@ -725,14 +915,60 @@ export function LocalHome() {
         <Badge className="ml-3" variant="outline">
           ローカル
         </Badge>
-        <Button asChild className="ml-auto" size="sm" variant="outline">
-          <Link href="/login">
-            <LogIn aria-hidden="true" />
-            ログイン
-          </Link>
-        </Button>
+        <div className="relative ml-auto">
+          <Button asChild size="sm" variant="outline">
+            <Link href="/login">
+              <LogIn aria-hidden="true" />
+              ログイン
+            </Link>
+          </Button>
+          {showLoginCallout ? (
+            <aside
+              aria-label="ログインするとできること"
+              className="absolute top-[calc(100%+0.75rem)] right-0 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-xl border bg-popover text-popover-foreground shadow-xl"
+              role="note"
+            >
+              <span
+                aria-hidden="true"
+                className="absolute -top-2 right-6 size-4 rotate-45 border-t border-l bg-popover"
+              />
+              <div className="flex items-start justify-between gap-3 border-b px-4 py-3">
+                <div>
+                  <p className="font-semibold">ログインするとできること</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    ローカル編集に加えてリモートモードの機能を利用できます。
+                  </p>
+                </div>
+                <Button
+                  aria-label="案内を閉じる"
+                  className="-mt-1 -mr-2 shrink-0"
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={dismissLoginCallout}
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              </div>
+              <div
+                className="styled-scrollbar max-h-56 overflow-y-auto px-4 py-3"
+                data-callout-scroll
+              >
+                <ul className="list-disc space-y-2 pl-5 text-sm">
+                  <li>クラウド保存と端末間同期</li>
+                  <li>公開・共有URL</li>
+                  <li>変更履歴、ゴミ箱、復元</li>
+                  <li>タグ、カスタムフィールド、分類・関係の管理</li>
+                  <li>構造化された出典・参考文献の管理</li>
+                  <li>テーブル編集、一括操作、CSVマッピング</li>
+                  <li>統計・品質チェック</li>
+                  <li>プロジェクト横断比較と全体検索</li>
+                </ul>
+              </div>
+            </aside>
+          ) : null}
+        </div>
       </header>
-      <main className="min-h-0 flex-1 p-4 sm:p-6">
+      <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
         {!loaded ? (
           <p>ローカルデータを読み込んでいます…</p>
         ) : !selected ? (
@@ -978,7 +1214,7 @@ export function LocalHome() {
       {selected ? (
         <>
           <ItemDialog
-            key={`${selected.revision}-${itemId ?? "new"}`}
+            key={`item-${selected.revision}-${itemId ?? "new"}`}
             record={selected}
             itemId={itemId}
             open={itemDialog}
@@ -988,7 +1224,7 @@ export function LocalHome() {
             }
           />
           <EventDialog
-            key={`${selected.revision}-${eventId ?? "new"}`}
+            key={`event-${selected.revision}-${eventId ?? "new"}`}
             record={selected}
             eventId={eventId}
             open={eventDialog}
