@@ -187,7 +187,6 @@ type ProjectVisibility = "private" | "public";
 /projects/[projectId]/network
 /projects/[projectId]/statistics
 
-/compare
 /local
 /search?q=...
 ```
