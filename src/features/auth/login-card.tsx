@@ -1,4 +1,5 @@
 import { CircleAlert, LockKeyhole } from "lucide-react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +60,9 @@ export function LoginCard({
             Googleでログイン
           </Button>
         </form>
+        <Button asChild className="w-full" variant="outline">
+          <Link href="/">ログインせず年表を編集</Link>
+        </Button>
         <p className="text-xs leading-5 text-muted-foreground">
           ログインすると、非公開プロジェクトは認証とデータベースの権限制御によって保護されます。
         </p>

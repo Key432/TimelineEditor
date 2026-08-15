@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { ProjectList } from "@/features/projects/project-list";
+import { LocalProjectCloudImport } from "@/features/local-projects/cloud-import";
 import { ProjectService } from "@/lib/services/project-service";
 import { createClient } from "@/lib/supabase/server";
 
@@ -28,6 +29,7 @@ export default async function ProjectsPage() {
         </Button>
       </div>
       <ProjectList initialProjects={projects} />
+      <LocalProjectCloudImport />
     </div>
   );
 }

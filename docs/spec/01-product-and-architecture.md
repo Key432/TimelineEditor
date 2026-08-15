@@ -185,7 +185,7 @@ type ProjectVisibility = "private" | "public";
 /projects/[projectId]/sources
 /projects/[projectId]/network
 
-/local
+/
 /search?q=...
 ```
 

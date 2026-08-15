@@ -253,6 +253,7 @@ function TimelineWorkspaceContent({
   hideAxisHeader = false,
   hideFooter = false,
   seamless = false,
+  remoteData = true,
 }: {
   project: Project;
   initialItems: TimelineItemSummary[];
@@ -275,6 +276,7 @@ function TimelineWorkspaceContent({
   hideAxisHeader?: boolean;
   hideFooter?: boolean;
   seamless?: boolean;
+  remoteData?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<"create" | string | null>(null);
@@ -1141,7 +1143,7 @@ function TimelineWorkspaceContent({
           <TimelineFilterPanel
             filters={filters}
             itemTypes={currentItemTypes}
-            projectId={project.id}
+            projectId={remoteData ? project.id : undefined}
             onChange={(nextFilters) => onFiltersChange?.(nextFilters)}
           />
         </SheetContent>
@@ -1262,6 +1264,7 @@ export function TimelineWorkspace(props: {
   hideAxisHeader?: boolean;
   hideFooter?: boolean;
   seamless?: boolean;
+  remoteData?: boolean;
 }) {
   const [uncontrolledLayoutMode, setUncontrolledLayoutMode] =
     useState<TimelineLayoutMode>(props.layoutMode ?? "row");
@@ -1279,6 +1282,7 @@ export function TimelineWorkspace(props: {
     initialRelationships: props.lazyLoadSupplementalData
       ? props.initialRelationships
       : (props.initialRelationships ?? { relationships: [], entities: [] }),
+    remote: props.remoteData ?? true,
   });
 
   if (data.isSupplementalLoading) return <TimelineWorkspaceSkeleton />;

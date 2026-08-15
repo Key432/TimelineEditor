@@ -37,6 +37,7 @@ export function useTimelineWorkspaceData({
   initialItemTypes,
   initialBackgroundLayers,
   initialRelationships,
+  remote = true,
 }: {
   projectId: string;
   initialItems: TimelineItemSummary[];
@@ -44,31 +45,37 @@ export function useTimelineWorkspaceData({
   initialItemTypes: TimelineItemType[];
   initialBackgroundLayers?: TimelineBackgroundLayer[];
   initialRelationships?: RelationshipDataset;
+  remote?: boolean;
 }) {
   const itemsQuery = useQuery({
     queryKey: timelineItemKeys.list(projectId),
     queryFn: () => listTimelineItems(projectId),
     initialData: initialItems,
+    enabled: remote,
   });
   const eventsQuery = useQuery({
     queryKey: timelineEventKeys.list(projectId),
     queryFn: () => listTimelineEvents(projectId),
     initialData: initialEvents,
+    enabled: remote,
   });
   const itemTypesQuery = useQuery({
     queryKey: itemTypeKeys.list(projectId),
     queryFn: () => listItemTypes(projectId),
     initialData: initialItemTypes,
+    enabled: remote,
   });
   const backgroundLayersQuery = useQuery({
     queryKey: backgroundLayerKeys.list(projectId),
     queryFn: () => listBackgroundLayers(projectId),
     initialData: initialBackgroundLayers,
+    enabled: remote,
   });
   const relationshipsQuery = useQuery({
     queryKey: relationshipKeys.all(projectId),
     queryFn: () => listRelationships(projectId),
     initialData: initialRelationships,
+    enabled: remote,
   });
   const supplementalQueries = [
     eventsQuery,
@@ -77,14 +84,24 @@ export function useTimelineWorkspaceData({
   ];
 
   return {
-    items: itemsQuery.data ?? initialItems,
-    events: eventsQuery.data ?? [],
-    itemTypes: itemTypesQuery.data ?? initialItemTypes,
-    backgroundLayers: backgroundLayersQuery.data ?? [],
-    relationships: relationshipsQuery.data ?? EMPTY_RELATIONSHIPS,
-    isSupplementalLoading: supplementalQueries.some(
-      (query) => query.data === undefined && query.isPending,
-    ),
-    supplementalError: supplementalQueries.find((query) => query.error)?.error,
+    items: remote ? (itemsQuery.data ?? initialItems) : initialItems,
+    events: remote ? (eventsQuery.data ?? []) : (initialEvents ?? []),
+    itemTypes: remote
+      ? (itemTypesQuery.data ?? initialItemTypes)
+      : initialItemTypes,
+    backgroundLayers: remote
+      ? (backgroundLayersQuery.data ?? [])
+      : (initialBackgroundLayers ?? []),
+    relationships: remote
+      ? (relationshipsQuery.data ?? EMPTY_RELATIONSHIPS)
+      : (initialRelationships ?? EMPTY_RELATIONSHIPS),
+    isSupplementalLoading:
+      remote &&
+      supplementalQueries.some(
+        (query) => query.data === undefined && query.isPending,
+      ),
+    supplementalError: remote
+      ? supplementalQueries.find((query) => query.error)?.error
+      : undefined,
   };
 }
