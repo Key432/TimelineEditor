@@ -108,6 +108,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      comparison_saved_views: {
+        Row: {
+          id: string;
+          owner_id: string;
+          name: string;
+          configuration: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id?: string;
+          name: string;
+          configuration: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          name?: string;
+          configuration?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       timeline_background_layers: {
         Row: {
           id: string;

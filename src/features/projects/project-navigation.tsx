@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { FolderKanban, Plus } from "lucide-react";
+import { Columns3, FolderKanban, Plus } from "lucide-react";
 import Link from "next/link";
 
 import { listProjects, projectKeys } from "@/features/projects/api";
@@ -37,6 +37,14 @@ export function ProjectNavigation({
       >
         <Plus aria-hidden="true" className="size-4" />
         新規プロジェクト
+      </Link>
+      <Link
+        className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        href="/compare"
+        onClick={onNavigate}
+      >
+        <Columns3 aria-hidden="true" className="size-4" />
+        プロジェクト横断比較
       </Link>
       {projects.length > 0 ? (
         <div className="pt-3">
