@@ -305,6 +305,32 @@ describe("TimelineWorkspace", () => {
     expect(screen.queryByRole("region", { name: "期間強調" })).toBeNull();
   });
 
+  it("keeps the pointer date label at the bottom of the timeline viewport", () => {
+    render(
+      <QueryProvider>
+        <TimelineWorkspace
+          currentDate={{ year: 2026, month: 7, day: 23 }}
+          initialItems={[
+            item("33333333-3333-4333-8333-333333333333", "夏目漱石", "range"),
+          ]}
+          itemTypes={[type]}
+          project={project}
+        />
+      </QueryProvider>,
+    );
+
+    fireEvent.mouseMove(screen.getByTestId("timeline-viewport"), {
+      clientX: 620,
+      clientY: 100,
+    });
+    expect(screen.getByTestId("timeline-pointer-guide-label")).toHaveClass(
+      "bottom-1",
+    );
+    expect(screen.getByTestId("timeline-pointer-guide-label")).not.toHaveClass(
+      "top-1",
+    );
+  });
+
   it("removes editing controls in read-only mode", () => {
     render(
       <QueryProvider>

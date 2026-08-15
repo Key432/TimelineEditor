@@ -631,6 +631,18 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await page.keyboard.press("Escape");
   await viewport.hover({ position: { x: 620, y: 100 } });
   await expect(page.getByTestId("timeline-pointer-guide")).toBeVisible();
+  const [viewportBox, pointerDateBox] = await Promise.all([
+    viewport.boundingBox(),
+    page.getByTestId("timeline-pointer-guide-label").boundingBox(),
+  ]);
+  if (!viewportBox || !pointerDateBox)
+    throw new Error("Pointer date label must be visible in the viewport.");
+  expect(pointerDateBox.y).toBeGreaterThan(
+    viewportBox.y + viewportBox.height - 40,
+  );
+  expect(pointerDateBox.y + pointerDateBox.height).toBeLessThanOrEqual(
+    viewportBox.y + viewportBox.height,
+  );
 
   await page.getByRole("button", { name: "画面", exact: true }).click();
   await page.getByRole("menuitem", { name: "最大化", exact: true }).click();

@@ -1752,11 +1752,7 @@ export function TimelineViewport({
                   className="pointer-events-none absolute top-0 bottom-0 z-50 border-l-2 border-primary"
                   data-testid="timeline-pointer-guide"
                   style={{ left: pointerGuide.left }}
-                >
-                  <span className="sticky top-1 ml-1 inline-block rounded bg-primary px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-primary-foreground shadow-sm">
-                    {pointerGuide.label}
-                  </span>
-                </div>
+                />
               ) : null}
               {!hideAxisHeader ? (
                 <div
@@ -2061,6 +2057,24 @@ export function TimelineViewport({
               ) : null}
             </div>
           </div>
+          {pointerGuide ? (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-1 z-[80] inline-block rounded bg-primary px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-primary-foreground shadow-sm"
+              data-testid="timeline-pointer-guide-label"
+              style={{
+                left: Math.max(
+                  4,
+                  Math.min(
+                    viewportWidth - 88,
+                    pointerGuide.left - scrollLeft + 4,
+                  ),
+                ),
+              }}
+            >
+              {pointerGuide.label}
+            </span>
+          ) : null}
           {timeSlicerVisible ? (
             <div
               aria-hidden="true"
