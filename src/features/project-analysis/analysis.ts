@@ -1,3 +1,5 @@
+import { historicalDateFromOrdinal } from "@/features/timeline-items/historical-date";
+
 export type AnalysisEntityType = "timeline_item" | "timeline_event";
 
 export type AnalysisEntity = {
@@ -15,6 +17,13 @@ export type AnalysisEntity = {
   externalUrl: string | null;
   requiredFieldIds: string[];
   filledFieldIds: string[];
+  createdAt?: string;
+  datePrecision?: "day" | "month" | "year" | "decade" | "century";
+  endDateStatus?: "specified" | "ongoing" | "unknown" | null;
+  isStartApproximate?: boolean;
+  isEndApproximate?: boolean;
+  isVisible?: boolean;
+  hasCustomColor?: boolean;
 };
 
 export type AnalysisMaster = {
@@ -31,6 +40,7 @@ export type AnalysisReference = {
   targetType: AnalysisEntityType;
   targetId: string;
   targetState: "active" | "deleted" | "missing";
+  relationType?: string;
 };
 
 export type ProjectAnalysisDataset = {
@@ -88,6 +98,57 @@ export type ProjectAnalysisSummary = {
   countsByType: Record<string, number>;
   countsByTag: Record<string, number>;
 };
+
+export type AnalysisEntityLink = Pick<
+  AnalysisEntity,
+  "id" | "entityType" | "title"
+>;
+
+export type StatisticDatum = {
+  key: string;
+  label: string;
+  count: number;
+  entities: AnalysisEntityLink[];
+};
+
+export type ProjectStatistics = {
+  totals: {
+    itemCount: number;
+    eventCount: number;
+    relationshipCount: number;
+    internalLinkCount: number;
+  };
+  countsByType: StatisticDatum[];
+  countsByTag: StatisticDatum[];
+  countsByCentury: StatisticDatum[];
+  durationDistribution: StatisticDatum[];
+  datePrecision: StatisticDatum[];
+  endStatus: StatisticDatum[];
+  relationshipTypes: StatisticDatum[];
+  completeness: StatisticDatum[];
+  creationActivity: Array<{
+    date: string;
+    itemCount: number;
+    eventCount: number;
+  }>;
+};
+
+export type ProjectAnalysisFilters = {
+  query?: string;
+  typeIds?: string[];
+  tagIds?: string[];
+  tagMode?: "and" | "or";
+  eventTypeIds?: string[];
+  fromOrdinal?: number | null;
+  toOrdinal?: number | null;
+  hasEvents?: "all" | "yes" | "no";
+  approximate?: "all" | "start" | "end" | "any" | "none";
+  hasCustomColor?: "all" | "yes" | "no";
+  visibility?: "all" | "visible" | "hidden";
+};
+
+const DATE_FLOOR = -400_000_000;
+const DATE_CEILING = 400_000_000;
 
 function normalized(value: string) {
   return value
@@ -315,7 +376,356 @@ function duplicateCandidates(entities: AnalysisEntity[]) {
     .slice(0, MAX_RESULTS);
 }
 
-export function analyzeProjectData(dataset: ProjectAnalysisDataset) {
+const MAX_STATISTIC_ENTITY_LINKS = 200;
+
+function entityLink(entity: AnalysisEntity): AnalysisEntityLink {
+  return {
+    id: entity.id,
+    entityType: entity.entityType,
+    title: entity.title,
+  };
+}
+
+function statisticData(
+  groups: Map<string, { label: string; entities: AnalysisEntity[] }>,
+) {
+  return [...groups.entries()]
+    .map(([key, group]) => ({
+      key,
+      label: group.label,
+      count: group.entities.length,
+      entities: group.entities
+        .slice(0, MAX_STATISTIC_ENTITY_LINKS)
+        .map(entityLink),
+    }))
+    .sort(
+      (left, right) =>
+        right.count - left.count || left.label.localeCompare(right.label, "ja"),
+    );
+}
+
+function groupedEntities(
+  entities: AnalysisEntity[],
+  keys: (entity: AnalysisEntity) => Array<{ key: string; label: string }>,
+) {
+  const groups = new Map<
+    string,
+    { label: string; entities: AnalysisEntity[] }
+  >();
+  for (const entity of entities) {
+    for (const entry of keys(entity)) {
+      const group = groups.get(entry.key) ?? {
+        label: entry.label,
+        entities: [],
+      };
+      group.entities.push(entity);
+      groups.set(entry.key, group);
+    }
+  }
+  return statisticData(groups);
+}
+
+function centuryKey(entity: AnalysisEntity) {
+  if (Math.abs(entity.dateStart) >= DATE_CEILING) return null;
+  const date = historicalDateFromOrdinal(entity.dateStart);
+  const century = Math.floor((date.year - 1) / 100) + 1;
+  return {
+    key: `${date.era === "bce" ? "bce" : "ce"}:${century}`,
+    label: `${date.era === "bce" ? "紀元前" : ""}${century}世紀`,
+  };
+}
+
+function durationGroup(entity: AnalysisEntity) {
+  if (
+    entity.entityType !== "timeline_item" ||
+    entity.dateEnd >= DATE_CEILING ||
+    entity.dateStart <= DATE_FLOOR ||
+    entity.dateEnd <= entity.dateStart
+  )
+    return null;
+  const years = (entity.dateEnd - entity.dateStart) / 365.2425;
+  if (years < 1) return { key: "under-1", label: "1年未満" };
+  if (years < 10) return { key: "1-9", label: "1〜9年" };
+  if (years < 25) return { key: "10-24", label: "10〜24年" };
+  if (years < 50) return { key: "25-49", label: "25〜49年" };
+  if (years < 100) return { key: "50-99", label: "50〜99年" };
+  return { key: "100-plus", label: "100年以上" };
+}
+
+function filterAnalysisEntities(
+  dataset: ProjectAnalysisDataset,
+  filters: ProjectAnalysisFilters,
+) {
+  const normalizedQuery = filters.query?.trim().toLocaleLowerCase("ja") ?? "";
+  const eventsByParent = new Map<string, AnalysisEntity[]>();
+  for (const event of dataset.entities.filter(
+    (entity) => entity.entityType === "timeline_event",
+  )) {
+    for (const parentId of event.parentIds) {
+      const events = eventsByParent.get(parentId) ?? [];
+      events.push(event);
+      eventsByParent.set(parentId, events);
+    }
+  }
+  const directMatch = (entity: AnalysisEntity) => {
+    const tags = new Set(entity.tagIds);
+    const tagMatches =
+      !filters.tagIds?.length ||
+      (filters.tagMode === "and"
+        ? filters.tagIds.every((id) => tags.has(id))
+        : filters.tagIds.some((id) => tags.has(id)));
+    const typeMatches =
+      entity.entityType === "timeline_item"
+        ? !filters.typeIds?.length ||
+          Boolean(entity.typeId && filters.typeIds.includes(entity.typeId))
+        : !filters.eventTypeIds?.length ||
+          Boolean(
+            entity.typeId && filters.eventTypeIds.includes(entity.typeId),
+          );
+    const queryMatches =
+      !normalizedQuery ||
+      [entity.title, ...entity.aliases, entity.description ?? ""].some(
+        (value) => value.toLocaleLowerCase("ja").includes(normalizedQuery),
+      );
+    const rangeMatches =
+      (filters.fromOrdinal == null || entity.dateEnd >= filters.fromOrdinal) &&
+      (filters.toOrdinal == null || entity.dateStart <= filters.toOrdinal);
+    const approximateStart = Boolean(entity.isStartApproximate);
+    const approximateEnd = Boolean(entity.isEndApproximate);
+    const approximateMatches =
+      !filters.approximate ||
+      filters.approximate === "all" ||
+      (filters.approximate === "start" && approximateStart) ||
+      (filters.approximate === "end" && approximateEnd) ||
+      (filters.approximate === "any" && (approximateStart || approximateEnd)) ||
+      (filters.approximate === "none" && !approximateStart && !approximateEnd);
+    const colorMatches =
+      !filters.hasCustomColor ||
+      filters.hasCustomColor === "all" ||
+      (filters.hasCustomColor === "yes" && entity.hasCustomColor) ||
+      (filters.hasCustomColor === "no" && !entity.hasCustomColor);
+    const visibilityMatches =
+      !filters.visibility ||
+      filters.visibility === "all" ||
+      (filters.visibility === "visible" && entity.isVisible !== false) ||
+      (filters.visibility === "hidden" && entity.isVisible === false);
+    return (
+      tagMatches &&
+      typeMatches &&
+      queryMatches &&
+      rangeMatches &&
+      approximateMatches &&
+      colorMatches &&
+      visibilityMatches
+    );
+  };
+  const itemIds = new Set(
+    dataset.entities
+      .filter((entity) => {
+        if (entity.entityType !== "timeline_item" || !directMatch(entity))
+          return false;
+        const childEvents = eventsByParent.get(entity.id) ?? [];
+        return (
+          !filters.hasEvents ||
+          filters.hasEvents === "all" ||
+          (filters.hasEvents === "yes" && childEvents.length > 0) ||
+          (filters.hasEvents === "no" && childEvents.length === 0)
+        );
+      })
+      .map((entity) => entity.id),
+  );
+  return dataset.entities.filter((entity) =>
+    entity.entityType === "timeline_item"
+      ? itemIds.has(entity.id)
+      : directMatch(entity) &&
+        (entity.parentIds.length === 0 ||
+          entity.parentIds.some((id) => itemIds.has(id))),
+  );
+}
+
+export function calculateProjectStatistics(
+  dataset: ProjectAnalysisDataset,
+  filters: ProjectAnalysisFilters = {},
+  now = new Date(),
+): ProjectStatistics {
+  const entities = filterAnalysisEntities(dataset, filters);
+  const entitiesById = new Map(
+    entities.map((entity) => [`${entity.entityType}:${entity.id}`, entity]),
+  );
+  const included = new Set(
+    entities.map((entity) => `${entity.entityType}:${entity.id}`),
+  );
+  const masters = new Map(
+    dataset.masters.map((master) => [master.id, master.name]),
+  );
+  const references = dataset.references.filter((reference) =>
+    included.has(`${reference.sourceType}:${reference.sourceId}`),
+  );
+  const relationships = references.filter(
+    (reference) => reference.kind === "relationship",
+  );
+  const internalLinks = references.filter(
+    (reference) => reference.kind === "internal_link",
+  );
+  const items = entities.filter(
+    (entity) => entity.entityType === "timeline_item",
+  );
+  const events = entities.filter(
+    (entity) => entity.entityType === "timeline_event",
+  );
+  const parentIdsWithEvents = new Set(
+    events.flatMap((event) => event.parentIds),
+  );
+  const byType = groupedEntities(entities, (entity) => [
+    {
+      key: entity.typeId ?? `${entity.entityType}:none`,
+      label: entity.typeId
+        ? (masters.get(entity.typeId) ?? "不明な種別")
+        : "種別なし",
+    },
+  ]);
+  const byTag = groupedEntities(entities, (entity) =>
+    entity.tagIds.length
+      ? entity.tagIds.map((tagId) => ({
+          key: tagId,
+          label: masters.get(tagId) ?? "不明なタグ",
+        }))
+      : [{ key: `${entity.entityType}:untagged`, label: "タグなし" }],
+  );
+  const completenessDefinitions: Array<[string, string, AnalysisEntity[]]> = [
+    [
+      "items-without-events",
+      "イベントを持たないアイテム",
+      items.filter((item) => !parentIdsWithEvents.has(item.id)),
+    ],
+    [
+      "multiple-parent-events",
+      "複数親イベント",
+      events.filter((event) => event.parentIds.length > 1),
+    ],
+    [
+      "approximate-dates",
+      "曖昧日付",
+      entities.filter(
+        (entity) => entity.isStartApproximate || entity.isEndApproximate,
+      ),
+    ],
+    [
+      "missing-description",
+      "本文未入力",
+      entities.filter((entity) => !entity.description?.trim()),
+    ],
+    [
+      "missing-source",
+      "出典未入力",
+      entities.filter((entity) => entity.sourceMissing),
+    ],
+    [
+      "broken-links",
+      "リンク切れ",
+      entities.filter((entity) =>
+        internalLinks.some(
+          (link) =>
+            link.sourceId === entity.id &&
+            link.sourceType === entity.entityType &&
+            link.targetState !== "active",
+        ),
+      ),
+    ],
+  ];
+  const endStatusLabels = {
+    specified: "終了日指定",
+    ongoing: "継続中",
+    unknown: "終了時期不明",
+  } as const;
+  const precisionLabels = {
+    day: "年月日",
+    month: "年月",
+    year: "年",
+    decade: "年代",
+    century: "世紀",
+  } as const;
+  const activityEnd = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  const activityStart = new Date(activityEnd);
+  activityStart.setUTCDate(activityStart.getUTCDate() - 364);
+  const activity = new Map<string, { itemCount: number; eventCount: number }>();
+  for (
+    let date = new Date(activityStart);
+    date <= activityEnd;
+    date.setUTCDate(date.getUTCDate() + 1)
+  )
+    activity.set(date.toISOString().slice(0, 10), {
+      itemCount: 0,
+      eventCount: 0,
+    });
+  for (const entity of entities) {
+    const date = entity.createdAt?.slice(0, 10);
+    const point = date ? activity.get(date) : undefined;
+    if (!point) continue;
+    if (entity.entityType === "timeline_item") point.itemCount += 1;
+    else point.eventCount += 1;
+  }
+  return {
+    totals: {
+      itemCount: items.length,
+      eventCount: events.length,
+      relationshipCount: relationships.length,
+      internalLinkCount: internalLinks.length,
+    },
+    countsByType: byType,
+    countsByTag: byTag,
+    countsByCentury: groupedEntities(entities, (entity) => {
+      const century = centuryKey(entity);
+      return century ? [century] : [];
+    }),
+    durationDistribution: groupedEntities(items, (entity) => {
+      const group = durationGroup(entity);
+      return group ? [group] : [];
+    }),
+    datePrecision: groupedEntities(entities, (entity) => {
+      const precision = entity.datePrecision ?? "year";
+      return [{ key: precision, label: precisionLabels[precision] }];
+    }),
+    endStatus: groupedEntities(items, (entity) => {
+      if (!entity.endDateStatus) return [];
+      return [
+        {
+          key: entity.endDateStatus,
+          label: endStatusLabels[entity.endDateStatus],
+        },
+      ];
+    }),
+    relationshipTypes: statisticData(
+      relationships.reduce((groups, reference) => {
+        const key = reference.relationType?.trim() || "未分類";
+        const source = entitiesById.get(
+          `${reference.sourceType}:${reference.sourceId}`,
+        );
+        const group = groups.get(key) ?? { label: key, entities: [] };
+        if (source) group.entities.push(source);
+        groups.set(key, group);
+        return groups;
+      }, new Map<string, { label: string; entities: AnalysisEntity[] }>()),
+    ),
+    completeness: completenessDefinitions.map(([key, label, values]) => ({
+      key,
+      label,
+      count: values.length,
+      entities: values.slice(0, MAX_STATISTIC_ENTITY_LINKS).map(entityLink),
+    })),
+    creationActivity: [...activity.entries()].map(([date, counts]) => ({
+      date,
+      ...counts,
+    })),
+  };
+}
+
+export function analyzeProjectData(
+  dataset: ProjectAnalysisDataset,
+  filters: ProjectAnalysisFilters = {},
+) {
   const issues: AtomicQualityIssue[] = [];
   const activeById = new Map(
     dataset.entities.map((entity) => [
@@ -468,5 +878,6 @@ export function analyzeProjectData(dataset: ProjectAnalysisDataset) {
     issues: groupQualityIssues(issues),
     duplicates: duplicateCandidates(dataset.entities),
     summary,
+    statistics: calculateProjectStatistics(dataset, filters),
   };
 }

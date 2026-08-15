@@ -72,8 +72,16 @@ test("Phase L13 diagnoses duplicates and merges them with keyboard-accessible Un
   const management = page.getByRole("button", { name: "管理メニュー" });
   await management.focus();
   await page.keyboard.press("Enter");
-  await page.getByRole("menuitem", { name: "データ品質・重複統合" }).click();
-  const panel = page.getByRole("dialog", { name: "データ品質・重複統合" });
+  await page.getByRole("menuitem", { name: "統計・品質チェック" }).click();
+  const panel = page.getByRole("dialog", { name: "統計・品質チェック" });
+  await expect(panel.getByRole("heading", { name: "統計" })).toBeVisible();
+  await expect(
+    panel.getByRole("img", { name: "直近1年間の作成数ヒートマップ" }),
+  ).toBeVisible();
+  await expect(
+    panel.locator("dt").getByText("タイムライン", { exact: true }),
+  ).toBeVisible();
+  await panel.getByRole("tab", { name: "品質チェック" }).click();
   await expect(panel.getByText("重複候補")).toBeVisible();
   const qualityResults = panel.getByRole("list", {
     name: "品質チェック結果",

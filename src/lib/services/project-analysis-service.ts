@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { analyzeProjectData } from "@/features/project-analysis/analysis";
 import {
   mergeEntitiesSchema,
+  projectAnalysisFiltersSchema,
   undoEntityMergeSchema,
 } from "@/features/project-analysis/validation";
 import { ProjectAnalysisRepository } from "@/lib/repositories/project-analysis-repository";
@@ -29,9 +30,20 @@ export class ProjectAnalysisService {
       );
   }
 
-  async analyze(projectId: string) {
+  async analyze(projectId: string, input: unknown = {}) {
     await this.requireOwner(projectId);
-    return analyzeProjectData(await this.repository.dataset(projectId));
+    const parsed = projectAnalysisFiltersSchema.safeParse(input);
+    if (!parsed.success)
+      throw new ServiceError(
+        "集計条件を確認してください。",
+        400,
+        "VALIDATION_ERROR",
+        parsed.error.flatten(),
+      );
+    return analyzeProjectData(
+      await this.repository.dataset(projectId),
+      parsed.data,
+    );
   }
 
   async merge(projectId: string, input: unknown) {

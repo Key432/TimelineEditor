@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   analyzeProjectData,
+  calculateProjectStatistics,
   type ProjectAnalysisDataset,
 } from "@/features/project-analysis/analysis";
+import { projectAnalysisFiltersSchema } from "@/features/project-analysis/validation";
 
 const itemA = "11111111-1111-4111-8111-111111111111";
 const itemB = "22222222-2222-4222-8222-222222222222";
@@ -85,6 +87,21 @@ function dataset(): ProjectAnalysisDataset {
 }
 
 describe("Phase L13 project analysis", () => {
+  it("validates Phase L19 analysis filters", () => {
+    expect(
+      projectAnalysisFiltersSchema.safeParse({
+        typeIds: "not-a-uuid",
+        fromOrdinal: "not-a-number",
+      }).success,
+    ).toBe(false);
+    expect(
+      projectAnalysisFiltersSchema.parse({
+        tagMode: "and",
+        fromOrdinal: "123",
+      }),
+    ).toMatchObject({ tagMode: "and", fromOrdinal: 123 });
+  });
+
   it("detects actionable quality problems without a published-incomplete rule", () => {
     const result = analyzeProjectData(dataset());
     const kinds = result.issues.flatMap((issue) =>
@@ -126,6 +143,54 @@ describe("Phase L13 project analysis", () => {
     expect(duplicate?.reasons).toEqual(
       expect.arrayContaining(["名称", "日付", "種別"]),
     );
+  });
+
+  it("calculates Phase L19 statistics on demand and applies the active range", () => {
+    const input = dataset();
+    input.entities[0]!.createdAt = "2026-08-16T01:00:00.000Z";
+    input.entities[0]!.datePrecision = "year";
+    input.entities[0]!.endDateStatus = "specified";
+    input.entities[1]!.createdAt = "2026-08-16T02:00:00.000Z";
+    input.entities[1]!.datePrecision = "year";
+    input.entities[1]!.endDateStatus = "specified";
+    input.entities[2]!.createdAt = "2026-08-15T01:00:00.000Z";
+    input.entities[2]!.datePrecision = "day";
+    input.references.push({
+      kind: "relationship",
+      sourceType: "timeline_item",
+      sourceId: itemA,
+      targetType: "timeline_item",
+      targetId: itemB,
+      targetState: "active",
+      relationType: "影響",
+    });
+
+    const statistics = calculateProjectStatistics(
+      input,
+      { fromOrdinal: -142000, toOrdinal: -138000 },
+      new Date("2026-08-16T12:00:00.000Z"),
+    );
+
+    expect(statistics.totals).toEqual({
+      itemCount: 2,
+      eventCount: 0,
+      relationshipCount: 1,
+      internalLinkCount: 1,
+    });
+    expect(statistics.countsByType).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "人物", count: 2 }),
+      ]),
+    );
+    expect(statistics.relationshipTypes).toEqual([
+      expect.objectContaining({ label: "影響", count: 1 }),
+    ]);
+    expect(statistics.creationActivity).toHaveLength(365);
+    expect(statistics.creationActivity.at(-1)).toMatchObject({
+      date: "2026-08-16",
+      itemCount: 2,
+      eventCount: 0,
+    });
   });
 
   it("keeps 1,000 items and 10,000 events bounded without persisting analysis", () => {

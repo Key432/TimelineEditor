@@ -19,7 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Columns3, GripVertical, X } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -137,6 +137,9 @@ type TimelineComparisonWorkspaceProps = {
   onOpenItem: (itemId: string) => void;
   onEditItemTypes: () => void;
   headerActionsContainer?: HTMLElement | null;
+  onHighlightRangeChange?: (
+    range: { startOrdinal: number; endOrdinal: number } | null,
+  ) => void;
 };
 
 export function TimelineComparisonWorkspace(
@@ -149,6 +152,15 @@ export function TimelineComparisonWorkspace(
   const [draftIds, setDraftIds] = useState<string[]>([]);
   const [sharedStore] = useState(() =>
     createTimelineStore(props.project.settings),
+  );
+  const onHighlightRangeChange = props.onHighlightRangeChange;
+  useEffect(
+    () =>
+      sharedStore.subscribe((state, previous) => {
+        if (state.highlightRange !== previous.highlightRange)
+          onHighlightRangeChange?.(state.highlightRange);
+      }),
+    [onHighlightRangeChange, sharedStore],
   );
   const comparisonSensors = useSensors(
     useSensor(PointerSensor),
@@ -350,7 +362,11 @@ export function TimelineComparisonWorkspace(
           })}
         </div>
       ) : (
-        <TimelineWorkspace {...props} lazyLoadSupplementalData />
+        <TimelineWorkspace
+          {...props}
+          lazyLoadSupplementalData
+          timelineStore={sharedStore}
+        />
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

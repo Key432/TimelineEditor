@@ -26,6 +26,23 @@ type DateRow = {
 
 const DATE_FLOOR = -400_000_000;
 const DATE_CEILING = 400_000_000;
+const ANALYSIS_PAGE_SIZE = 1_000;
+
+async function fetchAll<Row>(
+  page: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: Row[] | null; error: { message: string } | null }>,
+) {
+  const rows: Row[] = [];
+  for (let from = 0; ; from += ANALYSIS_PAGE_SIZE) {
+    const { data, error } = await page(from, from + ANALYSIS_PAGE_SIZE - 1);
+    if (error) throw error;
+    const batch = data ?? [];
+    rows.push(...batch);
+    if (batch.length < ANALYSIS_PAGE_SIZE) return rows;
+  }
+}
 
 function itemRange(row: DateRow & { temporal_type: "range" | "point" }) {
   if (row.start_year === null) return { start: DATE_FLOOR, end: DATE_CEILING };
@@ -78,108 +95,122 @@ export class ProjectAnalysisRepository {
 
   async dataset(projectId: string): Promise<ProjectAnalysisDataset> {
     const [
-      itemsResult,
-      eventsResult,
-      parentLinksResult,
-      itemTagsResult,
-      eventTagsResult,
-      definitionsResult,
-      valuesResult,
-      citationsResult,
-      tagsResult,
-      itemTypesResult,
-      eventTypesResult,
-      internalLinksResult,
-      relationshipsResult,
+      items,
+      events,
+      parentLinks,
+      itemTags,
+      eventTags,
+      definitions,
+      values,
+      citations,
+      tags,
+      itemTypes,
+      eventTypes,
+      internalLinks,
+      relationships,
     ] = await Promise.all([
-      this.client
-        .from("timeline_items")
-        .select(
-          "id, type_id, title, aliases, description, source_text, external_url, temporal_type, start_era, start_precision, start_year, start_month, start_day, end_era, end_precision, end_year, end_month, end_day, end_date_status, deleted_at",
-        )
-        .eq("project_id", projectId),
-      this.client
-        .from("timeline_events")
-        .select(
-          "id, event_type_id, title, aliases, description, source_text, external_url, event_era, event_precision, event_year, event_month, event_day, deleted_at",
-        )
-        .eq("project_id", projectId),
-      this.client
-        .from("timeline_event_item_links")
-        .select("timeline_event_id, timeline_item_id")
-        .eq("project_id", projectId),
-      this.client
-        .from("timeline_item_tags")
-        .select("timeline_item_id, tag_id")
-        .eq("project_id", projectId),
-      this.client
-        .from("timeline_event_tags")
-        .select("timeline_event_id, tag_id")
-        .eq("project_id", projectId),
-      this.client
-        .from("custom_field_definitions")
-        .select("id, entity_type, scope, target_type_id, is_required")
-        .eq("project_id", projectId),
-      this.client
-        .from("custom_field_values")
-        .select(
-          "field_id, entity_type, entity_id, reference_entity_type, reference_entity_id",
-        )
-        .eq("project_id", projectId),
-      this.client
-        .from("source_citations")
-        .select("entity_type, entity_id")
-        .eq("project_id", projectId),
-      this.client.from("tags").select("id, name").eq("project_id", projectId),
-      this.client
-        .from("timeline_item_types")
-        .select("id, name")
-        .eq("project_id", projectId),
-      this.client
-        .from("event_types")
-        .select("id, name")
-        .eq("project_id", projectId),
-      this.client
-        .from("internal_links")
-        .select(
-          "source_entity_type, source_entity_id, target_entity_type, target_entity_id",
-        )
-        .eq("project_id", projectId),
-      this.client
-        .from("entity_relationships")
-        .select("source_type, source_id, target_type, target_id")
-        .eq("project_id", projectId),
+      fetchAll((from, to) =>
+        this.client
+          .from("timeline_items")
+          .select(
+            "id, type_id, title, aliases, description, source_text, external_url, temporal_type, color_override, is_visible, start_era, start_precision, start_year, start_month, start_day, is_start_approximate, is_point_approximate, end_era, end_precision, end_year, end_month, end_day, end_date_status, is_end_approximate, deleted_at, created_at",
+          )
+          .eq("project_id", projectId)
+          .range(from, to),
+      ),
+      fetchAll((from, to) =>
+        this.client
+          .from("timeline_events")
+          .select(
+            "id, event_type_id, title, aliases, description, source_text, external_url, event_era, event_precision, event_year, event_month, event_day, is_approximate, deleted_at, created_at",
+          )
+          .eq("project_id", projectId)
+          .range(from, to),
+      ),
+      fetchAll((from, to) =>
+        this.client
+          .from("timeline_event_item_links")
+          .select("timeline_event_id, timeline_item_id")
+          .eq("project_id", projectId)
+          .range(from, to),
+      ),
+      fetchAll((from, to) =>
+        this.client
+          .from("timeline_item_tags")
+          .select("timeline_item_id, tag_id")
+          .eq("project_id", projectId)
+          .range(from, to),
+      ),
+      fetchAll((from, to) =>
+        this.client
+          .from("timeline_event_tags")
+          .select("timeline_event_id, tag_id")
+          .eq("project_id", projectId)
+          .range(from, to),
+      ),
+      fetchAll((from, to) =>
+        this.client
+          .from("custom_field_definitions")
+          .select("id, entity_type, scope, target_type_id, is_required")
+          .eq("project_id", projectId)
+          .range(from, to),
+      ),
+      fetchAll((from, to) =>
+        this.client
+          .from("custom_field_values")
+          .select(
+            "field_id, entity_type, entity_id, reference_entity_type, reference_entity_id",
+          )
+          .eq("project_id", projectId)
+          .range(from, to),
+      ),
+      fetchAll((from, to) =>
+        this.client
+          .from("source_citations")
+          .select("entity_type, entity_id")
+          .eq("project_id", projectId)
+          .range(from, to),
+      ),
+      fetchAll((from, to) =>
+        this.client
+          .from("tags")
+          .select("id, name")
+          .eq("project_id", projectId)
+          .range(from, to),
+      ),
+      fetchAll((from, to) =>
+        this.client
+          .from("timeline_item_types")
+          .select("id, name")
+          .eq("project_id", projectId)
+          .range(from, to),
+      ),
+      fetchAll((from, to) =>
+        this.client
+          .from("event_types")
+          .select("id, name")
+          .eq("project_id", projectId)
+          .range(from, to),
+      ),
+      fetchAll((from, to) =>
+        this.client
+          .from("internal_links")
+          .select(
+            "source_entity_type, source_entity_id, target_entity_type, target_entity_id",
+          )
+          .eq("project_id", projectId)
+          .range(from, to),
+      ),
+      fetchAll((from, to) =>
+        this.client
+          .from("entity_relationships")
+          .select(
+            "source_type, source_id, target_type, target_id, relation_type",
+          )
+          .eq("project_id", projectId)
+          .range(from, to),
+      ),
     ]);
-    for (const result of [
-      itemsResult,
-      eventsResult,
-      parentLinksResult,
-      itemTagsResult,
-      eventTagsResult,
-      definitionsResult,
-      valuesResult,
-      citationsResult,
-      tagsResult,
-      itemTypesResult,
-      eventTypesResult,
-      internalLinksResult,
-      relationshipsResult,
-    ])
-      if (result.error) throw result.error;
-
-    const items = itemsResult.data ?? [];
-    const events = eventsResult.data ?? [];
-    const parentLinks = parentLinksResult.data ?? [];
-    const itemTags = itemTagsResult.data ?? [];
-    const eventTags = eventTagsResult.data ?? [];
-    const definitions = definitionsResult.data ?? [];
-    const values = valuesResult.data ?? [];
-    const citations = citationsResult.data ?? [];
-    const tags = tagsResult.data ?? [];
-    const itemTypes = itemTypesResult.data ?? [];
-    const eventTypes = eventTypesResult.data ?? [];
-    const internalLinks = internalLinksResult.data ?? [];
-    const relationships = relationshipsResult.data ?? [];
 
     const allEntities = new Map<string, { deleted_at: string | null }>();
     for (const row of items) allEntities.set(`timeline_item:${row.id}`, row);
@@ -244,6 +275,17 @@ export class ProjectAnalysisRepository {
             externalUrl: row.external_url,
             requiredFieldIds: requiredFields("timeline_item", row.type_id),
             filledFieldIds: filledFields.get(`timeline_item:${row.id}`) ?? [],
+            createdAt: row.created_at,
+            datePrecision: row.start_precision,
+            endDateStatus: row.end_date_status,
+            isStartApproximate:
+              row.temporal_type === "point"
+                ? row.is_point_approximate
+                : row.is_start_approximate,
+            isEndApproximate:
+              row.temporal_type === "range" && row.is_end_approximate,
+            isVisible: row.is_visible,
+            hasCustomColor: Boolean(row.color_override),
           };
         }),
       ...events
@@ -278,6 +320,13 @@ export class ProjectAnalysisRepository {
               row.event_type_id,
             ),
             filledFieldIds: filledFields.get(`timeline_event:${row.id}`) ?? [],
+            createdAt: row.created_at,
+            datePrecision: row.event_precision,
+            endDateStatus: null,
+            isStartApproximate: row.is_approximate,
+            isEndApproximate: false,
+            isVisible: true,
+            hasCustomColor: false,
           };
         }),
     ];
@@ -326,6 +375,7 @@ export class ProjectAnalysisRepository {
         targetType: row.target_type,
         targetId: row.target_id,
         targetState: targetState(allEntities, row.target_type, row.target_id),
+        relationType: row.relation_type,
       })),
     ];
     return {

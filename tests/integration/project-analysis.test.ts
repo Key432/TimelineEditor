@@ -207,6 +207,12 @@ describe("Phase L13 analysis, merge, Undo and RLS", () => {
           [entry.left.id, entry.right.id].includes(merged.id),
       ),
     ).toBe(true);
+    expect(analysis.statistics.totals).toMatchObject({
+      itemCount: 3,
+      eventCount: 1,
+      relationshipCount: 1,
+    });
+    expect(analysis.statistics.creationActivity).toHaveLength(365);
     await expect(
       new ProjectAnalysisService(other).analyze(projectId),
     ).rejects.toMatchObject({ status: 404 });

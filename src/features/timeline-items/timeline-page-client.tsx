@@ -44,6 +44,7 @@ import type {
   TimelineItemSummary,
 } from "@/features/timeline-items/types";
 import {
+  hasActiveTimelineFilters,
   parseTimelineFilters,
   writeTimelineFilters,
 } from "@/features/timeline-items/timeline-filters";
@@ -55,6 +56,8 @@ import { invalidateItemTypeDependents } from "@/features/item-types/cache";
 import type { TimelineBackgroundLayer } from "@/features/background-layers/types";
 import type { RelationshipDataset } from "@/features/relationships/types";
 import { TimelinePanelSkeleton } from "@/features/timeline-items/timeline-loading-skeleton";
+import { historicalDateOrdinal } from "@/features/timeline-items/historical-date";
+import type { ProjectAnalysisFilters } from "@/features/project-analysis/analysis";
 
 const panelLoading = () => <TimelinePanelSkeleton />;
 
@@ -123,7 +126,7 @@ const ProjectAnalysisManager = dynamic(
   {
     loading: () => (
       <p className="text-sm text-muted-foreground">
-        データ品質を準備しています…
+        統計・品質データを準備しています…
       </p>
     ),
   },
@@ -163,12 +166,49 @@ export function TimelinePageClient({
   const queryClient = useQueryClient();
   const [activeProject, setActiveProject] = useState(project);
   const [panel, setPanel] = useState<Panel>(null);
+  const [highlightRange, setHighlightRange] = useState<{
+    startOrdinal: number;
+    endOrdinal: number;
+  } | null>(null);
   const [comparisonActionsContainer, setComparisonActionsContainer] =
     useState<HTMLDivElement | null>(null);
   const filters = useMemo(
     () => parseTimelineFilters(new URLSearchParams(searchParams.toString())),
     [searchParams],
   );
+  const analysisFilters = useMemo<ProjectAnalysisFilters>(() => {
+    const fromFilter = filters.fromYear
+      ? historicalDateOrdinal(
+          { year: filters.fromYear, month: null, day: null },
+          "start",
+        )
+      : null;
+    const toFilter = filters.toYear
+      ? historicalDateOrdinal(
+          { year: filters.toYear, month: null, day: null },
+          "end",
+        )
+      : null;
+    return {
+      query: filters.query,
+      typeIds: filters.typeIds,
+      tagIds: filters.tagIds,
+      tagMode: filters.tagMode,
+      eventTypeIds: filters.eventTypeIds,
+      fromOrdinal:
+        highlightRange && fromFilter !== null
+          ? Math.max(highlightRange.startOrdinal, fromFilter)
+          : (highlightRange?.startOrdinal ?? fromFilter),
+      toOrdinal:
+        highlightRange && toFilter !== null
+          ? Math.min(highlightRange.endOrdinal, toFilter)
+          : (highlightRange?.endOrdinal ?? toFilter),
+      hasEvents: filters.hasEvents,
+      approximate: filters.approximate,
+      hasCustomColor: filters.hasCustomColor,
+      visibility: filters.visibility,
+    };
+  }, [filters, highlightRange]);
 
   function handlePanelChange(open: boolean) {
     if (open) return;
@@ -213,7 +253,7 @@ export function TimelinePageClient({
               <DropdownMenuGroup>
                 <DropdownMenuItem onSelect={() => setPanel("analysis")}>
                   <ShieldCheck aria-hidden="true" />
-                  データ品質・重複統合
+                  統計・品質チェック
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setPanel("classification")}>
                   <Shapes aria-hidden="true" />
@@ -280,6 +320,7 @@ export function TimelinePageClient({
           router.push(`/projects/${project.id}/items/${itemId}`)
         }
         onEditItemTypes={() => setPanel("classification")}
+        onHighlightRangeChange={setHighlightRange}
       />
 
       <Sheet open={panel !== null} onOpenChange={handlePanelChange}>
@@ -311,22 +352,22 @@ export function TimelinePageClient({
                     : panel === "sources"
                       ? "出典・参考文献"
                       : panel === "analysis"
-                        ? "データ品質・重複統合"
+                        ? "統計・品質チェック"
                         : "インポート／エクスポート"}
             </SheetTitle>
-            <SheetDescription>
-              {panel === "settings"
-                ? "名前、説明、タイムラインの初期表示を変更します。"
-                : panel === "classification"
-                  ? "タイムライン種別、イベント種別、タグ、カスタムフィールド、意味的関係を管理します。"
-                  : panel === "backgrounds"
-                    ? "時代区分、王朝、政権、文化潮流などを複数の背景として管理します。"
-                    : panel === "sources"
-                      ? "資料の追加・編集・一覧確認と、出典未設定項目の確認を行います。"
-                      : panel === "analysis"
-                        ? "不整合を修正し、重複データを参照関係ごと安全に統合します。"
+            {panel !== "analysis" ? (
+              <SheetDescription>
+                {panel === "settings"
+                  ? "名前、説明、タイムラインの初期表示を変更します。"
+                  : panel === "classification"
+                    ? "タイムライン種別、イベント種別、タグ、カスタムフィールド、意味的関係を管理します。"
+                    : panel === "backgrounds"
+                      ? "時代区分、王朝、政権、文化潮流などを複数の背景として管理します。"
+                      : panel === "sources"
+                        ? "資料の追加・編集・一覧確認と、出典未設定項目の確認を行います。"
                         : "プロジェクトデータを保存または取り込みます。"}
-            </SheetDescription>
+              </SheetDescription>
+            ) : null}
           </SheetHeader>
           <div className="space-y-8 px-4 pb-6">
             {panel === "settings" ? (
@@ -374,6 +415,10 @@ export function TimelinePageClient({
               <SourceManager projectId={project.id} />
             ) : panel === "analysis" ? (
               <ProjectAnalysisManager
+                filtered={
+                  hasActiveTimelineFilters(filters) || highlightRange !== null
+                }
+                filters={analysisFilters}
                 projectId={project.id}
                 onOpenClassification={() => setPanel("classification")}
               />

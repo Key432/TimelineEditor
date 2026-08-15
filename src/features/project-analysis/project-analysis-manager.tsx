@@ -12,6 +12,7 @@ import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,7 @@ import type {
   DuplicateCandidate,
   QualityIssue,
   QualityIssueKind,
+  ProjectAnalysisFilters,
 } from "@/features/project-analysis/analysis";
 import {
   getProjectAnalysis,
@@ -34,6 +36,7 @@ import {
 } from "@/features/project-analysis/api";
 import { timelineEventKeys } from "@/features/timeline-events/api";
 import { timelineItemKeys } from "@/features/timeline-items/api";
+import { StatisticsPanel } from "@/features/project-analysis/statistics-panel";
 
 const ISSUE_LABELS: Record<QualityIssueKind, string> = {
   broken_internal_link: "内部リンク切れ",
@@ -173,22 +176,28 @@ function MergeDialog({
 export function ProjectAnalysisManager({
   projectId,
   onOpenClassification,
+  filters,
+  filtered,
 }: {
   projectId: string;
   onOpenClassification: () => void;
+  filters: ProjectAnalysisFilters;
+  filtered: boolean;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [candidate, setCandidate] = useState<DuplicateCandidate | null>(null);
   const [lastOperationId, setLastOperationId] = useState<string | null>(null);
-  const key = projectAnalysisKeys.detail(projectId);
+  const key = projectAnalysisKeys.detail(projectId, filters);
   const analysis = useQuery({
     queryKey: key,
-    queryFn: () => getProjectAnalysis(projectId),
+    queryFn: () => getProjectAnalysis(projectId, filters),
   });
   async function refresh() {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: key }),
+      queryClient.invalidateQueries({
+        queryKey: projectAnalysisKeys.all(projectId),
+      }),
       queryClient.invalidateQueries({
         queryKey: timelineItemKeys.list(projectId),
       }),
@@ -209,7 +218,7 @@ export function ProjectAnalysisManager({
   if (analysis.isLoading)
     return (
       <p className="text-sm text-muted-foreground">
-        データ品質を確認しています…
+        統計・品質データを計算しています…
       </p>
     );
   if (analysis.error)
@@ -221,150 +230,169 @@ export function ProjectAnalysisManager({
   const data = analysis.data!;
 
   return (
-    <div className="space-y-8">
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="font-medium">品質チェック</h2>
-            <p className="text-sm text-muted-foreground">
-              保存せず、その時点のプロジェクトデータから診断します。
-            </p>
-          </div>
-          <Badge variant={data.issues.length ? "secondary" : "outline"}>
-            {data.issues.length}件
-          </Badge>
-        </div>
-        {lastOperationId ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 p-3">
-            <span className="flex items-center gap-2 text-sm">
-              <CheckCircle2 className="size-4 text-primary" />
-              統合が完了しました。
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={undo.isPending}
-              onClick={() => undo.mutate()}
-            >
-              <RotateCcw className="size-4" />
-              {undo.isPending ? "戻しています…" : "統合をUndo"}
-            </Button>
-          </div>
-        ) : null}
-        {undo.error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {undo.error.message}
-          </p>
-        ) : null}
-        {data.issues.length === 0 ? (
-          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            修正が必要な問題はありません。
-          </p>
-        ) : (
-          <ul
-            aria-label="品質チェック結果"
-            className="divide-y rounded-md border"
-          >
-            {data.issues.map((issue) => {
-              const path = entityPath(projectId, issue);
-              return (
-                <li
-                  key={issue.id}
-                  className="flex flex-wrap items-center justify-between gap-3 p-3"
+    <Tabs className="space-y-6" defaultValue="statistics">
+      <TabsList aria-label="統計・品質チェック">
+        <TabsTrigger value="statistics">統計</TabsTrigger>
+        <TabsTrigger value="quality">品質チェック</TabsTrigger>
+      </TabsList>
+      <TabsContent value="statistics">
+        <StatisticsPanel
+          filtered={filtered}
+          projectId={projectId}
+          statistics={data.statistics}
+        />
+      </TabsContent>
+      <TabsContent value="quality">
+        <div className="space-y-8">
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-medium">品質チェック</h2>
+                <p className="text-sm text-muted-foreground">
+                  保存せず、その時点のプロジェクトデータから診断します。
+                </p>
+              </div>
+              <Badge variant={data.issues.length ? "secondary" : "outline"}>
+                {data.issues.length}件
+              </Badge>
+            </div>
+            {lastOperationId ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+                <span className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="size-4 text-primary" />
+                  統合が完了しました。
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={undo.isPending}
+                  onClick={() => undo.mutate()}
                 >
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-2 text-sm font-medium">
-                      <AlertTriangle className="size-4 text-secondary" />
-                      {issue.title}
-                    </p>
-                    <ul className="mt-1 space-y-1 pl-6 text-xs text-muted-foreground">
-                      {issue.reasons.map((reason) => (
-                        <li key={`${reason.kind}:${reason.detail}`}>
-                          {ISSUE_LABELS[reason.kind]} · {reason.detail}
-                          {reason.count > 1 ? `（${reason.count}件）` : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  {path ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => router.push(path)}
-                    >
-                      修正する
-                      <ArrowRight className="size-4" />
-                    </Button>
-                  ) : issue.reasons.some(
-                      (reason) => reason.kind === "unused_master",
-                    ) ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={onOpenClassification}
-                    >
-                      マスタを管理
-                      <ArrowRight className="size-4" />
-                    </Button>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
-      <section className="space-y-3 border-t pt-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="font-medium">重複候補</h2>
-            <p className="text-sm text-muted-foreground">
-              名称・別名・日付・種別・親・外部URL・類似文字列を組み合わせて判定します。
-            </p>
-          </div>
-          <Badge variant="outline">{data.duplicates.length}組</Badge>
-        </div>
-        {data.duplicates.length === 0 ? (
-          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            重複候補はありません。
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {data.duplicates.map((entry) => (
-              <li
-                key={`${entry.left.id}:${entry.right.id}`}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
-              >
-                <div>
-                  <p className="text-sm font-medium">
-                    {entry.left.title} / {entry.right.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    一致度 {entry.score}% · {entry.reasons.join("・")}
-                  </p>
-                </div>
-                <Button size="sm" onClick={() => setCandidate(entry)}>
-                  統合を確認
+                  <RotateCcw className="size-4" />
+                  {undo.isPending ? "戻しています…" : "統合をUndo"}
                 </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      <MergeDialog
-        key={
-          candidate ? `${candidate.left.id}:${candidate.right.id}` : "closed"
-        }
-        candidate={candidate}
-        projectId={projectId}
-        onOpenChange={(open) => {
-          if (!open) setCandidate(null);
-        }}
-        onMerged={(operationId) => {
-          setLastOperationId(operationId);
-          void refresh();
-        }}
-      />
-    </div>
+              </div>
+            ) : null}
+            {undo.error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {undo.error.message}
+              </p>
+            ) : null}
+            {data.issues.length === 0 ? (
+              <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                修正が必要な問題はありません。
+              </p>
+            ) : (
+              <ul
+                aria-label="品質チェック結果"
+                className="divide-y rounded-md border"
+              >
+                {data.issues.map((issue) => {
+                  const path = entityPath(projectId, issue);
+                  return (
+                    <li
+                      key={issue.id}
+                      className="flex flex-wrap items-center justify-between gap-3 p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-2 text-sm font-medium">
+                          <AlertTriangle className="size-4 text-secondary" />
+                          {issue.title}
+                        </p>
+                        <ul className="mt-1 space-y-1 pl-6 text-xs text-muted-foreground">
+                          {issue.reasons.map((reason) => (
+                            <li key={`${reason.kind}:${reason.detail}`}>
+                              {ISSUE_LABELS[reason.kind]} · {reason.detail}
+                              {reason.count > 1
+                                ? `（${reason.count}件）`
+                                : null}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      {path ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => router.push(path)}
+                        >
+                          修正する
+                          <ArrowRight className="size-4" />
+                        </Button>
+                      ) : issue.reasons.some(
+                          (reason) => reason.kind === "unused_master",
+                        ) ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={onOpenClassification}
+                        >
+                          マスタを管理
+                          <ArrowRight className="size-4" />
+                        </Button>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          <section className="space-y-3 border-t pt-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-medium">重複候補</h2>
+                <p className="text-sm text-muted-foreground">
+                  名称・別名・日付・種別・親・外部URL・類似文字列を組み合わせて判定します。
+                </p>
+              </div>
+              <Badge variant="outline">{data.duplicates.length}組</Badge>
+            </div>
+            {data.duplicates.length === 0 ? (
+              <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                重複候補はありません。
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {data.duplicates.map((entry) => (
+                  <li
+                    key={`${entry.left.id}:${entry.right.id}`}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">
+                        {entry.left.title} / {entry.right.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        一致度 {entry.score}% · {entry.reasons.join("・")}
+                      </p>
+                    </div>
+                    <Button size="sm" onClick={() => setCandidate(entry)}>
+                      統合を確認
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <MergeDialog
+            key={
+              candidate
+                ? `${candidate.left.id}:${candidate.right.id}`
+                : "closed"
+            }
+            candidate={candidate}
+            projectId={projectId}
+            onOpenChange={(open) => {
+              if (!open) setCandidate(null);
+            }}
+            onMerged={(operationId) => {
+              setLastOperationId(operationId);
+              void refresh();
+            }}
+          />
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 }

@@ -1,21 +1,45 @@
 import type {
   DuplicateCandidate,
   ProjectAnalysisSummary,
+  ProjectAnalysisFilters,
+  ProjectStatistics,
   QualityIssue,
 } from "@/features/project-analysis/analysis";
 import { requestJson } from "@/lib/api-client";
 
 export const projectAnalysisKeys = {
-  detail: (projectId: string) => ["projects", projectId, "analysis"] as const,
+  all: (projectId: string) => ["projects", projectId, "analysis"] as const,
+  detail: (projectId: string, filters: ProjectAnalysisFilters = {}) =>
+    [...projectAnalysisKeys.all(projectId), filters] as const,
 };
 
-export async function getProjectAnalysis(projectId: string) {
+export async function getProjectAnalysis(
+  projectId: string,
+  filters: ProjectAnalysisFilters = {},
+) {
+  const params = new URLSearchParams();
+  if (filters.query) params.set("query", filters.query);
+  if (filters.typeIds?.length) params.set("typeIds", filters.typeIds.join(","));
+  if (filters.tagIds?.length) params.set("tagIds", filters.tagIds.join(","));
+  if (filters.tagMode) params.set("tagMode", filters.tagMode);
+  if (filters.eventTypeIds?.length)
+    params.set("eventTypeIds", filters.eventTypeIds.join(","));
+  if (filters.fromOrdinal != null)
+    params.set("fromOrdinal", String(filters.fromOrdinal));
+  if (filters.toOrdinal != null)
+    params.set("toOrdinal", String(filters.toOrdinal));
+  if (filters.hasEvents) params.set("hasEvents", filters.hasEvents);
+  if (filters.approximate) params.set("approximate", filters.approximate);
+  if (filters.hasCustomColor)
+    params.set("hasCustomColor", filters.hasCustomColor);
+  if (filters.visibility) params.set("visibility", filters.visibility);
   return requestJson<{
     issues: QualityIssue[];
     duplicates: DuplicateCandidate[];
     summary: ProjectAnalysisSummary;
+    statistics: ProjectStatistics;
   }>(
-    `/api/projects/${projectId}/analysis`,
+    `/api/projects/${projectId}/analysis${params.size ? `?${params}` : ""}`,
     undefined,
     "データ品質の処理に失敗しました。",
   );

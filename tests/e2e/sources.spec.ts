@@ -64,7 +64,7 @@ test("keeps free-text sources while optionally attaching a reusable detailed sou
   await page.getByRole("button", { name: "管理メニュー" }).click();
   const managementItems = await page.getByRole("menuitem").allTextContents();
   expect(managementItems.map((label) => label.trim())).toEqual([
-    "データ品質・重複統合",
+    "統計・品質チェック",
     "分類・関係",
     "出典・参考文献",
     "年代背景",

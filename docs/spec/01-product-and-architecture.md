@@ -183,9 +183,7 @@ type ProjectVisibility = "private" | "public";
 /projects/[projectId]/settings
 /projects/[projectId]/table
 /projects/[projectId]/sources
-/projects/[projectId]/quality
 /projects/[projectId]/network
-/projects/[projectId]/statistics
 
 /local
 /search?q=...
