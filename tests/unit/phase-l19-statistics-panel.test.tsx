@@ -57,6 +57,12 @@ describe("Phase L19 statistics panel", () => {
         name: "直近1年間の作成数ヒートマップ",
       }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText("2025-08-17: 合計0件（タイムライン0件、イベント0件）")
+        .parentElement,
+    ).toHaveAttribute("fill", "var(--muted)");
+    expect(screen.queryByText("少ない")).not.toBeInTheDocument();
+    expect(screen.queryByText("多い")).not.toBeInTheDocument();
     expect(screen.getByText(/フィルター・期間強調を反映中/)).toBeVisible();
     expect(
       screen.getByRole("img", { name: "日付精度の円グラフ" }),

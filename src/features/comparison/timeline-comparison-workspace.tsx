@@ -19,7 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Columns3, GripVertical, X } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -150,6 +150,7 @@ export function TimelineComparisonWorkspace(
   const [dialogOpen, setDialogOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [draftIds, setDraftIds] = useState<string[]>([]);
+  const draftIdsRef = useRef<string[]>([]);
   const [sharedStore] = useState(() =>
     createTimelineStore(props.project.settings),
   );
@@ -235,9 +236,16 @@ export function TimelineComparisonWorkspace(
   }
 
   function openDialog() {
+    draftIdsRef.current = projectIds;
     setDraftIds(projectIds);
     setSearch("");
     setDialogOpen(true);
+  }
+
+  function updateDraftIds(updater: (current: string[]) => string[]) {
+    const nextIds = updater(draftIdsRef.current);
+    draftIdsRef.current = nextIds;
+    setDraftIds(nextIds);
   }
 
   const paneHeight = comparisonPaneHeight(projectIds.length + 1);
@@ -248,7 +256,7 @@ export function TimelineComparisonWorkspace(
     // Commit the reordered draft before dnd-kit releases the pointer so an
     // immediate click on the confirm button cannot observe the previous order.
     flushSync(() => {
-      setDraftIds((current) => {
+      updateDraftIds((current) => {
         return moveComparedProject(
           current,
           String(event.active.id),
@@ -411,7 +419,7 @@ export function TimelineComparisonWorkspace(
                         key={candidate.id}
                         project={candidate}
                         onRemove={() =>
-                          setDraftIds((current) => {
+                          updateDraftIds((current) => {
                             return current.filter(
                               (projectId) => projectId !== candidate.id,
                             );
@@ -444,7 +452,7 @@ export function TimelineComparisonWorkspace(
                     type="checkbox"
                     checked={false}
                     onChange={() =>
-                      setDraftIds((current) => {
+                      updateDraftIds((current) => {
                         return [...current, candidate.id];
                       })
                     }
@@ -470,7 +478,7 @@ export function TimelineComparisonWorkspace(
             </DialogClose>
             <Button
               onClick={() => {
-                writeProjectIds(draftIds);
+                writeProjectIds(draftIdsRef.current);
                 setDialogOpen(false);
               }}
             >

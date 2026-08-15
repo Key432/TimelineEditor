@@ -83,11 +83,11 @@ function DonutChart({
     .value((entry) => entry.count)(data.filter((entry) => entry.count > 0));
   const path = arc<(typeof values)[number]>().innerRadius(42).outerRadius(72);
   const colors = [
-    "var(--color-primary)",
-    "var(--color-secondary)",
-    "var(--color-success)",
-    "var(--color-warning)",
-    "var(--color-text-muted)",
+    "var(--primary)",
+    "var(--secondary)",
+    "var(--success)",
+    "var(--warning)",
+    "var(--muted-foreground)",
   ];
   return (
     <section className="space-y-3">
@@ -157,11 +157,11 @@ function CreationHeatmap({
   const color = scaleQuantize<string>()
     .domain([1, max(totals) ?? 1])
     .range([
-      "var(--color-primary-subtle)",
-      "var(--color-primary-soft)",
-      "var(--color-primary)",
-      "var(--color-primary-hover)",
-      "var(--color-primary-active)",
+      "color-mix(in srgb, var(--primary) 20%, var(--card))",
+      "color-mix(in srgb, var(--primary) 40%, var(--card))",
+      "color-mix(in srgb, var(--primary) 60%, var(--card))",
+      "color-mix(in srgb, var(--primary) 80%, var(--card))",
+      "var(--primary)",
     ]);
   const cells = data.map((entry) => {
     const date = new Date(`${entry.date}T00:00:00Z`);
@@ -250,9 +250,7 @@ function CreationHeatmap({
             return (
               <rect
                 key={entry.date}
-                fill={
-                  total === 0 ? "var(--color-surface-subtle)" : color(total)
-                }
+                fill={total === 0 ? "var(--muted)" : color(total)}
                 height={cell}
                 rx="2"
                 width={cell}
@@ -267,23 +265,6 @@ function CreationHeatmap({
             );
           })}
         </svg>
-      </div>
-      <div
-        className="flex items-center justify-end gap-1 text-xs text-muted-foreground"
-        aria-hidden="true"
-      >
-        <span>少ない</span>
-        {[0, 1, 2, 3, 4, 5].map((level) => (
-          <span
-            key={level}
-            className="size-2.5"
-            style={{
-              backgroundColor:
-                level === 0 ? "var(--color-surface-subtle)" : color(level),
-            }}
-          />
-        ))}
-        <span>多い</span>
       </div>
     </section>
   );
