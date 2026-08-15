@@ -1,7 +1,23 @@
 "use client";
 
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Columns3, X } from "lucide-react";
+import { Columns3, GripVertical, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -25,8 +41,9 @@ import {
 import {
   buildComparisonTimelineDomain,
   comparisonPaneHeight,
-  replaceComparedProject,
+  moveComparedProject,
 } from "@/features/comparison/comparison-layout";
+import type { ComparisonProjectOption } from "@/features/comparison/types";
 import type { TimelineItemType } from "@/features/item-types/types";
 import type { Project } from "@/features/projects/types";
 import type { RelationshipDataset } from "@/features/relationships/types";
@@ -45,6 +62,49 @@ const EMPTY_RELATIONSHIPS: RelationshipDataset = {
   relationships: [],
   entities: [],
 };
+
+function SortableComparisonProject({
+  project,
+  onRemove,
+}: {
+  project: ComparisonProjectOption;
+  onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: project.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="flex items-center gap-2 rounded-md border bg-background p-2"
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+    >
+      <Button
+        {...attributes}
+        {...listeners}
+        aria-label={`${project.name}を並べ替え`}
+        className="cursor-grab touch-none active:cursor-grabbing"
+        size="icon-sm"
+        type="button"
+        variant="ghost"
+      >
+        <GripVertical aria-hidden="true" />
+      </Button>
+      <span className="min-w-0 flex-1 truncate text-sm font-medium">
+        {project.name}
+      </span>
+      <Button
+        aria-label={`${project.name}を比較から外す`}
+        size="icon-sm"
+        type="button"
+        variant="ghost"
+        onClick={onRemove}
+      >
+        <X aria-hidden="true" />
+      </Button>
+    </div>
+  );
+}
 
 type TimelineComparisonWorkspaceProps = {
   project: Project;
@@ -74,6 +134,12 @@ export function TimelineComparisonWorkspace(
   const [draftIds, setDraftIds] = useState<string[]>([]);
   const [sharedStore] = useState(() =>
     createTimelineStore(props.project.settings),
+  );
+  const comparisonSensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
   const projectIds = useMemo(
     () =>
@@ -112,12 +178,20 @@ export function TimelineComparisonWorkspace(
   const filteredProjects = projects.filter(
     (candidate) =>
       candidate.id !== props.project.id &&
+      !draftIds.includes(candidate.id) &&
       (!normalizedSearch ||
         candidate.name.toLocaleLowerCase("ja").includes(normalizedSearch) ||
         candidate.description
           ?.toLocaleLowerCase("ja")
           .includes(normalizedSearch)),
   );
+  const projectsById = new Map(
+    projects.map((candidate) => [candidate.id, candidate]),
+  );
+  const selectedProjects = draftIds.flatMap((projectId) => {
+    const selectedProject = projectsById.get(projectId);
+    return selectedProject ? [selectedProject] : [];
+  });
 
   function writeProjectIds(nextIds: string[]) {
     const next = new URLSearchParams(searchParams.toString());
@@ -133,6 +207,18 @@ export function TimelineComparisonWorkspace(
   }
 
   const paneHeight = comparisonPaneHeight(projectIds.length + 1);
+
+  function handleComparisonDragEnd(event: DragEndEvent) {
+    const overProjectId = event.over?.id;
+    if (!overProjectId) return;
+    setDraftIds((current) =>
+      moveComparedProject(
+        current,
+        String(event.active.id),
+        String(overProjectId),
+      ),
+    );
+  }
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
@@ -159,15 +245,9 @@ export function TimelineComparisonWorkspace(
         >
           <section
             aria-label={`${props.project.name}のタイムライン`}
-            className="flex min-h-64 shrink-0 flex-col gap-2 border-b bg-background p-2"
+            className="flex min-h-64 shrink-0 flex-col border-b bg-background"
             style={{ height: paneHeight }}
           >
-            <div className="flex shrink-0 items-center justify-between gap-2">
-              <h2 className="truncate text-sm font-semibold">
-                {props.project.name}
-              </h2>
-              <Badge variant="outline">基準プロジェクト</Badge>
-            </div>
             <TimelineWorkspace
               key={`comparison-${props.project.id}`}
               {...props}
@@ -175,6 +255,8 @@ export function TimelineComparisonWorkspace(
               layoutMode="compact"
               lazyLoadSupplementalData
               readOnly
+              hideFooter
+              seamless
               timelineDomain={domain}
               timelineStore={sharedStore}
             />
@@ -186,53 +268,9 @@ export function TimelineComparisonWorkspace(
               <section
                 key={projectId}
                 aria-label={`${dataset?.project.name ?? "比較対象"}のタイムライン`}
-                className="flex min-h-64 shrink-0 flex-col gap-2 border-b bg-background p-2 last:border-b-0"
+                className="flex min-h-64 shrink-0 flex-col border-b bg-background last:border-b-0"
                 style={{ height: paneHeight }}
               >
-                <div className="flex shrink-0 items-center gap-2">
-                  <select
-                    aria-label={`比較画面${index + 2}のプロジェクト`}
-                    className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm"
-                    value={projectId}
-                    onChange={(event) =>
-                      writeProjectIds(
-                        replaceComparedProject(
-                          projectIds,
-                          index,
-                          event.target.value,
-                        ),
-                      )
-                    }
-                  >
-                    {projects.map((candidate) => (
-                      <option
-                        key={candidate.id}
-                        disabled={
-                          candidate.id === props.project.id ||
-                          (candidate.id !== projectId &&
-                            projectIds.includes(candidate.id))
-                        }
-                        value={candidate.id}
-                      >
-                        {candidate.name}
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    aria-label={`${dataset?.project.name ?? "比較画面"}を比較から外す`}
-                    size="icon-sm"
-                    variant="ghost"
-                    onClick={() =>
-                      writeProjectIds(
-                        projectIds.filter(
-                          (candidateId) => candidateId !== projectId,
-                        ),
-                      )
-                    }
-                  >
-                    <X aria-hidden="true" />
-                  </Button>
-                </div>
                 {query?.isPending ? (
                   <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
                     タイムラインを読み込んでいます…
@@ -257,6 +295,10 @@ export function TimelineComparisonWorkspace(
                     layoutMode="compact"
                     project={dataset.project}
                     readOnly
+                    hideAxisHeader
+                    hideFooter
+                    hideToolbar
+                    seamless
                     timelineDomain={domain}
                     timelineStore={sharedStore}
                   />
@@ -284,6 +326,42 @@ export function TimelineComparisonWorkspace(
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
+          {selectedProjects.length > 0 ? (
+            <section aria-labelledby="comparison-order-heading">
+              <h3
+                className="mb-2 text-sm font-medium"
+                id="comparison-order-heading"
+              >
+                表示順
+              </h3>
+              <DndContext
+                collisionDetection={closestCenter}
+                sensors={comparisonSensors}
+                onDragEnd={handleComparisonDragEnd}
+              >
+                <SortableContext
+                  items={draftIds}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-1">
+                    {selectedProjects.map((candidate) => (
+                      <SortableComparisonProject
+                        key={candidate.id}
+                        project={candidate}
+                        onRemove={() =>
+                          setDraftIds((current) =>
+                            current.filter(
+                              (projectId) => projectId !== candidate.id,
+                            ),
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </section>
+          ) : null}
           <div className="styled-scrollbar max-h-80 space-y-1 overflow-y-auto rounded-md border p-2">
             {projectsLoading ? (
               <p className="p-3 text-sm text-muted-foreground">
@@ -302,15 +380,9 @@ export function TimelineComparisonWorkspace(
                   <input
                     className="mt-1 size-4 accent-primary"
                     type="checkbox"
-                    checked={draftIds.includes(candidate.id)}
-                    onChange={(event) =>
-                      setDraftIds((current) =>
-                        event.target.checked
-                          ? [...current, candidate.id]
-                          : current.filter(
-                              (projectId) => projectId !== candidate.id,
-                            ),
-                      )
+                    checked={false}
+                    onChange={() =>
+                      setDraftIds((current) => [...current, candidate.id])
                     }
                   />
                   <span className="min-w-0">

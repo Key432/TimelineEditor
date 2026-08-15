@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   comparisonPaneHeight,
-  replaceComparedProject,
+  moveComparedProject,
 } from "@/features/comparison/comparison-layout";
 
 const ids = [
@@ -20,14 +20,13 @@ describe("Phase L18 timeline comparison layout", () => {
     expect(comparisonPaneHeight(5)).toBe("25%");
   });
 
-  it("replaces a lower pane without allowing duplicate projects", () => {
-    expect(replaceComparedProject(ids.slice(0, 3), 1, ids[3]!)).toEqual([
+  it("reorders compared projects while preserving every selection", () => {
+    expect(moveComparedProject(ids, ids[0]!, ids[2]!)).toEqual([
+      ids[1],
+      ids[2],
       ids[0],
       ids[3],
-      ids[2],
     ]);
-    expect(replaceComparedProject(ids.slice(0, 3), 1, ids[0]!)).toEqual(
-      ids.slice(0, 3),
-    );
+    expect(moveComparedProject(ids, ids[0]!, "missing")).toEqual(ids);
   });
 });

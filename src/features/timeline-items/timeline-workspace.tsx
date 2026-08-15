@@ -249,6 +249,10 @@ function TimelineWorkspaceContent({
   readOnly = false,
   fixedLayoutMode = false,
   timelineDomain,
+  hideToolbar = false,
+  hideAxisHeader = false,
+  hideFooter = false,
+  seamless = false,
 }: {
   project: Project;
   initialItems: TimelineItemSummary[];
@@ -267,6 +271,10 @@ function TimelineWorkspaceContent({
   readOnly?: boolean;
   fixedLayoutMode?: boolean;
   timelineDomain?: TimelineDomain;
+  hideToolbar?: boolean;
+  hideAxisHeader?: boolean;
+  hideFooter?: boolean;
+  seamless?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<"create" | string | null>(null);
@@ -603,7 +611,8 @@ function TimelineWorkspaceContent({
     <div
       ref={workspaceRef}
       className={cn(
-        "flex min-h-0 min-w-0 flex-1 flex-col gap-3 bg-background",
+        "flex min-h-0 min-w-0 flex-1 flex-col bg-background",
+        seamless ? "gap-0" : "gap-3",
         isMaximized && "fixed inset-0 z-40 p-3",
       )}
       data-maximized={isMaximized}
@@ -611,289 +620,295 @@ function TimelineWorkspaceContent({
       data-timeline-workspace="true"
       data-testid="timeline-workspace"
     >
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2 shadow-xs">
-        {!readOnly ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button disabled={currentItemTypes.length === 0}>
-                <Plus aria-hidden="true" className="size-4" />
-                アイテムを追加
-                <ChevronDown aria-hidden="true" className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="min-w-56">
-              <DropdownMenuItem
-                className="gap-2 px-3 py-2.5"
-                onSelect={() => setEditor("create")}
-              >
-                <Rows3 aria-hidden="true" />
-                タイムラインを追加
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="gap-2 px-3 py-2.5"
-                disabled={!items.some((item) => item.temporalType === "range")}
-                onSelect={() => setEventDraft({})}
-              >
-                <CalendarPlus aria-hidden="true" />
-                イベントを追加
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-        {!readOnly ? (
-          <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
-        ) : null}
-        {fixedLayoutMode ? (
-          <Badge variant="secondary">コンパクト表示（比較中）</Badge>
-        ) : (
-          <div
-            aria-label="表示モード"
-            className="flex h-8 items-center rounded-lg bg-muted p-[3px]"
-            role="group"
-          >
-            <Button
-              aria-pressed={
-                workspaceView === "timeline" && layoutMode === "row"
-              }
-              className="h-6 rounded-md px-2"
-              size="sm"
-              variant={
-                workspaceView === "timeline" && layoutMode === "row"
-                  ? "secondary"
-                  : "ghost"
-              }
-              onClick={() => {
-                setWorkspaceView("timeline");
-                onLayoutModeChange?.("row");
-              }}
+      {!hideToolbar ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2 shadow-xs">
+          {!readOnly ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button disabled={currentItemTypes.length === 0}>
+                  <Plus aria-hidden="true" className="size-4" />
+                  アイテムを追加
+                  <ChevronDown aria-hidden="true" className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="min-w-56">
+                <DropdownMenuItem
+                  className="gap-2 px-3 py-2.5"
+                  onSelect={() => setEditor("create")}
+                >
+                  <Rows3 aria-hidden="true" />
+                  タイムラインを追加
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2 px-3 py-2.5"
+                  disabled={
+                    !items.some((item) => item.temporalType === "range")
+                  }
+                  onSelect={() => setEventDraft({})}
+                >
+                  <CalendarPlus aria-hidden="true" />
+                  イベントを追加
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+          {!readOnly ? (
+            <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+          ) : null}
+          {fixedLayoutMode ? (
+            <Badge variant="secondary">コンパクト表示（比較中）</Badge>
+          ) : (
+            <div
+              aria-label="表示モード"
+              className="flex h-8 items-center rounded-lg bg-muted p-[3px]"
+              role="group"
             >
-              <Rows3 aria-hidden="true" />
-              行表示
-            </Button>
-            <Button
-              aria-pressed={
-                workspaceView === "timeline" && layoutMode === "compact"
-              }
-              className="h-6 rounded-md px-2"
-              size="sm"
-              variant={
-                workspaceView === "timeline" && layoutMode === "compact"
-                  ? "secondary"
-                  : "ghost"
-              }
-              onClick={() => {
-                setWorkspaceView("timeline");
-                onLayoutModeChange?.("compact");
-              }}
-            >
-              <LayoutGrid aria-hidden="true" />
-              コンパクト
-            </Button>
-            {!readOnly ? (
               <Button
                 aria-pressed={
-                  workspaceView === "timeline" && layoutMode === "table"
+                  workspaceView === "timeline" && layoutMode === "row"
                 }
                 className="h-6 rounded-md px-2"
                 size="sm"
                 variant={
-                  workspaceView === "timeline" && layoutMode === "table"
+                  workspaceView === "timeline" && layoutMode === "row"
                     ? "secondary"
                     : "ghost"
                 }
                 onClick={() => {
                   setWorkspaceView("timeline");
-                  onLayoutModeChange?.("table");
+                  onLayoutModeChange?.("row");
                 }}
               >
-                <Table2 aria-hidden="true" />
-                テーブル
+                <Rows3 aria-hidden="true" />
+                行表示
               </Button>
-            ) : null}
-            <Button
-              aria-pressed={workspaceView === "network"}
-              className="h-6 rounded-md px-2"
-              size="sm"
-              variant={workspaceView === "network" ? "secondary" : "ghost"}
-              onClick={() => setWorkspaceView("network")}
-            >
-              <Network aria-hidden="true" />
-              関連ネットワーク
-            </Button>
-          </div>
-        )}
-        {workspaceView === "timeline" ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button aria-label="配置設定" size="sm" variant="outline">
-                <ArrowUpDown aria-hidden="true" className="size-4" />
-                {layoutMode === "compact"
-                  ? "自動配置"
-                  : TIMELINE_SORT_LABELS[sortMode]}
-                {layoutMode !== "compact" ? (
-                  <span className="text-muted-foreground">
-                    {direction === "asc" ? "昇順" : "降順"}
-                  </span>
-                ) : null}
-                {groupByType ? (
-                  <Badge className="h-5 px-1.5" variant="secondary">
-                    種別
-                  </Badge>
-                ) : null}
-                <ChevronDown aria-hidden="true" className="size-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-56">
-              <DropdownMenuLabel>配置</DropdownMenuLabel>
-              {layoutMode !== "compact" ? (
-                <>
-                  <DropdownMenuLabel>並び順</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={sortMode}
-                    onValueChange={(value) =>
-                      setSortMode(value as TimelineSortMode)
-                    }
-                  >
-                    {TIMELINE_SORT_MODES.map((mode) => (
-                      <DropdownMenuRadioItem key={mode} value={mode}>
-                        {TIMELINE_SORT_LABELS[mode]}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>方向</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={direction}
-                    onValueChange={(value) =>
-                      setDirection(value as "asc" | "desc")
-                    }
-                  >
-                    <DropdownMenuRadioItem value="asc">
-                      昇順
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="desc">
-                      降順
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                  <DropdownMenuSeparator />
-                </>
-              ) : (
-                <DropdownMenuItem disabled>
-                  開始日順でレーンへ自動配置
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuCheckboxItem
-                checked={groupByType}
-                onCheckedChange={(checked) => setGroupByType(checked === true)}
-              >
-                タイムライン種別でグループ化
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-        {workspaceView === "timeline" ? (
-          <Button
-            aria-pressed={filterPanelOpen}
-            size="sm"
-            variant={activeFilters ? "secondary" : "outline"}
-            onClick={() => setFilterPanelOpen(true)}
-          >
-            <SlidersHorizontal aria-hidden="true" className="size-4" />
-            フィルター
-            {activeFilters ? (
-              <Badge className="h-5 px-1.5" variant="outline">
-                {filterResult.matchedIds.size}
-              </Badge>
-            ) : null}
-          </Button>
-        ) : null}
-        {workspaceView === "timeline" ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Layers3 aria-hidden="true" className="size-4" />
-                表示
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-56">
-              <DropdownMenuLabel>年代背景</DropdownMenuLabel>
-              {backgroundLayers.length === 0 ? (
-                <DropdownMenuItem disabled>
-                  背景レイヤーはありません
-                </DropdownMenuItem>
-              ) : (
-                backgroundLayers.map((layer) => (
-                  <DropdownMenuCheckboxItem
-                    key={layer.id}
-                    checked={visibleBackgroundIdSet.has(layer.id)}
-                    onCheckedChange={(checked) =>
-                      setVisibleBackgroundLayerIds((current) =>
-                        checked
-                          ? [...new Set([...current, layer.id])]
-                          : current.filter((id) => id !== layer.id),
-                      )
-                    }
-                  >
-                    {layer.name}
-                  </DropdownMenuCheckboxItem>
-                ))
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>関係線の表示</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={relationshipDisplayMode}
-                onValueChange={(value) =>
-                  setRelationshipDisplayMode(value as RelationshipDisplayMode)
+              <Button
+                aria-pressed={
+                  workspaceView === "timeline" && layoutMode === "compact"
                 }
+                className="h-6 rounded-md px-2"
+                size="sm"
+                variant={
+                  workspaceView === "timeline" && layoutMode === "compact"
+                    ? "secondary"
+                    : "ghost"
+                }
+                onClick={() => {
+                  setWorkspaceView("timeline");
+                  onLayoutModeChange?.("compact");
+                }}
               >
-                <DropdownMenuRadioItem value="standard">
-                  標準
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="all">
-                  すべて表示
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="hidden">
-                  すべて非表示
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-        <TimelineViewControls
-          backgroundLayerIds={visibleBackgroundLayerIds}
-          canSaveViews={!readOnly}
-          filters={filters}
-          fullscreenSupported={fullscreenSupported}
-          groupByType={groupByType}
-          isMaximized={isMaximized}
-          layoutMode={layoutMode}
-          projectId={project.id}
-          sortDirection={direction}
-          sortMode={sortMode}
-          onFiltersChange={onFiltersChange}
-          onGroupByTypeChange={setGroupByType}
-          onLayoutModeChange={onLayoutModeChange}
-          onBackgroundLayerIdsChange={setVisibleBackgroundLayerIds}
-          onSortChange={(mode, nextDirection) => {
-            setSortMode(mode);
-            setDirection(nextDirection);
-          }}
-          onToggleFullscreen={() => {
-            const element = workspaceRef.current;
-            if (!element) return;
-            if (document.fullscreenElement) void document.exitFullscreen();
-            else void element.requestFullscreen();
-          }}
-          onToggleMaximized={() => setIsMaximized((value) => !value)}
-        />
-        <Badge className="ml-auto" variant="outline">
-          {workspaceView === "network"
-            ? `${items.length + events.length}ノード`
-            : activeFilters
-              ? `${filterResult.matchedIds.size} / ${items.length}項目`
-              : `${items.length}項目`}
-        </Badge>
-      </div>
+                <LayoutGrid aria-hidden="true" />
+                コンパクト
+              </Button>
+              {!readOnly ? (
+                <Button
+                  aria-pressed={
+                    workspaceView === "timeline" && layoutMode === "table"
+                  }
+                  className="h-6 rounded-md px-2"
+                  size="sm"
+                  variant={
+                    workspaceView === "timeline" && layoutMode === "table"
+                      ? "secondary"
+                      : "ghost"
+                  }
+                  onClick={() => {
+                    setWorkspaceView("timeline");
+                    onLayoutModeChange?.("table");
+                  }}
+                >
+                  <Table2 aria-hidden="true" />
+                  テーブル
+                </Button>
+              ) : null}
+              <Button
+                aria-pressed={workspaceView === "network"}
+                className="h-6 rounded-md px-2"
+                size="sm"
+                variant={workspaceView === "network" ? "secondary" : "ghost"}
+                onClick={() => setWorkspaceView("network")}
+              >
+                <Network aria-hidden="true" />
+                関連ネットワーク
+              </Button>
+            </div>
+          )}
+          {workspaceView === "timeline" ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button aria-label="配置設定" size="sm" variant="outline">
+                  <ArrowUpDown aria-hidden="true" className="size-4" />
+                  {layoutMode === "compact"
+                    ? "自動配置"
+                    : TIMELINE_SORT_LABELS[sortMode]}
+                  {layoutMode !== "compact" ? (
+                    <span className="text-muted-foreground">
+                      {direction === "asc" ? "昇順" : "降順"}
+                    </span>
+                  ) : null}
+                  {groupByType ? (
+                    <Badge className="h-5 px-1.5" variant="secondary">
+                      種別
+                    </Badge>
+                  ) : null}
+                  <ChevronDown aria-hidden="true" className="size-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-56">
+                <DropdownMenuLabel>配置</DropdownMenuLabel>
+                {layoutMode !== "compact" ? (
+                  <>
+                    <DropdownMenuLabel>並び順</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={sortMode}
+                      onValueChange={(value) =>
+                        setSortMode(value as TimelineSortMode)
+                      }
+                    >
+                      {TIMELINE_SORT_MODES.map((mode) => (
+                        <DropdownMenuRadioItem key={mode} value={mode}>
+                          {TIMELINE_SORT_LABELS[mode]}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>方向</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={direction}
+                      onValueChange={(value) =>
+                        setDirection(value as "asc" | "desc")
+                      }
+                    >
+                      <DropdownMenuRadioItem value="asc">
+                        昇順
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="desc">
+                        降順
+                      </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                    <DropdownMenuSeparator />
+                  </>
+                ) : (
+                  <DropdownMenuItem disabled>
+                    開始日順でレーンへ自動配置
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuCheckboxItem
+                  checked={groupByType}
+                  onCheckedChange={(checked) =>
+                    setGroupByType(checked === true)
+                  }
+                >
+                  タイムライン種別でグループ化
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+          {workspaceView === "timeline" ? (
+            <Button
+              aria-pressed={filterPanelOpen}
+              size="sm"
+              variant={activeFilters ? "secondary" : "outline"}
+              onClick={() => setFilterPanelOpen(true)}
+            >
+              <SlidersHorizontal aria-hidden="true" className="size-4" />
+              フィルター
+              {activeFilters ? (
+                <Badge className="h-5 px-1.5" variant="outline">
+                  {filterResult.matchedIds.size}
+                </Badge>
+              ) : null}
+            </Button>
+          ) : null}
+          {workspaceView === "timeline" ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Layers3 aria-hidden="true" className="size-4" />
+                  表示
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-56">
+                <DropdownMenuLabel>年代背景</DropdownMenuLabel>
+                {backgroundLayers.length === 0 ? (
+                  <DropdownMenuItem disabled>
+                    背景レイヤーはありません
+                  </DropdownMenuItem>
+                ) : (
+                  backgroundLayers.map((layer) => (
+                    <DropdownMenuCheckboxItem
+                      key={layer.id}
+                      checked={visibleBackgroundIdSet.has(layer.id)}
+                      onCheckedChange={(checked) =>
+                        setVisibleBackgroundLayerIds((current) =>
+                          checked
+                            ? [...new Set([...current, layer.id])]
+                            : current.filter((id) => id !== layer.id),
+                        )
+                      }
+                    >
+                      {layer.name}
+                    </DropdownMenuCheckboxItem>
+                  ))
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>関係線の表示</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={relationshipDisplayMode}
+                  onValueChange={(value) =>
+                    setRelationshipDisplayMode(value as RelationshipDisplayMode)
+                  }
+                >
+                  <DropdownMenuRadioItem value="standard">
+                    標準
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="all">
+                    すべて表示
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="hidden">
+                    すべて非表示
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+          <TimelineViewControls
+            backgroundLayerIds={visibleBackgroundLayerIds}
+            canSaveViews={!readOnly}
+            filters={filters}
+            fullscreenSupported={fullscreenSupported}
+            groupByType={groupByType}
+            isMaximized={isMaximized}
+            layoutMode={layoutMode}
+            projectId={project.id}
+            sortDirection={direction}
+            sortMode={sortMode}
+            onFiltersChange={onFiltersChange}
+            onGroupByTypeChange={setGroupByType}
+            onLayoutModeChange={onLayoutModeChange}
+            onBackgroundLayerIdsChange={setVisibleBackgroundLayerIds}
+            onSortChange={(mode, nextDirection) => {
+              setSortMode(mode);
+              setDirection(nextDirection);
+            }}
+            onToggleFullscreen={() => {
+              const element = workspaceRef.current;
+              if (!element) return;
+              if (document.fullscreenElement) void document.exitFullscreen();
+              else void element.requestFullscreen();
+            }}
+            onToggleMaximized={() => setIsMaximized((value) => !value)}
+          />
+          <Badge className="ml-auto" variant="outline">
+            {workspaceView === "network"
+              ? `${items.length + events.length}ノード`
+              : activeFilters
+                ? `${filterResult.matchedIds.size} / ${items.length}項目`
+                : `${items.length}項目`}
+          </Badge>
+        </div>
+      ) : null}
 
       {workspaceView === "network" ? (
         <RelationshipNetwork
@@ -998,6 +1013,9 @@ function TimelineWorkspaceContent({
                 showItemType={!groupByType}
                 readOnly={readOnly}
                 domain={timelineDomain}
+                hideAxisHeader={hideAxisHeader}
+                hideFooter={hideFooter}
+                seamless={seamless}
                 sortDisabled={
                   readOnly || sortMode !== "manual" || layoutMode === "compact"
                 }
@@ -1202,6 +1220,10 @@ export function TimelineWorkspace(props: {
   fixedLayoutMode?: boolean;
   timelineDomain?: TimelineDomain;
   timelineStore?: TimelineStore;
+  hideToolbar?: boolean;
+  hideAxisHeader?: boolean;
+  hideFooter?: boolean;
+  seamless?: boolean;
 }) {
   const [uncontrolledLayoutMode, setUncontrolledLayoutMode] =
     useState<TimelineLayoutMode>(props.layoutMode ?? "row");

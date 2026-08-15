@@ -835,6 +835,9 @@ export function TimelineViewport({
   relationshipDisplayMode,
   readOnly = false,
   domain,
+  hideAxisHeader = false,
+  hideFooter = false,
+  seamless = false,
 }: {
   project: Project;
   groups: TimelineDisplayGroup[];
@@ -859,9 +862,13 @@ export function TimelineViewport({
   relationshipDisplayMode: RelationshipDisplayMode;
   readOnly?: boolean;
   domain?: TimelineDomain;
+  hideAxisHeader?: boolean;
+  hideFooter?: boolean;
+  seamless?: boolean;
 }) {
   const dimmed = dimmedItemIds ?? EMPTY_ID_SET;
   const highlightedEvents = highlightedEventIds ?? EMPTY_ID_SET;
+  const axisHeight = hideAxisHeader ? 0 : AXIS_HEIGHT;
   const viewportRef = useRef<HTMLDivElement>(null);
   const pointerRef = useRef<{
     x: number;
@@ -1716,7 +1723,8 @@ export function TimelineViewport({
             ref={viewportRef}
             aria-label="タイムライン表示領域"
             className={cn(
-              "styled-scrollbar relative isolate h-full min-h-48 touch-none overflow-auto rounded-lg border bg-card select-none",
+              "styled-scrollbar relative isolate h-full min-h-48 touch-none overflow-auto bg-card select-none",
+              seamless ? "rounded-none border-0" : "rounded-lg border",
               isPanning && "cursor-grabbing",
             )}
             data-testid="timeline-viewport"
@@ -1736,7 +1744,7 @@ export function TimelineViewport({
                   layoutMode === "row"
                     ? handleWidth + infoWidth + canvasWidth + actionWidth
                     : canvasWidth,
-                height: AXIS_HEIGHT + virtualizer.getTotalSize(),
+                height: axisHeight + virtualizer.getTotalSize(),
               }}
             >
               {pointerGuide ? (
@@ -1751,67 +1759,71 @@ export function TimelineViewport({
                   </span>
                 </div>
               ) : null}
-              <div
-                className="sticky top-0 z-[70] flex h-12 border-b bg-muted/95 text-xs font-semibold text-slate-700 backdrop-blur-sm"
-                data-testid="timeline-axis-header"
-              >
-                {layoutMode === "row" ? (
-                  <>
-                    {!readOnly ? (
-                      <span
-                        className="sticky left-0 z-[70] shrink-0 border-r bg-muted"
-                        style={{ width: handleWidth }}
-                      />
-                    ) : null}
-                    <span
-                      className={cn(
-                        "sticky z-[70] shrink-0 border-r bg-muted py-4",
-                        mobileLayout ? "px-2" : "px-3",
-                      )}
-                      style={{ left: handleWidth, width: infoWidth }}
-                    >
-                      {mobileLayout ? "項目" : "タイムライン"}
-                    </span>
-                  </>
-                ) : null}
+              {!hideAxisHeader ? (
                 <div
-                  className="relative shrink-0 overflow-hidden"
-                  style={{ width: canvasWidth }}
-                  data-timeline-pan-surface="true"
+                  className="sticky top-0 z-[70] flex h-12 border-b bg-muted/95 text-xs font-semibold text-slate-700 backdrop-blur-sm"
+                  data-testid="timeline-axis-header"
                 >
-                  {ticks.map((tick) => {
-                    const left =
-                      HORIZONTAL_PADDING +
-                      (tick.ordinal - bounds.domainStart) * pixelsPerDay;
-                    return (
+                  {layoutMode === "row" ? (
+                    <>
+                      {!readOnly ? (
+                        <span
+                          className="sticky left-0 z-[70] shrink-0 border-r bg-muted"
+                          style={{ width: handleWidth }}
+                        />
+                      ) : null}
                       <span
-                        key={`${unit}-${tick.ordinal}`}
                         className={cn(
-                          "absolute inset-y-0 border-l",
-                          tick.major ? "border-foreground/35" : "border-border",
+                          "sticky z-[70] shrink-0 border-r bg-muted py-4",
+                          mobileLayout ? "px-2" : "px-3",
                         )}
-                        style={{ left }}
+                        style={{ left: handleWidth, width: infoWidth }}
                       >
-                        {tick.label ? (
-                          <span className="absolute top-1 left-1 whitespace-nowrap">
-                            {tick.label}
-                          </span>
-                        ) : null}
+                        {mobileLayout ? "項目" : "タイムライン"}
                       </span>
-                    );
-                  })}
+                    </>
+                  ) : null}
+                  <div
+                    className="relative shrink-0 overflow-hidden"
+                    style={{ width: canvasWidth }}
+                    data-timeline-pan-surface="true"
+                  >
+                    {ticks.map((tick) => {
+                      const left =
+                        HORIZONTAL_PADDING +
+                        (tick.ordinal - bounds.domainStart) * pixelsPerDay;
+                      return (
+                        <span
+                          key={`${unit}-${tick.ordinal}`}
+                          className={cn(
+                            "absolute inset-y-0 border-l",
+                            tick.major
+                              ? "border-foreground/35"
+                              : "border-border",
+                          )}
+                          style={{ left }}
+                        >
+                          {tick.label ? (
+                            <span className="absolute top-1 left-1 whitespace-nowrap">
+                              {tick.label}
+                            </span>
+                          ) : null}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {layoutMode === "row" && !readOnly ? (
+                    <span
+                      className="sticky right-0 z-[70] shrink-0 border-l bg-muted"
+                      style={{ width: actionWidth }}
+                    />
+                  ) : null}
                 </div>
-                {layoutMode === "row" && !readOnly ? (
-                  <span
-                    className="sticky right-0 z-[70] shrink-0 border-l bg-muted"
-                    style={{ width: actionWidth }}
-                  />
-                ) : null}
-              </div>
+              ) : null}
 
               <div
                 className="absolute right-0 left-0"
-                style={{ top: AXIS_HEIGHT }}
+                style={{ top: axisHeight }}
               >
                 <RelationshipLayer
                   anchors={relationshipAnchors}
@@ -1986,7 +1998,7 @@ export function TimelineViewport({
                   className="pointer-events-none absolute z-[5] overflow-hidden"
                   data-testid="timeline-background-layers"
                   style={{
-                    top: AXIS_HEIGHT,
+                    top: axisHeight,
                     bottom: 0,
                     left: layoutMode === "row" ? handleWidth + infoWidth : 0,
                     width: canvasWidth,
@@ -2056,7 +2068,7 @@ export function TimelineViewport({
               className="pointer-events-none absolute z-30 overflow-hidden"
               data-testid="timeline-period-highlight-layer"
               style={{
-                top: AXIS_HEIGHT + 1,
+                top: axisHeight + 1,
                 right: (layoutMode === "row" ? actionWidth : 0) + 1,
                 bottom: 1,
                 left: (layoutMode === "row" ? handleWidth + infoWidth : 0) + 1,
@@ -2278,14 +2290,16 @@ export function TimelineViewport({
             ) : null}
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          {layoutMode === "compact"
-            ? "上下左右へドラッグ、スクロールバー、トラックパッドで移動できます。"
-            : "横方向へドラッグ、スクロールバー、トラックパッドで移動できます。"}
-          表示中 {visibleItemCount} / {allItems.length}{" "}
-          {layoutMode === "compact" ? "項目" : "行"} ・ 目盛り {unit} ・
-          Alt＋ホイールでカーソル中心にズーム
-        </p>
+        {!hideFooter ? (
+          <p className="text-xs text-muted-foreground">
+            {layoutMode === "compact"
+              ? "上下左右へドラッグ、スクロールバー、トラックパッドで移動できます。"
+              : "横方向へドラッグ、スクロールバー、トラックパッドで移動できます。"}
+            表示中 {visibleItemCount} / {allItems.length}{" "}
+            {layoutMode === "compact" ? "項目" : "行"} ・ 目盛り {unit} ・
+            Alt＋ホイールでカーソル中心にズーム
+          </p>
+        ) : null}
       </div>
     </TooltipProvider>
   );

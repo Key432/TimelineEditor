@@ -21,15 +21,19 @@ export function comparisonPaneHeight(paneCount: number) {
   return `${100 / Math.min(Math.max(paneCount, 1), 4)}%`;
 }
 
-export function replaceComparedProject(
+export function moveComparedProject(
   projectIds: string[],
-  index: number,
-  nextProjectId: string,
+  activeProjectId: string,
+  overProjectId: string,
 ) {
-  if (projectIds.includes(nextProjectId)) return projectIds;
-  return projectIds.map((projectId, currentIndex) =>
-    currentIndex === index ? nextProjectId : projectId,
-  );
+  const activeIndex = projectIds.indexOf(activeProjectId);
+  const overIndex = projectIds.indexOf(overProjectId);
+  if (activeIndex < 0 || overIndex < 0 || activeIndex === overIndex)
+    return projectIds;
+  const nextIds = [...projectIds];
+  const [movedProjectId] = nextIds.splice(activeIndex, 1);
+  nextIds.splice(overIndex, 0, movedProjectId!);
+  return nextIds;
 }
 
 export function buildComparisonTimelineDomain(

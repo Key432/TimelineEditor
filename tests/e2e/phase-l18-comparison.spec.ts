@@ -85,6 +85,7 @@ async function createProject(
 }
 
 test("compares more than three projects inside timeline with synchronized interaction", async ({
+  browserName,
   page,
 }) => {
   expect(
@@ -122,7 +123,12 @@ test("compares more than three projects inside timeline with synchronized intera
 
   const stack = page.getByTestId("timeline-comparison-stack");
   await expect(stack.getByRole("region")).toHaveCount(5);
-  await expect(page.getByText("コンパクト表示（比較中）")).toHaveCount(5);
+  await expect(page.getByText("コンパクト表示（比較中）")).toHaveCount(1);
+  await expect(page.getByTestId("timeline-axis-header")).toHaveCount(1);
+  await expect(
+    page.getByText(/上下左右へドラッグ、スクロールバー/),
+  ).toHaveCount(0);
+  await expect(page.getByLabel(/比較画面\d+のプロジェクト/)).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: /アイテムを追加/ }),
   ).toHaveCount(0);
@@ -160,9 +166,28 @@ test("compares more than three projects inside timeline with synchronized intera
   await viewports.first().hover({ position: { x: 240, y: 80 } });
   await expect(page.getByTestId("timeline-pointer-guide")).toHaveCount(5);
 
-  await page.getByLabel("比較画面2のプロジェクト").selectOption(projectIds[5]);
-  await expect(page.getByLabel("比較画面2のプロジェクト")).toHaveValue(
-    projectIds[5]!,
+  await page.getByRole("button", { name: "他プロジェクトと比較" }).click();
+  const firstHandle = dialog.getByRole("button", {
+    name: "比較プロジェクト2を並べ替え",
+  });
+  const secondHandle = dialog.getByRole("button", {
+    name: "比較プロジェクト3を並べ替え",
+  });
+  if (browserName === "firefox") {
+    await firstHandle.focus();
+    await page.keyboard.press("Space");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Space");
+  } else {
+    await firstHandle.dragTo(secondHandle);
+  }
+  await dialog.getByRole("button", { name: "4件を比較" }).click();
+  await expect(stack.getByRole("region").nth(1)).toHaveAttribute(
+    "aria-label",
+    "比較プロジェクト3のタイムライン",
   );
-  await expect(page.getByText("出来事6")).toBeVisible();
+  await expect(stack.getByRole("region").nth(2)).toHaveAttribute(
+    "aria-label",
+    "比較プロジェクト2のタイムライン",
+  );
 });
