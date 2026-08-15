@@ -122,26 +122,14 @@ async function toggleTypeGrouping(user: TestUser) {
   await user.click(screen.getByRole("button", { name: "配置設定" }));
   await user.click(
     screen.getByRole("menuitemcheckbox", {
-      name: "タイムライン種別でグループ化",
+      name: "グループ化",
     }),
   );
 }
 
 async function chooseDensity(user: TestUser, name: "標準" | "高密度") {
-  if (!screen.queryByRole("button", { name: "表示密度設定" })) {
-    await user.click(
-      screen.getByRole("button", { name: "タイムライン操作を開く" }),
-    );
-  }
   await user.click(screen.getByRole("button", { name: "表示密度設定" }));
   await user.click(screen.getByRole("menuitemradio", { name }));
-}
-
-async function openFloatingControls(user: TestUser) {
-  const open = screen.queryByRole("button", {
-    name: "タイムライン操作を開く",
-  });
-  if (open) await user.click(open);
 }
 
 describe("TimelineWorkspace", () => {
@@ -270,7 +258,7 @@ describe("TimelineWorkspace", () => {
     );
   });
 
-  it("keeps the floating controls collapsed until the round controller is opened", async () => {
+  it("integrates timeline controls directly into the main toolbar", async () => {
     const user = userEvent.setup();
     render(
       <QueryProvider>
@@ -285,16 +273,15 @@ describe("TimelineWorkspace", () => {
       </QueryProvider>,
     );
 
-    const controller = screen.getByRole("button", {
-      name: "タイムライン操作を開く",
-    });
-    expect(controller).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByTestId("timeline-floating-controls")).toBeNull();
-    await user.click(controller);
+    expect(screen.getByTestId("timeline-toolbar-controls")).toBeVisible();
+    expect(screen.getByLabelText("ズーム段階")).toHaveAttribute("max", "10");
     expect(
-      screen.getByRole("button", { name: "タイムライン操作を閉じる" }),
-    ).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByTestId("timeline-floating-controls")).toBeVisible();
+      screen.queryByRole("button", { name: "タイムライン操作を開く" }),
+    ).toBeNull();
+    await user.click(screen.getByRole("button", { name: "期間強調表示" }));
+    expect(screen.getByRole("region", { name: "期間強調" })).toBeVisible();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("region", { name: "期間強調" })).toBeNull();
   });
 
   it("removes editing controls in read-only mode", () => {
@@ -576,7 +563,9 @@ describe("TimelineWorkspace", () => {
       screen.getByTestId("timeline-row-33333333-3333-4333-8333-333333333333"),
     ).toHaveStyle({ height: "44px" });
     await user.click(screen.getByRole("button", { name: "拡大" }));
-    expect(screen.getByText("世紀", { selector: "span" })).toBeInTheDocument();
+    expect(
+      screen.getByText("世紀・広域", { selector: "span" }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "全体に合わせる" }));
     expect(screen.getByLabelText("ズーム段階")).toHaveValue("0");
   });
@@ -977,7 +966,6 @@ describe("TimelineWorkspace", () => {
     const laneIdsBeforeZoom = screen
       .getAllByTestId(/^compact-lane-/)
       .map((lane) => lane.dataset.testid);
-    await openFloatingControls(user);
     await user.click(screen.getByRole("button", { name: "拡大" }));
     expect(
       screen

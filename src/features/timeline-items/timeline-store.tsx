@@ -40,11 +40,11 @@ type TimelineState = {
 function zoomLevelForPreset(preset: ProjectSettings["initialZoomPreset"]) {
   switch (preset) {
     case "century":
-      return 1;
-    case "decade":
       return 2;
+    case "decade":
+      return 4;
     case "year":
-      return 3;
+      return 6;
     case "fit-range":
       return 0;
   }

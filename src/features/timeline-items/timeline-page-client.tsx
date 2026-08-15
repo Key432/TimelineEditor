@@ -163,6 +163,8 @@ export function TimelinePageClient({
   const queryClient = useQueryClient();
   const [activeProject, setActiveProject] = useState(project);
   const [panel, setPanel] = useState<Panel>(null);
+  const [comparisonActionsContainer, setComparisonActionsContainer] =
+    useState<HTMLDivElement | null>(null);
   const filters = useMemo(
     () => parseTimelineFilters(new URLSearchParams(searchParams.toString())),
     [searchParams],
@@ -197,47 +199,50 @@ export function TimelinePageClient({
             />
           ) : null}
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline">
-              <Ellipsis aria-hidden="true" className="size-4" />
-              管理メニュー
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-72">
-            <DropdownMenuLabel>データを整える</DropdownMenuLabel>
-            <DropdownMenuGroup>
-              <DropdownMenuItem onSelect={() => setPanel("analysis")}>
-                <ShieldCheck aria-hidden="true" />
-                データ品質・重複統合
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setPanel("classification")}>
-                <Shapes aria-hidden="true" />
-                分類・関係
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setPanel("sources")}>
-                <BookOpen aria-hidden="true" />
-                出典・参考文献
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>表示とプロジェクト</DropdownMenuLabel>
-            <DropdownMenuGroup>
-              <DropdownMenuItem onSelect={() => setPanel("backgrounds")}>
-                <Layers3 aria-hidden="true" />
-                年代背景
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setPanel("settings")}>
-                <Settings aria-hidden="true" />
-                プロジェクト設定・共有
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setPanel("import-export")}>
-                <FileArchive aria-hidden="true" />
-                インポート／エクスポート
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div ref={setComparisonActionsContainer} className="contents" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline">
+                <Ellipsis aria-hidden="true" className="size-4" />
+                管理メニュー
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-72">
+              <DropdownMenuLabel>データを整える</DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuItem onSelect={() => setPanel("analysis")}>
+                  <ShieldCheck aria-hidden="true" />
+                  データ品質・重複統合
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setPanel("classification")}>
+                  <Shapes aria-hidden="true" />
+                  分類・関係
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setPanel("sources")}>
+                  <BookOpen aria-hidden="true" />
+                  出典・参考文献
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>表示とプロジェクト</DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuItem onSelect={() => setPanel("backgrounds")}>
+                  <Layers3 aria-hidden="true" />
+                  年代背景
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setPanel("settings")}>
+                  <Settings aria-hidden="true" />
+                  プロジェクト設定・共有
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setPanel("import-export")}>
+                  <FileArchive aria-hidden="true" />
+                  インポート／エクスポート
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
 
       <TimelineComparisonWorkspace
@@ -251,6 +256,7 @@ export function TimelinePageClient({
         layoutMode={layoutMode}
         filters={filters}
         project={activeProject}
+        headerActionsContainer={comparisonActionsContainer}
         onFiltersChange={(nextFilters) => {
           const next = writeTimelineFilters(
             new URLSearchParams(searchParams.toString()),

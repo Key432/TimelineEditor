@@ -45,6 +45,10 @@ describe("AppShell", () => {
       screen.getAllByRole("link", { name: "すべてのプロジェクト" }).length,
     ).toBeGreaterThan(0);
     expect(screen.getByText("reader@example.com")).toBeInTheDocument();
+    const desktopAside = document.querySelector("aside");
+    expect(
+      within(desktopAside as HTMLElement).getByRole("link", { name: "ヘルプ" }),
+    ).toHaveAttribute("href", "/help");
 
     const logout = screen.getByRole("button", { name: "ログアウト" });
     logout.focus();
@@ -140,6 +144,9 @@ describe("AppShell", () => {
       screen.getByRole("button", { name: "ナビゲーションを開く" }),
     );
     const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByRole("link", { name: "ヘルプ" }),
+    ).toHaveAttribute("href", "/help");
     await user.click(within(dialog).getByRole("link", { name: "日本文学史" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });

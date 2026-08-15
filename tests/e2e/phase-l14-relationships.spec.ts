@@ -159,9 +159,7 @@ test("creates, edits, renders across collapsible groups, and deletes a semantic 
   await expect(page.getByText("同時に追加する関係性")).toBeHidden();
 
   await page.getByRole("button", { name: "配置設定" }).click();
-  await page
-    .getByRole("menuitemcheckbox", { name: "タイムライン種別でグループ化" })
-    .click();
+  await page.getByRole("menuitemcheckbox", { name: "グループ化" }).click();
   await page.getByRole("button", { name: "表示", exact: true }).click();
   await page.getByRole("menuitemradio", { name: "すべて表示" }).click();
   const relationLine = page.getByRole("button", {
@@ -198,7 +196,6 @@ test("creates, edits, renders across collapsible groups, and deletes a semantic 
   await expect(page.getByTestId("relationship-popover")).toBeHidden();
   await expect(relationshipStroke).toHaveAttribute("stroke", "#007F7F");
   await page.getByRole("button", { name: `${itemTypes[1]!.name} 1件` }).click();
-  await page.getByRole("button", { name: "タイムライン操作を開く" }).click();
   await page.getByRole("button", { name: "全体に合わせる" }).click();
   await expect(page.getByTestId("relationship-layer")).toHaveAttribute(
     "data-visible-count",

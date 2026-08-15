@@ -1,5 +1,19 @@
 import { expect, test } from "@playwright/test";
 
+const helpTopics = [
+  "timeline",
+  "timeline-items",
+  "events",
+  "classification",
+  "filters",
+  "relationships",
+  "backgrounds",
+  "comparison",
+  "sharing",
+  "import-export",
+  "keyboard",
+] as const;
+
 test("opens the static help index and Markdown reference", async ({ page }) => {
   expect((await page.request.get("/help")).status()).toBe(200);
   const helpResponse = await page.goto("/help");
@@ -7,6 +21,15 @@ test("opens the static help index and Markdown reference", async ({ page }) => {
   await expect(
     page.getByRole("heading", { level: 1, name: "ヘルプ" }),
   ).toBeVisible();
+  for (const topic of helpTopics) {
+    expect((await page.request.get(`/help/${topic}`)).status()).toBe(200);
+  }
+  await page.getByRole("link", { name: "タイムラインの表示と移動" }).click();
+  await expect(page).toHaveURL(/\/help\/timeline$/);
+  await expect(
+    page.getByRole("heading", { level: 2, name: "移動と拡大・縮小" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "ヘルプ一覧へ戻る" }).click();
 
   expect((await page.request.get("/help/markdown")).status()).toBe(200);
   await page.getByRole("link", { name: "Markdown記法" }).click();

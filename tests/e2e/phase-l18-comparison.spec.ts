@@ -140,21 +140,11 @@ test("compares more than three projects inside timeline with synchronized intera
 
   const viewports = page.getByTestId("timeline-viewport");
   await expect(viewports).toHaveCount(5);
-  const regions = stack.getByRole("region");
-  await regions
-    .nth(0)
-    .getByRole("button", { name: "タイムライン操作を開く" })
-    .click();
-  await regions
-    .nth(1)
-    .getByRole("button", { name: "タイムライン操作を開く" })
-    .click();
-  const firstZoom = regions.nth(0).getByLabel("ズーム段階");
-  const secondZoom = regions.nth(1).getByLabel("ズーム段階");
+  const firstZoom = page.getByLabel("ズーム段階");
+  await expect(page.getByLabel("ズーム段階")).toHaveCount(1);
   const initialZoom = Number(await firstZoom.inputValue());
-  await regions.nth(0).getByRole("button", { name: "拡大" }).click();
+  await page.getByRole("button", { name: "拡大" }).click();
   await expect(firstZoom).toHaveValue(String(initialZoom + 1));
-  await expect(secondZoom).toHaveValue(String(initialZoom + 1));
   await viewports.first().evaluate((element) => {
     element.scrollLeft = 180;
     element.dispatchEvent(new Event("scroll", { bubbles: true }));
@@ -179,9 +169,43 @@ test("compares more than three projects inside timeline with synchronized intera
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Space");
   } else {
-    await firstHandle.dragTo(secondHandle);
+    const [firstBox, secondBox] = await Promise.all([
+      firstHandle.boundingBox(),
+      secondHandle.boundingBox(),
+    ]);
+    if (!firstBox || !secondBox)
+      throw new Error("Comparison reorder handles are required.");
+    await page.mouse.move(
+      firstBox.x + firstBox.width / 2,
+      firstBox.y + firstBox.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      firstBox.x + firstBox.width / 2 + 12,
+      firstBox.y + firstBox.height / 2,
+      { steps: 4 },
+    );
+    await page.mouse.move(
+      secondBox.x + secondBox.width / 2,
+      secondBox.y + secondBox.height - 2,
+      { steps: 12 },
+    );
+    await page.mouse.up();
   }
+  await expect(
+    dialog.getByTestId("comparison-selected-projects"),
+  ).toHaveAttribute(
+    "data-draft-order",
+    [projectIds[2], projectIds[1], projectIds[3], projectIds[4]].join(","),
+  );
+  await expect(
+    dialog.getByRole("button", { name: /を並べ替え/ }).first(),
+  ).toHaveAccessibleName("比較プロジェクト3を並べ替え");
   await dialog.getByRole("button", { name: "4件を比較" }).click();
+  await expect(stack).toHaveAttribute(
+    "data-project-order",
+    [projectIds[2], projectIds[1], projectIds[3], projectIds[4]].join(","),
+  );
   await expect(stack.getByRole("region").nth(1)).toHaveAttribute(
     "aria-label",
     "比較プロジェクト3のタイムライン",

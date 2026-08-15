@@ -279,7 +279,7 @@ test("edits and adds rows in the Notion-style table view", async ({ page }) => {
   await page.getByRole("button", { name: "配置設定" }).click();
   await page
     .getByRole("menuitemcheckbox", {
-      name: "タイムライン種別でグループ化",
+      name: "グループ化",
     })
     .click();
   await expect(

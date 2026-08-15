@@ -118,7 +118,6 @@ test("creates an event from a row and preserves the timeline in URL overlays", a
   };
 
   await page.goto(`/projects/${project.id}/timeline`);
-  await page.getByRole("button", { name: "タイムライン操作を開く" }).click();
   await page.getByRole("button", { name: "アイテムを追加" }).click();
   await page.getByRole("menuitem", { name: "イベントを追加" }).click();
   const sideForm = page.getByRole("form", { name: "イベントアイテム作成" });

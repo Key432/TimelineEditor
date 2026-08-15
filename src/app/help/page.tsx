@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { HELP_TOPICS } from "@/features/help/help-topics";
 
 export const metadata: Metadata = {
   title: "ヘルプ",
@@ -25,6 +26,23 @@ export default function HelpPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
+        {HELP_TOPICS.map((topic) => (
+          <Link
+            key={topic.slug}
+            className="rounded-xl focus-visible:outline-offset-4"
+            href={`/help/${topic.slug}`}
+          >
+            <Card className="h-full transition-colors hover:bg-accent/40">
+              <CardHeader>
+                <CardTitle>{topic.title}</CardTitle>
+                <CardDescription>{topic.summary}</CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm font-medium text-primary">
+                ヘルプを開く
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
         <Link
           className="rounded-xl focus-visible:outline-offset-4"
           href="/help/markdown"
@@ -42,10 +60,6 @@ export default function HelpPage() {
           </Card>
         </Link>
       </div>
-
-      <p className="text-sm text-muted-foreground">
-        その他のヘルプは今後追加予定です。
-      </p>
     </div>
   );
 }

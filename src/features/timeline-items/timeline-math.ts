@@ -10,13 +10,20 @@ import type {
   TimelineItemSummary,
 } from "@/features/timeline-items/types";
 
-export const ZOOM_PIXELS_PER_DAY = [0, 0.03, 0.18, 1.4, 9, 36] as const;
+export const ZOOM_PIXELS_PER_DAY = [
+  0, 0.015, 0.03, 0.075, 0.18, 0.5, 1.4, 3.5, 9, 18, 36,
+] as const;
 export const ZOOM_LABELS = [
   "全体表示",
+  "世紀・広域",
   "世紀",
+  "十年・広域",
   "十年",
+  "年・広域",
   "年",
+  "月・広域",
   "月",
+  "日・広域",
   "日",
 ] as const;
 
@@ -174,10 +181,15 @@ function pushYearTicks(
   }
 }
 
-function spacingStep(pixelsPerUnit: number, candidates: readonly number[]) {
+function spacingStep(
+  pixelsPerUnit: number,
+  candidates: readonly number[],
+  labelSpacingPx = 80,
+) {
   return (
-    candidates.find((candidate) => candidate * pixelsPerUnit >= 80) ??
-    candidates.at(-1)!
+    candidates.find(
+      (candidate) => candidate * pixelsPerUnit >= labelSpacingPx,
+    ) ?? candidates.at(-1)!
   );
 }
 
@@ -202,6 +214,7 @@ export function generateTimelineTicks(
   visibleEndOrdinal: number,
   pixelsPerDay: number,
   minimumTimeUnit: "year" | "month" | "day" = "day",
+  labelSpacingPx = 80,
 ): { unit: TickUnit; ticks: TimelineTick[] } {
   const start = historicalDateFromOrdinal(visibleStartOrdinal);
   const end = historicalDateFromOrdinal(visibleEndOrdinal);
@@ -212,13 +225,29 @@ export function generateTimelineTicks(
 
   if (unit === "century") {
     const yearPixels = pixelsPerDay * DAYS_PER_YEAR;
-    const majorStep = spacingStep(yearPixels, [100, 200, 500, 1000]);
-    const minorStep = spacingStep(yearPixels * 5, [20, 50, 100, 200]);
+    const majorStep = spacingStep(
+      yearPixels,
+      [100, 200, 500, 1000],
+      labelSpacingPx,
+    );
+    const minorStep = spacingStep(
+      yearPixels * 5,
+      [20, 50, 100, 200],
+      labelSpacingPx,
+    );
     pushYearTicks(ticks, startYear, endYear, minorStep, majorStep);
   } else if (unit === "decade") {
     const yearPixels = pixelsPerDay * DAYS_PER_YEAR;
-    const majorStep = spacingStep(yearPixels, [2, 5, 10, 20, 50]);
-    const minorStep = spacingStep(yearPixels * 5, [1, 2, 5, 10]);
+    const majorStep = spacingStep(
+      yearPixels,
+      [2, 5, 10, 20, 50],
+      labelSpacingPx,
+    );
+    const minorStep = spacingStep(
+      yearPixels * 5,
+      [1, 2, 5, 10],
+      labelSpacingPx,
+    );
     pushYearTicks(
       ticks,
       startYear,
@@ -227,7 +256,11 @@ export function generateTimelineTicks(
       majorStep,
     );
   } else if (unit === "year") {
-    const labelEvery = spacingStep(pixelsPerDay * 30.436875, [1, 3, 6, 12]);
+    const labelEvery = spacingStep(
+      pixelsPerDay * 30.436875,
+      [1, 2, 3, 6, 12],
+      labelSpacingPx,
+    );
     let year = startYear;
     let month = start.month ?? 1;
     while (year < endYear || (year === endYear && month <= (end.month ?? 12))) {
@@ -248,12 +281,22 @@ export function generateTimelineTicks(
       }
     }
   } else if (unit === "month") {
+    const labelEvery = spacingStep(
+      pixelsPerDay * 30.436875,
+      [1, 2, 3, 6, 12],
+      labelSpacingPx,
+    );
     let year = startYear;
     let month = start.month ?? 1;
     while (year < endYear || (year === endYear && month <= (end.month ?? 12))) {
       ticks.push({
         ordinal: historicalDateOrdinal(dateAtAstronomicalYear(year, month)),
-        label: month === 1 ? yearLabel(year) : `${month}月`,
+        label:
+          month === 1
+            ? yearLabel(year)
+            : (month - 1) % labelEvery === 0
+              ? `${month}月`
+              : "",
         major: month === 1,
       });
       month += 1;
@@ -263,6 +306,11 @@ export function generateTimelineTicks(
       }
     }
   } else {
+    const labelEvery = spacingStep(
+      pixelsPerDay,
+      [1, 2, 3, 5, 7, 10, 15, 30],
+      labelSpacingPx,
+    );
     let ordinal = historicalDateOrdinal(start);
     const last = historicalDateOrdinal(end, "end");
     while (ordinal <= last) {
@@ -272,11 +320,7 @@ export function generateTimelineTicks(
         ordinal,
         label: major
           ? formatHistoricalDate({ ...date, precision: "month", day: null })
-          : date.day === 5 ||
-              date.day === 10 ||
-              date.day === 15 ||
-              date.day === 20 ||
-              date.day === 25
+          : ((date.day ?? 1) - 1) % labelEvery === 0
             ? String(date.day)
             : "",
         major,

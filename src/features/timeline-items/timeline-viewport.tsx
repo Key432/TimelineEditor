@@ -20,9 +20,9 @@ import {
   MoreVertical,
   Pencil,
   Plus,
-  Settings2,
   SlidersHorizontal,
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import {
   useCallback,
   useEffect,
@@ -134,11 +134,11 @@ function zoomLevelForInitialPreset(
     case "fit-range":
       return 0;
     case "century":
-      return 1;
-    case "decade":
       return 2;
+    case "decade":
+      return 4;
     case "year":
-      return 3;
+      return 6;
   }
 }
 
@@ -838,6 +838,7 @@ export function TimelineViewport({
   hideAxisHeader = false,
   hideFooter = false,
   seamless = false,
+  controlsContainer = null,
 }: {
   project: Project;
   groups: TimelineDisplayGroup[];
@@ -865,6 +866,7 @@ export function TimelineViewport({
   hideAxisHeader?: boolean;
   hideFooter?: boolean;
   seamless?: boolean;
+  controlsContainer?: HTMLElement | null;
 }) {
   const dimmed = dimmedItemIds ?? EMPTY_ID_SET;
   const highlightedEvents = highlightedEventIds ?? EMPTY_ID_SET;
@@ -908,8 +910,6 @@ export function TimelineViewport({
     endOrdinal: number;
   } | null>(null);
   const [timeSlicerVisible, setTimeSlicerVisible] = useState(false);
-  const [floatingControlsExpanded, setFloatingControlsExpanded] =
-    useState(false);
   const zoomLevel = useTimelineStore((state) => state.zoomLevel);
   const setZoomLevel = useTimelineStore((state) => state.setZoomLevel);
   const scrollLeft = useTimelineStore((state) => state.scrollLeft);
@@ -1627,10 +1627,12 @@ export function TimelineViewport({
         visibleEndOrdinal,
         pixelsPerDay,
         project.settings.minimumTimeUnit,
+        Math.max(72, Math.min(120, timelineViewportWidth / 10)),
       ),
     [
       pixelsPerDay,
       project.settings.minimumTimeUnit,
+      timelineViewportWidth,
       visibleEndOrdinal,
       visibleStartOrdinal,
     ],
@@ -2102,37 +2104,12 @@ export function TimelineViewport({
               />
             </div>
           ) : null}
-          <div
-            className="pointer-events-none absolute bottom-3 left-3 z-50 flex flex-col-reverse items-end gap-2 sm:left-auto sm:w-[40rem]"
-            data-testid="timeline-floating-panels"
-            style={{
-              right: (layoutMode === "row" ? actionWidth : 0) + 12,
-              maxWidth: `calc(100% - ${
-                (layoutMode === "row" ? actionWidth : 0) + 24
-              }px)`,
-            }}
-          >
-            <Button
-              aria-expanded={floatingControlsExpanded}
-              aria-label={
-                floatingControlsExpanded
-                  ? "タイムライン操作を閉じる"
-                  : "タイムライン操作を開く"
-              }
-              className="pointer-events-auto size-11 rounded-full border bg-card shadow-lg"
-              size="icon"
-              type="button"
-              variant="outline"
-              onClick={() =>
-                setFloatingControlsExpanded((expanded) => !expanded)
-              }
-            >
-              <Settings2 aria-hidden="true" />
-            </Button>
-            {floatingControlsExpanded ? (
+        </div>
+        {controlsContainer
+          ? createPortal(
               <div
-                className="pointer-events-auto flex max-w-full flex-wrap items-center justify-end gap-1 rounded-lg border bg-card/95 p-1.5 shadow-lg backdrop-blur-sm"
-                data-testid="timeline-floating-controls"
+                className="flex flex-wrap items-center justify-end gap-1"
+                data-testid="timeline-toolbar-controls"
               >
                 <div className="flex h-8 items-center gap-1 rounded-md bg-muted/70 p-1">
                   <Button
@@ -2203,93 +2180,125 @@ export function TimelineViewport({
                     </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button
-                  aria-label="期間強調表示"
-                  aria-pressed={timeSlicerVisible}
-                  size="sm"
-                  variant={timeSlicerVisible ? "secondary" : "ghost"}
-                  onClick={() => setTimeSlicerVisible((visible) => !visible)}
+                <div
+                  className="relative"
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") setTimeSlicerVisible(false);
+                  }}
                 >
-                  <Clock3 aria-hidden="true" className="size-4" />
-                  期間強調
-                </Button>
-              </div>
-            ) : null}
-            {floatingControlsExpanded && timeSlicerVisible ? (
-              <section
-                aria-label="期間強調"
-                className="pointer-events-auto w-full space-y-2 rounded-lg border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm"
-                data-testid="timeline-time-slicer"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <span className="font-medium">強調する期間</span>
-                  <span className="text-muted-foreground">
-                    {formatHistoricalDate(
-                      historicalDateFromOrdinal(timeSliceStart),
-                    )}{" "}
-                    —{" "}
-                    {formatHistoricalDate(
-                      historicalDateFromOrdinal(timeSliceEnd),
-                    )}
-                  </span>
                   <Button
-                    className="h-7 px-2"
-                    disabled={timeSlice === null}
+                    aria-controls="timeline-time-slicer"
+                    aria-label="期間強調表示"
+                    aria-expanded={timeSlicerVisible}
+                    aria-pressed={timeSlicerVisible}
                     size="sm"
-                    variant="ghost"
-                    onClick={() => setTimeSlice(null)}
+                    variant={timeSlicerVisible ? "secondary" : "ghost"}
+                    onClick={() => setTimeSlicerVisible((visible) => !visible)}
                   >
-                    全期間に戻す
+                    <Clock3 aria-hidden="true" className="size-4" />
+                    期間強調
                   </Button>
+                  {timeSlicerVisible ? (
+                    <section
+                      id="timeline-time-slicer"
+                      aria-label="期間強調"
+                      className="absolute top-[calc(100%+0.5rem)] right-0 z-[100] w-[min(34rem,calc(100vw-2rem))] space-y-3 rounded-lg border bg-card px-3 py-3 shadow-lg"
+                      data-testid="timeline-time-slicer"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <span className="font-medium">強調する期間</span>
+                        <span className="text-muted-foreground">
+                          {formatHistoricalDate(
+                            historicalDateFromOrdinal(timeSliceStart),
+                          )}{" "}
+                          —{" "}
+                          {formatHistoricalDate(
+                            historicalDateFromOrdinal(timeSliceEnd),
+                          )}
+                        </span>
+                        <Button
+                          className="h-7 px-2"
+                          disabled={timeSlice === null}
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setTimeSlice(null)}
+                        >
+                          全期間に戻す
+                        </Button>
+                      </div>
+                      <div
+                        className="relative h-7"
+                        data-testid="timeline-highlight-range"
+                      >
+                        <div className="absolute top-1/2 right-0 left-0 h-1.5 -translate-y-1/2 rounded-full bg-muted" />
+                        <div
+                          className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-primary"
+                          style={{
+                            left: `${((timeSliceStart - bounds.domainStart) / (bounds.domainEnd - bounds.domainStart)) * 100}%`,
+                            right: `${100 - ((timeSliceEnd - bounds.domainStart) / (bounds.domainEnd - bounds.domainStart)) * 100}%`,
+                          }}
+                        />
+                        <label
+                          className="sr-only"
+                          htmlFor="timeline-highlight-start"
+                        >
+                          強調期間の始点
+                        </label>
+                        <input
+                          aria-label="強調期間の始点"
+                          className="dual-range-input"
+                          id="timeline-highlight-start"
+                          max={Math.floor(bounds.domainEnd)}
+                          min={Math.ceil(bounds.domainStart)}
+                          step={1}
+                          type="range"
+                          value={Math.round(timeSliceStart)}
+                          onChange={(event) =>
+                            setTimeSlice({
+                              startOrdinal: Math.min(
+                                Number(event.target.value),
+                                timeSliceEnd,
+                              ),
+                              endOrdinal: timeSliceEnd,
+                            })
+                          }
+                        />
+                        <label
+                          className="sr-only"
+                          htmlFor="timeline-highlight-end"
+                        >
+                          強調期間の終点
+                        </label>
+                        <input
+                          aria-label="強調期間の終点"
+                          className="dual-range-input"
+                          id="timeline-highlight-end"
+                          max={Math.floor(bounds.domainEnd)}
+                          min={Math.ceil(bounds.domainStart)}
+                          step={1}
+                          type="range"
+                          value={Math.round(timeSliceEnd)}
+                          onChange={(event) =>
+                            setTimeSlice({
+                              startOrdinal: timeSliceStart,
+                              endOrdinal: Math.max(
+                                Number(event.target.value),
+                                timeSliceStart,
+                              ),
+                            })
+                          }
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        1本のバーの左右のつまみを動かして期間を指定します。
+                      </p>
+                    </section>
+                  ) : null}
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="grid grid-cols-[3rem_1fr] items-center gap-2 text-xs text-muted-foreground">
-                    始点
-                    <input
-                      aria-label="強調期間の始点"
-                      className="w-full accent-primary"
-                      max={Math.floor(timeSliceEnd)}
-                      min={Math.ceil(bounds.domainStart)}
-                      step={1}
-                      type="range"
-                      value={Math.round(timeSliceStart)}
-                      onChange={(event) =>
-                        setTimeSlice({
-                          startOrdinal: Math.min(
-                            Number(event.target.value),
-                            timeSliceEnd,
-                          ),
-                          endOrdinal: timeSliceEnd,
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="grid grid-cols-[3rem_1fr] items-center gap-2 text-xs text-muted-foreground">
-                    終点
-                    <input
-                      aria-label="強調期間の終点"
-                      className="w-full accent-primary"
-                      max={Math.floor(bounds.domainEnd)}
-                      min={Math.ceil(timeSliceStart)}
-                      step={1}
-                      type="range"
-                      value={Math.round(timeSliceEnd)}
-                      onChange={(event) =>
-                        setTimeSlice({
-                          startOrdinal: timeSliceStart,
-                          endOrdinal: Math.max(
-                            Number(event.target.value),
-                            timeSliceStart,
-                          ),
-                        })
-                      }
-                    />
-                  </label>
-                </div>
-              </section>
-            ) : null}
-          </div>
-        </div>
+              </div>,
+              controlsContainer,
+            )
+          : null}
         {!hideFooter ? (
           <p className="text-xs text-muted-foreground">
             {layoutMode === "compact"

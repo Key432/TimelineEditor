@@ -12,6 +12,8 @@ import {
   timelineItemVisualBounds,
   uncertaintyWidth,
   xToDate,
+  ZOOM_LABELS,
+  ZOOM_PIXELS_PER_DAY,
 } from "@/features/timeline-items/timeline-math";
 import type { TimelineItemSummary } from "@/features/timeline-items/types";
 
@@ -67,6 +69,17 @@ describe("timeline date coordinates", () => {
 });
 
 describe("timeline ticks and uncertainty", () => {
+  it("provides intermediate zoom levels between the original presets", () => {
+    expect(ZOOM_LABELS).toHaveLength(11);
+    expect(ZOOM_PIXELS_PER_DAY).toHaveLength(11);
+    expect(ZOOM_PIXELS_PER_DAY[0]).toBe(0);
+    for (let index = 2; index < ZOOM_PIXELS_PER_DAY.length; index += 1) {
+      expect(ZOOM_PIXELS_PER_DAY[index]).toBeGreaterThan(
+        ZOOM_PIXELS_PER_DAY[index - 1]!,
+      );
+    }
+  });
+
   it("selects century, decade, year, month, and day granularity", () => {
     expect(chooseTickUnit(0.01)).toBe("century");
     expect(chooseTickUnit(0.1)).toBe("decade");
@@ -85,6 +98,23 @@ describe("timeline ticks and uncertainty", () => {
       month: 2,
       day: 29,
     });
+  });
+
+  it("adds non-overlapping daily labels according to the available width", () => {
+    const start = historicalDateOrdinal({ year: 2000, month: 2, day: 1 });
+    const labels = generateTimelineTicks(
+      start,
+      start + 12,
+      36,
+      "day",
+      96,
+    ).ticks.filter((tick) => tick.label);
+    expect(labels.length).toBeGreaterThan(3);
+    for (let index = 1; index < labels.length; index += 1) {
+      expect(
+        (labels[index]!.ordinal - labels[index - 1]!.ordinal) * 36,
+      ).toBeGreaterThanOrEqual(96);
+    }
   });
 
   it("does not exceed the project's minimum time unit", () => {

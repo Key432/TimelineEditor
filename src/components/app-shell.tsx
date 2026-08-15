@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
-import { LogOut, Menu, PanelLeftClose } from "lucide-react";
+import { CircleHelp, LogOut, Menu, PanelLeftClose } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -93,6 +93,14 @@ export function AppShell({
                 initialProjects={projects}
                 onNavigate={() => setMobileNavigationOpen(false)}
               />
+              <Link
+                className="mt-5 flex items-center gap-2 border-t pt-4 text-sm font-medium text-muted-foreground hover:text-foreground"
+                href="/help"
+                onClick={() => setMobileNavigationOpen(false)}
+              >
+                <CircleHelp aria-hidden="true" className="size-4" />
+                ヘルプ
+              </Link>
             </div>
           </SheetContent>
         </Sheet>
@@ -127,7 +135,7 @@ export function AppShell({
         }`}
       >
         <aside
-          className={`hidden border-r bg-sidebar lg:block ${collapsed ? "p-2" : "p-4"}`}
+          className={`hidden h-full flex-col border-r bg-sidebar lg:flex ${collapsed ? "p-2" : "p-4"}`}
           data-collapsed={collapsed}
         >
           <div className="mb-5 flex items-center justify-between px-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -147,9 +155,19 @@ export function AppShell({
               <PanelLeftClose aria-hidden="true" className="size-4" />
             </Button>
           </div>
-          <div className={collapsed ? "hidden" : ""}>
+          <div className={collapsed ? "hidden" : "min-h-0 flex-1"}>
             <ProjectNavigation initialProjects={projects} />
           </div>
+          <Link
+            aria-label={collapsed ? "ヘルプ" : undefined}
+            className={`mt-auto flex items-center rounded-md text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+              collapsed ? "justify-center p-2" : "gap-2 border-t px-2 pt-4"
+            }`}
+            href="/help"
+          >
+            <CircleHelp aria-hidden="true" className="size-4 shrink-0" />
+            {collapsed ? <span className="sr-only">ヘルプ</span> : "ヘルプ"}
+          </Link>
         </aside>
         <main className="min-w-0 p-4 sm:p-6 lg:min-h-0 lg:overflow-y-auto lg:p-6">
           <div className="mx-auto h-full w-full max-w-[1600px]">{children}</div>

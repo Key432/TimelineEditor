@@ -305,6 +305,8 @@ function TimelineWorkspaceContent({
   );
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [timelineControlsContainer, setTimelineControlsContainer] =
+    useState<HTMLDivElement | null>(null);
   const clientReady = useSyncExternalStore(
     () => () => undefined,
     () => true,
@@ -800,7 +802,7 @@ function TimelineWorkspaceContent({
                     setGroupByType(checked === true)
                   }
                 >
-                  タイムライン種別でグループ化
+                  グループ化
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -900,7 +902,14 @@ function TimelineWorkspaceContent({
             }}
             onToggleMaximized={() => setIsMaximized((value) => !value)}
           />
-          <Badge className="ml-auto" variant="outline">
+          {workspaceView === "timeline" ? (
+            <div
+              ref={setTimelineControlsContainer}
+              className="relative ml-auto flex flex-wrap items-center justify-end gap-1"
+              data-testid="timeline-controls-slot"
+            />
+          ) : null}
+          <Badge variant="outline">
             {workspaceView === "network"
               ? `${items.length + events.length}ノード`
               : activeFilters
@@ -1016,6 +1025,7 @@ function TimelineWorkspaceContent({
                 hideAxisHeader={hideAxisHeader}
                 hideFooter={hideFooter}
                 seamless={seamless}
+                controlsContainer={timelineControlsContainer}
                 sortDisabled={
                   readOnly || sortMode !== "manual" || layoutMode === "compact"
                 }

@@ -21,9 +21,6 @@ const admin = createClient(url, serviceRoleKey, {
 
 async function chooseDensity(page: Page, name: "標準" | "高密度") {
   const settings = page.getByRole("button", { name: "表示密度設定" });
-  if (!(await settings.isVisible())) {
-    await page.getByRole("button", { name: "タイムライン操作を開く" }).click();
-  }
   await settings.click();
   await page.getByRole("menuitemradio", { name }).click();
 }
@@ -34,9 +31,7 @@ async function chooseLayout(page: Page, name: "行表示" | "コンパクト") {
 
 async function toggleTypeGrouping(page: Page) {
   await page.getByRole("button", { name: "配置設定" }).click();
-  await page
-    .getByRole("menuitemcheckbox", { name: "タイムライン種別でグループ化" })
-    .click();
+  await page.getByRole("menuitemcheckbox", { name: "グループ化" }).click();
 }
 
 test.beforeAll(async () => {
@@ -244,7 +239,7 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await page.getByRole("button", { name: "配置設定" }).click();
   await page
     .getByRole("menuitemcheckbox", {
-      name: "タイムライン種別でグループ化",
+      name: "グループ化",
     })
     .click();
   const typeGroup = page.getByRole("button", { name: /出来事 1件/ });
@@ -511,8 +506,8 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(page.getByRole("dialog")).toContainText("タイムラインアイテム");
   await page.goBack();
 
-  await page.getByRole("button", { name: "タイムライン操作を開く" }).click();
   const zoomSlider = page.getByLabel("ズーム段階");
+  await expect(zoomSlider).toHaveAttribute("max", "10");
   const viewport = page.getByTestId("timeline-viewport");
   await viewport.dispatchEvent("wheel", {
     altKey: true,
@@ -580,16 +575,12 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   );
   await page.getByRole("button", { name: "全体に合わせる" }).click();
   await expect(zoomSlider).toHaveValue("0");
-  await expect(page.getByTestId("timeline-floating-controls")).toBeVisible();
+  await expect(page.getByTestId("timeline-toolbar-controls")).toBeVisible();
   await expect(page.getByTestId("timeline-time-slicer")).toHaveCount(0);
   const timeSlicerToggle = page.getByRole("button", {
     name: "期間強調表示",
   });
   await expect(timeSlicerToggle).toHaveAttribute("aria-pressed", "false");
-  await expect(page.getByTestId("timeline-floating-panels")).toHaveCSS(
-    "position",
-    "absolute",
-  );
   await expect(page.getByText("全期間ミニマップ")).toHaveCount(0);
   await timeSlicerToggle.click();
   await expect(timeSlicerToggle).toHaveAttribute("aria-pressed", "true");
@@ -628,21 +619,15 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   expect(highlightLayerRect.right).toBeLessThanOrEqual(
     fixedColumnRects[2].left,
   );
-  const floatingControlsRect = await page
-    .getByTestId("timeline-floating-controls")
-    .evaluate((element) => {
-      const rect = element.getBoundingClientRect();
-      return { right: rect.right };
-    });
-  expect(floatingControlsRect.right).toBeLessThanOrEqual(
-    fixedColumnRects[2].left - 8,
-  );
+  await expect(page.getByTestId("timeline-highlight-range")).toBeVisible();
   await timeSlicerToggle.click();
   await expect(timeSlicerToggle).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByTestId("timeline-time-slicer")).toHaveCount(0);
   await expect(page.getByTestId("time-slice-before")).toHaveCount(0);
   await timeSlicerToggle.click();
   await expect(page.getByTestId("timeline-time-slicer")).toBeVisible();
+  await timeSlicerToggle.click();
+  await expect(page.getByTestId("timeline-time-slicer")).toHaveCount(0);
   await viewport.hover({ position: { x: 620, y: 100 } });
   await expect(page.getByTestId("timeline-pointer-guide")).toBeVisible();
 
