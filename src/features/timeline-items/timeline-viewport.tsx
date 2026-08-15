@@ -75,7 +75,10 @@ import {
   uncertaintyWidth,
   ZOOM_LABELS,
 } from "@/features/timeline-items/timeline-math";
-import { useTimelineStore } from "@/features/timeline-items/timeline-store";
+import {
+  type TimelineDomain,
+  useTimelineStore,
+} from "@/features/timeline-items/timeline-store";
 import type {
   HistoricalDate,
   TimelineLayoutMode,
@@ -831,6 +834,7 @@ export function TimelineViewport({
   relationshipEntities = [],
   relationshipDisplayMode,
   readOnly = false,
+  domain,
 }: {
   project: Project;
   groups: TimelineDisplayGroup[];
@@ -854,6 +858,7 @@ export function TimelineViewport({
   relationshipEntities: RelationshipEntityOption[];
   relationshipDisplayMode: RelationshipDisplayMode;
   readOnly?: boolean;
+  domain?: TimelineDomain;
 }) {
   const dimmed = dimmedItemIds ?? EMPTY_ID_SET;
   const highlightedEvents = highlightedEventIds ?? EMPTY_ID_SET;
@@ -891,10 +896,6 @@ export function TimelineViewport({
   const [viewportWidth, setViewportWidth] = useState(1120);
   const [viewportMeasured, setViewportMeasured] = useState(false);
   const [mobileLayout, setMobileLayout] = useState(false);
-  const [pointerGuide, setPointerGuide] = useState<{
-    left: number;
-    label: string;
-  } | null>(null);
   const [timeSlice, setTimeSlice] = useState<{
     startOrdinal: number;
     endOrdinal: number;
@@ -916,6 +917,10 @@ export function TimelineViewport({
   );
   const navigationRequest = useTimelineStore(
     (state) => state.navigationRequest,
+  );
+  const pointerOrdinal = useTimelineStore((state) => state.pointerOrdinal);
+  const setPointerOrdinal = useTimelineStore(
+    (state) => state.setPointerOrdinal,
   );
   const handleWidth = readOnly
     ? 0
@@ -980,6 +985,7 @@ export function TimelineViewport({
   );
 
   const bounds = useMemo(() => {
+    if (domain) return domain;
     const configuredStart = historicalDateOrdinal({
       year: project.settings.initialStartYear,
       month: 1,
@@ -1036,7 +1042,14 @@ export function TimelineViewport({
       fitStart,
       fitEnd,
     };
-  }, [allItems, backgroundLayers, currentDate, events, project.settings]);
+  }, [
+    allItems,
+    backgroundLayers,
+    currentDate,
+    domain,
+    events,
+    project.settings,
+  ]);
 
   const fitScale = fitPixelsPerDay(
     historicalDateFromOrdinal(bounds.fitStart),
@@ -1191,6 +1204,12 @@ export function TimelineViewport({
     },
     [canvasWidth, timelineViewportWidth],
   );
+  useLayoutEffect(() => {
+    const element = viewportRef.current;
+    if (!element || Math.abs(element.scrollLeft - scrollLeft) < 0.5) return;
+    element.scrollLeft = scrollLeft;
+    syncRelationshipClip(scrollLeft);
+  }, [scrollLeft, syncRelationshipClip]);
   const timeSliceStart = Math.max(
     bounds.domainStart,
     Math.min(timeSlice?.startOrdinal ?? bounds.domainStart, bounds.domainEnd),
@@ -1200,6 +1219,18 @@ export function TimelineViewport({
     Math.min(timeSlice?.endOrdinal ?? bounds.domainEnd, bounds.domainEnd),
   );
   const canvasOffset = layoutMode === "row" ? handleWidth + infoWidth : 0;
+  const pointerGuide =
+    pointerOrdinal === null
+      ? null
+      : {
+          left:
+            canvasOffset +
+            HORIZONTAL_PADDING +
+            (pointerOrdinal - bounds.domainStart) * pixelsPerDay,
+          label: formatHistoricalDate(
+            historicalDateFromOrdinal(pointerOrdinal),
+          ),
+        };
   const timeSliceStartX =
     canvasOffset +
     HORIZONTAL_PADDING +
@@ -1402,6 +1433,7 @@ export function TimelineViewport({
     const element = viewportRef.current;
     if (!element || !viewportMeasured) return;
     const pending = pendingZoomRef.current;
+    if (!pending) return;
     if (pending && "fit" in pending) {
       element.scrollLeft = Math.max(
         0,
@@ -1409,7 +1441,7 @@ export function TimelineViewport({
           (bounds.fitStart - bounds.domainStart) * pixelsPerDay -
           HORIZONTAL_PADDING,
       );
-    } else if (pending) {
+    } else {
       element.scrollLeft = scrollLeftAfterZoom(
         pending.oldScrollLeft,
         pending.cursorX,
@@ -1647,17 +1679,14 @@ export function TimelineViewport({
     const canvasOffset = layoutMode === "row" ? handleWidth + infoWidth : 0;
     const viewportX = event.clientX - rect.left - canvasOffset;
     if (viewportX < 0 || viewportX > timelineViewportWidth) {
-      setPointerGuide(null);
+      setPointerOrdinal(null);
       return;
     }
     const left = event.currentTarget.scrollLeft + canvasOffset + viewportX;
     const ordinal =
       bounds.domainStart +
       (left - canvasOffset - HORIZONTAL_PADDING) / pixelsPerDay;
-    setPointerGuide({
-      left,
-      label: formatHistoricalDate(historicalDateFromOrdinal(ordinal)),
-    });
+    setPointerOrdinal(ordinal);
 
     for (const marker of event.currentTarget.querySelectorAll<HTMLElement>(
       "[data-timeline-event-marker='true']",
@@ -1672,7 +1701,7 @@ export function TimelineViewport({
   }
 
   function clearPointerGuide(event: React.MouseEvent<HTMLDivElement>) {
-    setPointerGuide(null);
+    setPointerOrdinal(null);
     for (const marker of event.currentTarget.querySelectorAll<HTMLElement>(
       "[data-timeline-event-marker='true']",
     ))

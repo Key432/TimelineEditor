@@ -47,7 +47,7 @@ import {
   parseTimelineFilters,
   writeTimelineFilters,
 } from "@/features/timeline-items/timeline-filters";
-import { TimelineWorkspace } from "@/features/timeline-items/timeline-workspace";
+import { TimelineComparisonWorkspace } from "@/features/comparison/timeline-comparison-workspace";
 import { timelineItemKeys } from "@/features/timeline-items/api";
 import { cn } from "@/lib/utils";
 import { invalidateEventTypeDependents } from "@/features/classification/cache";
@@ -240,7 +240,7 @@ export function TimelinePageClient({
         </DropdownMenu>
       </header>
 
-      <TimelineWorkspace
+      <TimelineComparisonWorkspace
         key={activeProject.updatedAt}
         currentDate={currentDate}
         initialItems={initialItems}
@@ -251,7 +251,6 @@ export function TimelinePageClient({
         layoutMode={layoutMode}
         filters={filters}
         project={activeProject}
-        lazyLoadSupplementalData
         onFiltersChange={(nextFilters) => {
           const next = writeTimelineFilters(
             new URLSearchParams(searchParams.toString()),

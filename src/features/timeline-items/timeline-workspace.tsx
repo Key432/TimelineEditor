@@ -78,6 +78,8 @@ import {
   type TimelineFilters,
 } from "@/features/timeline-items/timeline-filters";
 import {
+  type TimelineDomain,
+  type TimelineStore,
   TimelineStoreProvider,
   useTimelineStore,
 } from "@/features/timeline-items/timeline-store";
@@ -245,6 +247,8 @@ function TimelineWorkspaceContent({
   filters,
   onFiltersChange,
   readOnly = false,
+  fixedLayoutMode = false,
+  timelineDomain,
 }: {
   project: Project;
   initialItems: TimelineItemSummary[];
@@ -261,6 +265,8 @@ function TimelineWorkspaceContent({
   filters: TimelineFilters;
   onFiltersChange?: (filters: TimelineFilters) => void;
   readOnly?: boolean;
+  fixedLayoutMode?: boolean;
+  timelineDomain?: TimelineDomain;
 }) {
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<"create" | string | null>(null);
@@ -637,79 +643,85 @@ function TimelineWorkspaceContent({
         {!readOnly ? (
           <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
         ) : null}
-        <div
-          aria-label="表示モード"
-          className="flex h-8 items-center rounded-lg bg-muted p-[3px]"
-          role="group"
-        >
-          <Button
-            aria-pressed={workspaceView === "timeline" && layoutMode === "row"}
-            className="h-6 rounded-md px-2"
-            size="sm"
-            variant={
-              workspaceView === "timeline" && layoutMode === "row"
-                ? "secondary"
-                : "ghost"
-            }
-            onClick={() => {
-              setWorkspaceView("timeline");
-              onLayoutModeChange?.("row");
-            }}
+        {fixedLayoutMode ? (
+          <Badge variant="secondary">コンパクト表示（比較中）</Badge>
+        ) : (
+          <div
+            aria-label="表示モード"
+            className="flex h-8 items-center rounded-lg bg-muted p-[3px]"
+            role="group"
           >
-            <Rows3 aria-hidden="true" />
-            行表示
-          </Button>
-          <Button
-            aria-pressed={
-              workspaceView === "timeline" && layoutMode === "compact"
-            }
-            className="h-6 rounded-md px-2"
-            size="sm"
-            variant={
-              workspaceView === "timeline" && layoutMode === "compact"
-                ? "secondary"
-                : "ghost"
-            }
-            onClick={() => {
-              setWorkspaceView("timeline");
-              onLayoutModeChange?.("compact");
-            }}
-          >
-            <LayoutGrid aria-hidden="true" />
-            コンパクト
-          </Button>
-          {!readOnly ? (
             <Button
               aria-pressed={
-                workspaceView === "timeline" && layoutMode === "table"
+                workspaceView === "timeline" && layoutMode === "row"
               }
               className="h-6 rounded-md px-2"
               size="sm"
               variant={
-                workspaceView === "timeline" && layoutMode === "table"
+                workspaceView === "timeline" && layoutMode === "row"
                   ? "secondary"
                   : "ghost"
               }
               onClick={() => {
                 setWorkspaceView("timeline");
-                onLayoutModeChange?.("table");
+                onLayoutModeChange?.("row");
               }}
             >
-              <Table2 aria-hidden="true" />
-              テーブル
+              <Rows3 aria-hidden="true" />
+              行表示
             </Button>
-          ) : null}
-          <Button
-            aria-pressed={workspaceView === "network"}
-            className="h-6 rounded-md px-2"
-            size="sm"
-            variant={workspaceView === "network" ? "secondary" : "ghost"}
-            onClick={() => setWorkspaceView("network")}
-          >
-            <Network aria-hidden="true" />
-            関連ネットワーク
-          </Button>
-        </div>
+            <Button
+              aria-pressed={
+                workspaceView === "timeline" && layoutMode === "compact"
+              }
+              className="h-6 rounded-md px-2"
+              size="sm"
+              variant={
+                workspaceView === "timeline" && layoutMode === "compact"
+                  ? "secondary"
+                  : "ghost"
+              }
+              onClick={() => {
+                setWorkspaceView("timeline");
+                onLayoutModeChange?.("compact");
+              }}
+            >
+              <LayoutGrid aria-hidden="true" />
+              コンパクト
+            </Button>
+            {!readOnly ? (
+              <Button
+                aria-pressed={
+                  workspaceView === "timeline" && layoutMode === "table"
+                }
+                className="h-6 rounded-md px-2"
+                size="sm"
+                variant={
+                  workspaceView === "timeline" && layoutMode === "table"
+                    ? "secondary"
+                    : "ghost"
+                }
+                onClick={() => {
+                  setWorkspaceView("timeline");
+                  onLayoutModeChange?.("table");
+                }}
+              >
+                <Table2 aria-hidden="true" />
+                テーブル
+              </Button>
+            ) : null}
+            <Button
+              aria-pressed={workspaceView === "network"}
+              className="h-6 rounded-md px-2"
+              size="sm"
+              variant={workspaceView === "network" ? "secondary" : "ghost"}
+              onClick={() => setWorkspaceView("network")}
+            >
+              <Network aria-hidden="true" />
+              関連ネットワーク
+            </Button>
+          </div>
+        )}
         {workspaceView === "timeline" ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -985,6 +997,7 @@ function TimelineWorkspaceContent({
                 project={project}
                 showItemType={!groupByType}
                 readOnly={readOnly}
+                domain={timelineDomain}
                 sortDisabled={
                   readOnly || sortMode !== "manual" || layoutMode === "compact"
                 }
@@ -1186,6 +1199,9 @@ export function TimelineWorkspace(props: {
   onFiltersChange?: (filters: TimelineFilters) => void;
   readOnly?: boolean;
   lazyLoadSupplementalData?: boolean;
+  fixedLayoutMode?: boolean;
+  timelineDomain?: TimelineDomain;
+  timelineStore?: TimelineStore;
 }) {
   const [uncontrolledLayoutMode, setUncontrolledLayoutMode] =
     useState<TimelineLayoutMode>(props.layoutMode ?? "row");
@@ -1218,7 +1234,10 @@ export function TimelineWorkspace(props: {
   }
 
   return (
-    <TimelineStoreProvider settings={props.project.settings}>
+    <TimelineStoreProvider
+      settings={props.project.settings}
+      store={props.timelineStore}
+    >
       <TimelineWorkspaceContent
         {...props}
         initialItems={data.items}

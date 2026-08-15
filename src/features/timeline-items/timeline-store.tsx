@@ -6,6 +6,13 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 
 import type { ProjectSettings } from "@/features/projects/types";
 
+export type TimelineDomain = {
+  domainStart: number;
+  domainEnd: number;
+  fitStart: number;
+  fitEnd: number;
+};
+
 type TimelineState = {
   zoomLevel: number;
   scrollLeft: number;
@@ -19,6 +26,7 @@ type TimelineState = {
   } | null;
   highlightRange: { startOrdinal: number; endOrdinal: number } | null;
   navigationRequest: { ordinal: number; nonce: number } | null;
+  pointerOrdinal: number | null;
   setZoomLevel: (zoomLevel: number) => void;
   setScrollLeft: (scrollLeft: number) => void;
   setDensity: (density: ProjectSettings["timelineDensity"]) => void;
@@ -26,6 +34,7 @@ type TimelineState = {
   setViewport: (viewport: NonNullable<TimelineState["viewport"]>) => void;
   setHighlightRange: (highlightRange: TimelineState["highlightRange"]) => void;
   navigateTo: (ordinal: number) => void;
+  setPointerOrdinal: (pointerOrdinal: number | null) => void;
 };
 
 function zoomLevelForPreset(preset: ProjectSettings["initialZoomPreset"]) {
@@ -41,7 +50,7 @@ function zoomLevelForPreset(preset: ProjectSettings["initialZoomPreset"]) {
   }
 }
 
-function createTimelineStore(settings: ProjectSettings) {
+export function createTimelineStore(settings: ProjectSettings) {
   return createStore<TimelineState>((set) => ({
     zoomLevel: zoomLevelForPreset(settings.initialZoomPreset),
     scrollLeft: 0,
@@ -50,6 +59,7 @@ function createTimelineStore(settings: ProjectSettings) {
     viewport: null,
     highlightRange: null,
     navigationRequest: null,
+    pointerOrdinal: null,
     setZoomLevel: (zoomLevel) => set({ zoomLevel }),
     setScrollLeft: (scrollLeft) =>
       set((state) =>
@@ -66,8 +76,11 @@ function createTimelineStore(settings: ProjectSettings) {
           nonce: (state.navigationRequest?.nonce ?? 0) + 1,
         },
       })),
+    setPointerOrdinal: (pointerOrdinal) => set({ pointerOrdinal }),
   }));
 }
+
+export type TimelineStore = StoreApi<TimelineState>;
 
 const TimelineStoreContext = createContext<StoreApi<TimelineState> | null>(
   null,
@@ -75,14 +88,16 @@ const TimelineStoreContext = createContext<StoreApi<TimelineState> | null>(
 
 export function TimelineStoreProvider({
   settings,
+  store: providedStore,
   children,
 }: {
   settings: ProjectSettings;
+  store?: TimelineStore;
   children: ReactNode;
 }) {
   const [store] = useState(() => createTimelineStore(settings));
   return (
-    <TimelineStoreContext.Provider value={store}>
+    <TimelineStoreContext.Provider value={providedStore ?? store}>
       {children}
     </TimelineStoreContext.Provider>
   );

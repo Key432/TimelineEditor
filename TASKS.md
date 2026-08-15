@@ -30,6 +30,6 @@
 - [L15後保守（完了・未使用コード整理／APIクライアント統合／補助データ遅延取得／管理UI分割済み）](docs/phases/post-l15-refactoring.md)
 - [L16（ユーザー判断により保留）](docs/phases/l16.md)
 - [L17（完了・行表示／コンパクト／関連ネットワークのSVG・PNG・PDF出力対応済み）](docs/phases/l17.md)
-- [L18（再設計中：旧比較ページ・保存ビューを撤去済み）](docs/phases/l18.md)
+- [L18（完了：タイムライン内の複数プロジェクト同期比較）](docs/phases/l18.md)
 - [L19](docs/phases/l19.md)
 - [L20](docs/phases/l20.md)
