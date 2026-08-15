@@ -305,8 +305,12 @@ function TimelineWorkspaceContent({
   );
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
-  const [timelineControlsContainer, setTimelineControlsContainer] =
+  const [timelineZoomControlsContainer, setTimelineZoomControlsContainer] =
     useState<HTMLDivElement | null>(null);
+  const [
+    timelineDisplayControlsContainer,
+    setTimelineDisplayControlsContainer,
+  ] = useState<HTMLDivElement | null>(null);
   const clientReady = useSyncExternalStore(
     () => () => undefined,
     () => true,
@@ -328,6 +332,8 @@ function TimelineWorkspaceContent({
   const backgroundLayers = initialBackgroundLayers;
   const relationshipData = initialRelationships;
   const exportViewport = useTimelineStore((state) => state.viewport);
+  const timelineDensity = useTimelineStore((state) => state.density);
+  const setTimelineDensity = useTimelineStore((state) => state.setDensity);
   const exportHighlightRange = useTimelineStore(
     (state) => state.highlightRange,
   );
@@ -623,7 +629,7 @@ function TimelineWorkspaceContent({
       data-testid="timeline-workspace"
     >
       {!hideToolbar ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2 shadow-xs">
+        <div className="styled-scrollbar flex flex-nowrap items-center gap-2 overflow-x-auto rounded-lg border bg-card p-2 shadow-xs">
           {!readOnly ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -653,6 +659,13 @@ function TimelineWorkspaceContent({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          ) : null}
+          {workspaceView === "timeline" ? (
+            <div
+              ref={setTimelineZoomControlsContainer}
+              className="relative flex shrink-0 items-center gap-1"
+              data-testid="timeline-zoom-controls-slot"
+            />
           ) : null}
           {!readOnly ? (
             <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
@@ -831,7 +844,7 @@ function TimelineWorkspaceContent({
                   表示
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-56">
+              <DropdownMenuContent align="start" className="w-80">
                 <DropdownMenuLabel>年代背景</DropdownMenuLabel>
                 {backgroundLayers.length === 0 ? (
                   <DropdownMenuItem disabled>
@@ -872,6 +885,27 @@ function TimelineWorkspaceContent({
                     すべて非表示
                   </DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>表示密度</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  aria-label="表示密度"
+                  value={timelineDensity}
+                  onValueChange={(value) =>
+                    setTimelineDensity(value as "compact" | "comfortable")
+                  }
+                >
+                  <DropdownMenuRadioItem value="comfortable">
+                    標準
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="compact">
+                    高密度
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <div
+                  ref={setTimelineDisplayControlsContainer}
+                  data-testid="timeline-display-controls-slot"
+                />
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
@@ -902,14 +936,7 @@ function TimelineWorkspaceContent({
             }}
             onToggleMaximized={() => setIsMaximized((value) => !value)}
           />
-          {workspaceView === "timeline" ? (
-            <div
-              ref={setTimelineControlsContainer}
-              className="relative ml-auto flex flex-wrap items-center justify-end gap-1"
-              data-testid="timeline-controls-slot"
-            />
-          ) : null}
-          <Badge variant="outline">
+          <Badge className="ml-auto" variant="outline">
             {workspaceView === "network"
               ? `${items.length + events.length}ノード`
               : activeFilters
@@ -1025,7 +1052,8 @@ function TimelineWorkspaceContent({
                 hideAxisHeader={hideAxisHeader}
                 hideFooter={hideFooter}
                 seamless={seamless}
-                controlsContainer={timelineControlsContainer}
+                displayControlsContainer={timelineDisplayControlsContainer}
+                zoomControlsContainer={timelineZoomControlsContainer}
                 sortDisabled={
                   readOnly || sortMode !== "manual" || layoutMode === "compact"
                 }

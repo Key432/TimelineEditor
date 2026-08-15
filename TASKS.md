@@ -31,6 +31,6 @@
 - [L16（ユーザー判断により保留）](docs/phases/l16.md)
 - [L17（完了・行表示／コンパクト／関連ネットワークのSVG・PNG・PDF出力対応済み）](docs/phases/l17.md)
 - [L18（完了：タイムライン内の複数プロジェクト同期比較／比較フィールド最適化）](docs/phases/l18.md)
-- [L18後UI最適化（完了：上部操作統合／目盛り・期間強調改善／静的ヘルプ拡充）](docs/phases/post-l18-ui-optimization.md)
+- [L18後UI最適化（完了：一行ツールバー／表示メニュー統合／目盛り・期間強調改善／静的ヘルプ拡充）](docs/phases/post-l18-ui-optimization.md)
 - [L19](docs/phases/l19.md)
 - [L20](docs/phases/l20.md)

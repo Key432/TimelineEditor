@@ -20,9 +20,11 @@ const admin = createClient(url, serviceRoleKey, {
 });
 
 async function chooseDensity(page: Page, name: "標準" | "高密度") {
-  const settings = page.getByRole("button", { name: "表示密度設定" });
-  await settings.click();
-  await page.getByRole("menuitemradio", { name }).click();
+  await page.getByRole("button", { name: "表示", exact: true }).click();
+  await page
+    .getByRole("group", { name: "表示密度" })
+    .getByRole("menuitemradio", { name })
+    .click();
 }
 
 async function chooseLayout(page: Page, name: "行表示" | "コンパクト") {
@@ -561,9 +563,6 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
     .poll(() => viewport.evaluate((element) => element.scrollLeft))
     .toBeGreaterThan(beforePan);
   await chooseDensity(page, "高密度");
-  await expect(
-    page.getByRole("button", { name: "表示密度設定" }),
-  ).toContainText("高密度");
   await expect(page.getByTestId(/^timeline-row-/).first()).toHaveCSS(
     "height",
     "44px",
@@ -580,6 +579,7 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   const timeSlicerToggle = page.getByRole("button", {
     name: "期間強調表示",
   });
+  await page.getByRole("button", { name: "表示", exact: true }).click();
   await expect(timeSlicerToggle).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByText("全期間ミニマップ")).toHaveCount(0);
   await timeSlicerToggle.click();
@@ -628,6 +628,7 @@ test("creates, draws, edits, groups, reorders, and deletes timeline items", asyn
   await expect(page.getByTestId("timeline-time-slicer")).toBeVisible();
   await timeSlicerToggle.click();
   await expect(page.getByTestId("timeline-time-slicer")).toHaveCount(0);
+  await page.keyboard.press("Escape");
   await viewport.hover({ position: { x: 620, y: 100 } });
   await expect(page.getByTestId("timeline-pointer-guide")).toBeVisible();
 

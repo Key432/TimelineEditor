@@ -128,8 +128,13 @@ async function toggleTypeGrouping(user: TestUser) {
 }
 
 async function chooseDensity(user: TestUser, name: "標準" | "高密度") {
-  await user.click(screen.getByRole("button", { name: "表示密度設定" }));
-  await user.click(screen.getByRole("menuitemradio", { name }));
+  await user.click(screen.getByRole("button", { name: /^表示$/ }));
+  await user.click(
+    within(screen.getByRole("group", { name: "表示密度" })).getByRole(
+      "menuitemradio",
+      { name },
+    ),
+  );
 }
 
 describe("TimelineWorkspace", () => {
@@ -274,12 +279,28 @@ describe("TimelineWorkspace", () => {
     );
 
     expect(screen.getByTestId("timeline-toolbar-controls")).toBeVisible();
+    const addButton = screen.getByRole("button", { name: "アイテムを追加" });
+    const zoomControls = screen.getByTestId("timeline-toolbar-controls");
+    const layoutControls = screen.getByRole("group", { name: "表示モード" });
+    expect(
+      addButton.compareDocumentPosition(zoomControls) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      zoomControls.compareDocumentPosition(layoutControls) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByLabelText("ズーム段階")).toHaveAttribute("max", "10");
     expect(
       screen.queryByRole("button", { name: "タイムライン操作を開く" }),
     ).toBeNull();
+    await user.click(screen.getByRole("button", { name: /^表示$/ }));
+    expect(screen.getByRole("group", { name: "表示密度" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "期間強調表示" }));
     expect(screen.getByRole("region", { name: "期間強調" })).toBeVisible();
+    expect(
+      screen.queryByText("1本のバーの左右のつまみを動かして期間を指定します。"),
+    ).toBeNull();
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("region", { name: "期間強調" })).toBeNull();
   });
